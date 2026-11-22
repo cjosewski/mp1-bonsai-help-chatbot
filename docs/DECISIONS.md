@@ -288,8 +288,10 @@ These were made by the assistant while building B2 and are open to Chad's review
   neighbouring sentence that no quote covered, the row now quotes that text (SF-002 the
   minimum-requirement sentence, SF-006 "For structural models", SF-007 the Project Info
   panel and "Create Project" button, SF-009 the panel's menu path, SF-010 the "prohibitively
-  large filesize" sentence), or the claim was reworded to its quote (SF-011). This is still
-  an assistant reading, checked by Chad at B3, not by a machine.
+  large filesize" sentence, SF-015 the installation page's "Blender 5.1 or 5.2" that its
+  conflict claim restates from SF-012), or the claim was reworded to its quote (SF-011). A
+  `doc_conflict` row quotes both sides itself rather than relying on its `conflicts_with`
+  rows. This is still an assistant reading, checked by Chad at B3, not by a machine.
 - **Profile values and split.** `ifc_schema` values are cited (SF-007) for a new project
   only, so the enum's basis is `partly cited` with `cited_for: ["new_project"]`, a basis
   value that must name its fact rows, its cited model states and a note; for opened and

@@ -1,5 +1,5 @@
 {
-  "digest": "6fba61c5da8fac2692eb11f2686006ca2cca652c3046de962faf75a60781ca66",
+  "digest": "7e1f4c73c0630e7003e73ca644f54de290ff57d1523ce4d542bead6aa8e8ccd5",
   "not_citable": [
     {"claim": "Bonsai 0.9.0-post1 supports Blender 5.3.", "reason": "No pinned text names Blender 5.3 with Bonsai 0.9.0-post1; the 0.9.0-post1 developer installation page lists Blender 5.1 or 5.2 (SF-012).", "wanted": "VL-current pairing (plan §2)"},
     {"claim": "Bonsai 0.8.5-post1 serves Blender 4.2 LTS.", "reason": "Only build metadata pairs them (src/bonsai/bonsai/blender_manifest.toml, blender_version_min); no snapshot selects it (the operator sources take .py files only) and it carries a contact address. The 0.8.5-post1 docs list Blender 4.3, 4.4, or 4.5 (SF-013).", "wanted": "VL-older pairing (plan §2, O-3 default)"},
@@ -905,13 +905,26 @@
           "record_id": "bonsai-docs:src/bonsai/docs/guides/troubleshooting.rst#L43-L93",
           "section_sha256": "4078e98753950774ff13a8a84fa893e087d7de6674a5278d7e1a32b3d1b08062",
           "source": "bonsai-docs"
+        },
+        {
+          "commit": "2744f8426bdef98a486406628a121298a5479690",
+          "heading_path": ["Installation", "System requirements"],
+          "line_end": 38,
+          "line_start": 16,
+          "path": "src/bonsai/docs/guides/development/installation.rst",
+          "pin_id": "bonsai-docs-00e02b1ec8e4c266",
+          "quote": "Blender 5.1 or 5.2 with Python 3.13",
+          "quote_line": 27,
+          "record_id": "bonsai-docs:src/bonsai/docs/guides/development/installation.rst#L16-L38",
+          "section_sha256": "315811542409f0f48ae094d296e32aad0792ee14c16f6d2b7e886d9249cf6133",
+          "source": "bonsai-docs"
         }
       ],
       "claim": "The 0.9.0-post1 troubleshooting page tells users who cannot install Bonsai to make sure they are using Blender 4.5, which disagrees with the same pin's developer installation page (Blender 5.1 or 5.2).",
       "conflicts_with": ["SF-012"],
       "drafted_on": "2026-11-22",
       "id": "SF-015",
-      "key_terms": ["Blender 4.5"],
+      "key_terms": ["Blender 4.5", "Blender 5.1 or 5.2"],
       "kind": "doc_conflict",
       "note": null,
       "review": null,
