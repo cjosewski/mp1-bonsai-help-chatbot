@@ -1298,6 +1298,11 @@ def _refs(item: GoldContent) -> list[str]:
             used.add(ref)
             if ref not in quotes:
                 found.append(f"pattern {shown}: support {ref} names no quote")
+            elif pattern.polarity == "required" and roles[ref.split(".")[0]] != "support":
+                # A conflict or contrast quote is the stale or other line's form; a required
+                # pattern grounded in it would accept that form.
+                role = roles[ref.split(".")[0]]
+                found.append(f"pattern {shown}: support {ref} is a {role} citation")
     # A conflict citation is the record of a doc/code disagreement; its quotes need no user.
     exempt = {ref for ref in quotes if roles[ref.split(".")[0]] == "conflict"}
     for ref in sorted(set(quotes) - used - exempt):
@@ -1825,6 +1830,41 @@ def _facts(item: GoldContent, ctx: Context, profile: Profile, line: VersionLine)
                 "unusual doc_conflict needs a required pattern that follows the code (supported "
                 "by a code quote, or a tool named in a cited code span)"
             )
+        # An answer that matches only the stale docs is wrong: no required pattern, and no
+        # alternative of one, may match a conflict quote.
+        stale = [
+            (f"{c.id}.{q.id}", q.text)
+            for c in item.citations
+            if c.role == "conflict"
+            for q in c.quotes
+        ]
+        for pattern in item.patterns:
+            if pattern.polarity != "required":
+                continue
+            own = tools.get(pattern.id)
+            if pattern.kind == "any_of":
+                own = own if isinstance(own, tuple) else ()
+                checks = [
+                    (
+                        f"{pattern.id} alternative {k}",
+                        a.model_dump(),
+                        own[k - 1] if k <= len(own) else None,
+                    )
+                    for k, a in enumerate(pattern.alternatives or (), 1)
+                ]
+            else:
+                checks = [(pattern.id, pattern.model_dump(), own)]
+            for shown, dumped, tool in checks:
+                if dumped["kind"] in gp.TOOL_KINDS and tool is None:
+                    continue
+                if dumped["kind"] == "regex" and _bad_regex(dumped["value"]):
+                    continue
+                for ref, text in stale:
+                    if gp.matches({**dumped, "alternatives": None}, text, tool):
+                        found.append(
+                            f"pattern {shown} accepts the stale docs' form (it matches "
+                            f"conflict quote {ref})"
+                        )
     return found
 
 

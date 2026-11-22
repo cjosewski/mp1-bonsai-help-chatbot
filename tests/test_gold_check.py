@@ -212,6 +212,21 @@ def test_a_contrast_citation_needs_version_contrast_and_the_other_lines_docs():
     item["patterns"][1]["support"] = ["C1.Q2", "C2.Q1"]
     assert any("needs unusual.reason version_contrast" in p for p in problems_of(item))
     item["unusual"] = {"reason": "version_contrast", "note": "The older docs lack the editor."}
+    # A required pattern never takes the other line's form as support; a forbidden one may.
+    assert problems_of(item) == ["pattern P2: support C2.Q1 is a contrast citation"]
+    item["patterns"][1]["support"] = ["C1.Q2"]
+    item["patterns"].append(
+        {
+            "id": "P4",
+            "polarity": "forbidden",
+            "kind": "phrase",
+            "value": "join wall segments end-to-end",
+            "field": "steps",
+            "part": None,
+            "reason": "the older docs' route",
+            "support": ["C2.Q1"],
+        }
+    )
     assert problems_of(item) == []
     item["citations"][1]["record_id"] = WALLS_MODIFY
     assert any("must come from another line's docs" in p for p in problems_of(item))
@@ -777,6 +792,41 @@ def test_a_code_hotkey_needs_its_keymap_quoted_and_the_pattern_must_follow_the_c
     )
     found = problems_of(stale)
     assert any("needs a required pattern that follows the code" in p for p in found), found
+
+
+def test_a_doc_conflict_item_refuses_any_required_form_of_the_stale_docs():
+    """Chad's rule: an answer that matches only the stale docs is wrong."""
+    stale_route = {
+        "kind": "tokens",
+        "value": "calculate + quantities",
+        "window": 4,
+        "support": ["K2.Q1"],
+    }
+    item = change(conflict(), "patterns", conflict()["patterns"][:1])
+    item = change(
+        item, "patterns.0.alternatives", [*item["patterns"][0]["alternatives"], stale_route]
+    )
+    found = problems_of(item)
+    assert (
+        "pattern P1 alternative 3 accepts the stale docs' form (it matches conflict quote "
+        "C2.Q1)" in found
+    ), found
+    found = problems_of(change(item, "patterns.0.alternatives.2.support", ["C2.Q1"]))
+    assert "pattern P1 alternative 3: support C2.Q1 is a conflict citation" in found, found
+    own = {"id": "P1", "polarity": "required", "field": "any", "part": None, "reason": None}
+    plain = change(item, "patterns.0", {**stale_route, **own})
+    found = problems_of(plain)
+    assert any("pattern P1 accepts the stale docs' form" in p for p in found), found
+    # The code's forms pass, and a forbidden pattern may take the stale form from its quote.
+    assert problems_of(conflict()) == []
+    forbidden = {**own, "id": "P3", "polarity": "forbidden", "field": "steps"}
+    forbidden["reason"] = "the stale docs' button"
+    with_stale = change(
+        conflict(),
+        "patterns",
+        [*conflict()["patterns"], {**stale_route, **forbidden, "support": ["C2.Q1"]}],
+    )
+    assert problems_of(with_stale) == []
 
 
 def test_a_changed_span_hash_is_caught_and_a_published_span_must_be_in_the_slice():

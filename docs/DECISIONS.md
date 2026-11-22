@@ -844,7 +844,15 @@ publishes an item.
   role `conflict` (never support; its quotes need no other reference), at least one code
   citation is present, and at least one required pattern follows the code (supported by a
   code quote, or a tool named in a cited code span). A doc `conflict` citation or a code
-  `conflict` citation needs `unusual.reason: doc_conflict`.
+  `conflict` citation needs `unusual.reason: doc_conflict`. An independent review of the
+  first version showed that a required `any_of` could still carry an alternative grounded in
+  the stale quote, so an answer matching only the stale docs passed. The assistant added two
+  checks (stricter): a required pattern or alternative may not name a `conflict` or
+  `contrast` quote as support (a forbidden pattern may, to forbid the stale or other line's
+  form), and on a `doc_conflict` item no required pattern, and no alternative of one, may
+  match a doc `conflict` quote ("accepts the stale docs' form"). A forbidden stale-form
+  pattern stays optional, because the stale form is not always something an answer could
+  say in `steps`. No existing draft names a contrast quote from a required pattern.
 - **Fact rows** may carry `code_citations` too (one quote each, checked by `setup check`;
   key terms may come from code quotes). A `doc_conflict` row with code citations is a
   docs-versus-code conflict, not pairing evidence: it needs no `conflicts_with`, is never a

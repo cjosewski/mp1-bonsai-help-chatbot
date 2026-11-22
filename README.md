@@ -306,8 +306,9 @@ or planted pattern counts only an affirmative occurrence: "Do not remove the sla
 warning, not compliance (a deterministic clause-and-cue rule with documented limits; see
 `gold_patterns`). Where the pinned docs and code disagree, the item follows the code, cites
 the stale section with role `conflict` and the code span with a code citation, and carries
-`unusual.reason: doc_conflict`. A hotkey that the add-on binds in code (not in the lexicons)
-resolves through a quoted `bim.hotkey` keymap entry.
+`unusual.reason: doc_conflict`; no required pattern may match or cite a conflict quote. A
+hotkey that the add-on binds in code (not in the lexicons) resolves through a quoted
+`bim.hotkey` keymap entry.
 
 ```bash
 uv run --locked bonsai-help gold slots

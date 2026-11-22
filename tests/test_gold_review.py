@@ -388,7 +388,18 @@ def test_an_edit_cannot_change_the_unusual_note(tmp_path):
             "quotes": [{"id": "Q1", "text": "Join wall segments end-to-end."}],
         }
     )
-    item["patterns"][1]["support"] = ["C1.Q2", "C2.Q1"]
+    item["patterns"].append(
+        {
+            "id": "P4",
+            "polarity": "forbidden",
+            "kind": "phrase",
+            "value": "join wall segments end-to-end",
+            "field": "steps",
+            "part": None,
+            "reason": "the older docs' route",
+            "support": ["C2.Q1"],
+        }
+    )
     item["unusual"] = {"reason": "version_contrast", "note": "The older docs lack the editor."}
     ingest(tmp_path, item)
     export(tmp_path)
