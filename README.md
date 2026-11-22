@@ -20,22 +20,23 @@ edits Chad directed for this public copy are recorded in
 and setup facts) are done.** Install, the offline tests, the documentation corpus
 rebuild, the section index, the lexicons and the setup-fact checks run today; every
 pipeline step below is marked *not yet implemented* and will be filled in when its
-milestone lands. The B2 setup profiles and fact rows are drafts by the assistant,
-pending Chad's review at B3. **B3 is in progress**: Chad's November 22, 2026 decisions on
+milestone lands. Chad's decisions on the B2 setup records (packet SR-001) are applied: 38
+accepted and fact row SF-001 rejected. **B3 is in progress**: Chad's November 22, 2026 decisions on
 the version pairings, the IFC schemas, review packets and drafting are applied (see
 [`docs/DECISIONS.md`](docs/DECISIONS.md)), and the gold-set tooling is built (slot plan,
 lane batches, checker, review packets, import, publish, pattern score; see
 [Gold set](#gold-set-b3)). Chad answered the gold-set count questions on November 22,
-2026. All 110 items are drafted by assistant lanes (each critiqued and revised) and pass the
-full-set check; review packets GP-001 to GP-005 and the setup packet SR-001 await Chad's
-decisions. No gold item is reviewed or published yet.
+2026. All 110 items were drafted by assistant lanes; Chad imported his decisions on packets
+GP-001 to GP-005 on November 22, 2026: 6 items accepted and 104 rejected, to be redrafted.
+He delegated those reviews to an assistant reviewer and records the decisions as his own
+([`docs/DECISIONS.md`](docs/DECISIONS.md)). No gold item is published yet.
 
 | Milestone | What it delivers | Status |
 | --- | --- | --- |
 | B0 | Repository, licenses, decision log, porting map, packaging | Done |
 | B1 | Pinned, hashed documentation snapshots; fixture slice | Done |
-| B2 | Operator lexicons; setup profiles and cited fact table | Done (rows await Chad's review at B3) |
-| B3 | Gold set and multi-part and injection requests | In progress: 110 items drafted; awaiting Chad's review |
+| B2 | Operator lexicons; setup profiles and cited fact table | Done (Chad's SR-001 decisions applied) |
+| B3 | Gold set and multi-part and injection requests | In progress: 6 of 110 items accepted; 104 being redrafted |
 | B4 | Rubric, prompts, deterministic checks; generation, gate and collection modules ported | Not yet implemented |
 | B5 | Baseline run | Not yet implemented |
 | B6 | Baseline human labels | Not yet implemented |
@@ -245,7 +246,8 @@ text supports them. Every row cites pinned sections with short verbatim quotes;
 comments, in the cited section, and that every key term is in a quote, on token boundaries
 too. Whether a claim
 says no more than its quotes is not machine-checked: every row, profile and version line
-is `assistant_drafted` until Chad reviews it at B3, and uncited rows cannot exist.
+is `assistant_drafted` until Chad decides it in a review packet, and uncited rows cannot
+exist.
 
 ### Chad's review of the setup drafts (B3)
 

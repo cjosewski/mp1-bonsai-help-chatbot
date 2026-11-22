@@ -737,6 +737,26 @@ Drafting may start under these answers. Every drafted item stays an assistant dr
 Chad decides it in a packet; nothing is marked reviewed, approved or published by an
 assistant.
 
+### B3 review decisions (Chad, November 22, 2026)
+
+Chad imported his decisions on November 22, 2026, each with the import's typed
+confirmation: setup packet SR-001 (38 records accepted; fact row SF-001 rejected) and gold
+packets GP-001 to GP-005 (6 items accepted: GS-CH-002, GS-CH-006, GS-CH-010, GS-MD-004,
+GS-SD-039 and GS-SH-003; 104 rejected). The reviewer notes stay in `data/gold/imports/` and
+`data/setup-review/imports/`, outside Git.
+
+- **Review delegation: "I delegated; record them as mine".** Asked whose decisions these
+  were (every note begins "Assistant review:"), Chad answered that he delegated the review
+  of SR-001 and GP-001 to GP-005 to an assistant reviewer, accepted its decisions as his
+  own and imported them himself with the typed confirmation. The decisions are recorded as
+  Chad's. Future packets may be reviewed the same way; the import stays his, and an
+  assistant still never fills, edits or imports a packet.
+- **Docs versus code: "Code wins, cited (Recommended)".** Where the pinned Bonsai
+  documentation and the pinned Bonsai add-on source (`bonsai-source`,
+  `bonsai-source-0-8-5-post1`) disagree, a reference answer follows the pinned code, cites
+  both the doc section and the code location, and carries the unusual flag
+  `doc_conflict`. An answer that matches only the stale docs is wrong.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

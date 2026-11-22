@@ -34,8 +34,9 @@ As of November 22, 2026, **B2 (lexicons and setup facts) is done** as assistant 
   is `reference/docs-index.json`.
 - `lexicon build --write` writes `reference/lexicons/`.
 - `reference/setup-profiles.json` and `reference/setup-facts.json` hold two version lines,
-  18 profiles and 19 cited fact rows. Every row, profile and version line is
-  `assistant_drafted` until Chad reviews it at B3. Never mark one reviewed without Chad's
+  18 profiles and the cited fact rows. Chad's SR-001 decisions (November 22, 2026) are
+  applied: 38 records `chad_accepted`, SF-001 `chad_rejected`; a row drafted since is
+  `assistant_drafted` until he decides it. Never mark one reviewed without Chad's
   own words in `review`: Chad reviews them through `setup review` packets (the gold packet
   format; the same rules below apply to `setup review import` and
   `data/setup-review/imports/`), and only `setup review apply --write` writes a record's
@@ -65,13 +66,18 @@ with Chad's four decisions (pairings, IFC schemas, review packets, drafting; quo
   approves, edits or rejects.
 - The gold-set tooling is built (`bonsai-help gold ...`, see README): the slot plan
   `reference/gold/slots.json`, lane batches and their ingest, the checker, review packets,
-  import, publish and the pattern score. No gold item is reviewed or published yet.
+  import, publish and the pattern score.
   Chad answered the count questions on November 22, 2026 (quoted in `docs/DECISIONS.md`):
   the 15 multi-part requests (10 development, 5 held-out) and 10 injection cases (all
   held out) are in addition to the 75 questions, and 10 benign control cases sit beside
-  the injection cases, held out, so the set is 110 items. All 110 are drafted and pass the
-  full-set check; the review packets await Chad's import (only he runs `gold packet import`
-  and `setup review import`).
+  the injection cases, held out, so the set is 110 items. All 110 were drafted; Chad
+  imported GP-001 to GP-005 on November 22, 2026 (6 accepted, 104 rejected) and SR-001.
+  He delegated those reviews to an assistant reviewer and records the decisions as his own
+  ("I delegated; record them as mine"); future packets may be reviewed the same way, and
+  only he runs `gold packet import` and `setup review import`.
+- Docs versus code (Chad, November 22, 2026, "Code wins, cited"): where the pinned Bonsai
+  docs and the pinned add-on source disagree, a reference answer follows the code, cites
+  both, and carries the unusual flag `doc_conflict`.
 - Gold rules:
   - Only Chad writes a packet's `DECISION:` and `NOTE:` lines and its edit JSON, and only
     Chad runs `gold packet import` (interactive terminal, typed confirmation). An
