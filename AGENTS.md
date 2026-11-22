@@ -62,10 +62,11 @@ with Chad's four decisions (pairings, IFC schemas, review packets, drafting; quo
   approves, edits or rejects.
 - The gold-set tooling is built (`bonsai-help gold ...`, see README): the slot plan
   `reference/gold/slots.json`, lane batches and their ingest, the checker, review packets,
-  import, publish and the pattern score. No gold item is drafted, reviewed or published
-  yet. Drafting waits for Chad's answers on the two count questions in `docs/DECISIONS.md`
-  (whether multi-part requests count inside the 75 questions; the development and
-  held-out split of multi-part and injection items).
+  import, publish and the pattern score. No gold item is reviewed or published yet.
+  Chad answered the count questions on November 22, 2026 (quoted in `docs/DECISIONS.md`):
+  the 15 multi-part requests (10 development, 5 held-out) and 10 injection cases (all
+  held out) are in addition to the 75 questions, and 10 benign control cases sit beside
+  the injection cases, held out, so the set is 110 items. Drafting may start.
 - Gold rules:
   - Only Chad writes a packet's `DECISION:` and `NOTE:` lines and its edit JSON, and only
     Chad runs `gold packet import` (interactive terminal, typed confirmation). An

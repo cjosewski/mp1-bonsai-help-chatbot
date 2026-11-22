@@ -447,11 +447,11 @@ the end of this entry. No gold item has been drafted, reviewed or published.
 
 **Counts and slots**
 
-- **A1, counts are disjoint (question for Chad, below).** 50 single development questions,
+- **A1, counts are disjoint (Chad confirmed it on November 22, below).** 50 single development questions,
   25 single held-out questions, 15 multi-part requests and 10 injection cases make 100
   items. Plan §4 lists multi-part and injection rows apart from the gold questions, and §7
   gives the security pass its own ten cases.
-- **A2, splits of the extra kinds (question for Chad, below).** Multi-part requests are 10
+- **A2, splits of the extra kinds (Chad confirmed it on November 22, below).** Multi-part requests are 10
   development and 5 held-out, the 2:1 ratio of the singles. All 10 injection cases are
   held out, because the security pass scores them against both chatbots and none may be
   used to tune defences; code defences are tested on synthetic fixtures instead.
@@ -624,20 +624,45 @@ of a decided item whose setup changed (under "A review binds to the rendered set
 
 ### Open questions for Chad (B3 gold set)
 
-Drafting starts only after the first two are answered; until then the plan above is the
-assistant's default.
+Questions 1, 2, 4 and 5 were answered on November 22, 2026 (next entry). Question 3 is
+still open.
 
-1. **A1.** Are the 15 multi-part requests and 10 injection cases in addition to the 75
-   questions (100 items to review, the default) or counted inside them (75)?
-2. **A2.** Split of the extra kinds: multi-part 10 development and 5 held-out with all 10
+1. ~~**A1.** Are the 15 multi-part requests and 10 injection cases in addition to the 75
+   questions (100 items to review, the default) or counted inside them (75)?~~ Answered:
+   in addition.
+2. ~~**A2.** Split of the extra kinds: multi-part 10 development and 5 held-out with all 10
    injection cases held out (default), or another split such as 4 development and 6
-   held-out injection cases?
+   held-out injection cases?~~ Answered: the default.
 3. What are U4 NB5's two safety numbers? The scorer reports `attack_succeeded` and
-   `utility_kept` until they are confirmed.
-4. Should benign control cases sit next to the injection cases, to measure over-refusal?
-5. The 0.8.5-post1 `troubleshooting` and `project_info` pages hold the same kind of public
+   `utility_kept` until they are confirmed, and now `over_refused` for the benign controls
+   beside them.
+4. ~~Should benign control cases sit next to the injection cases, to measure
+   over-refusal?~~ Answered: yes, 10 controls.
+5. ~~The 0.8.5-post1 `troubleshooting` and `project_info` pages hold the same kind of public
    example home paths as the 0.9.0-post1 pages Chad allowed. Allow them too (hash-pinned
-   allowances), or substitute the `VL-older` slots that would need them?
+   allowances), or substitute the `VL-older` slots that would need them?~~ Answered: allow
+   them.
+
+### B3 gold-set decisions (Chad, November 22, 2026)
+
+Chad answered questions 1, 2, 4 and 5 above on November 22, 2026. His chosen answers are
+quoted; the details under each are how they are applied.
+
+- **A1, counts: "In addition: 100 items (Recommended)".** 50 single development and 25
+  single held-out questions, 15 multi-part requests and 10 injection cases are disjoint,
+  100 items. With the controls below the gold set is 110 items.
+- **A2, splits: "10/5 multi-part; all 10 injection held out (Recommended)".** Multi-part
+  requests are 10 development and 5 held-out; all 10 injection cases are held out.
+- **Controls: "Yes, add 10 controls (Recommended)".** Ten benign control cases sit beside
+  the injection cases: harmless look-alike requests, for example a property value that
+  mentions "ignore" or a genuine pasted doc excerpt. They are held out with the injection
+  cases, and the security score reports over-refusal beside attack success.
+- **0.8.5-post1 pages: "Allow them (Recommended)".** The 0.8.5-post1 `troubleshooting` and
+  `project_info` pages get hash-pinned privacy allowances, as the 0.9.0-post1 pages have.
+
+Drafting may start under these answers. Every drafted item stays an assistant draft until
+Chad decides it in a packet; nothing is marked reviewed, approved or published by an
+assistant.
 
 ## Open items (not yet decided)
 

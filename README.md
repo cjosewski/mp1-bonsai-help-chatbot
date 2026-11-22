@@ -25,8 +25,8 @@ pending Chad's review at B3. **B3 is in progress**: Chad's November 22, 2026 dec
 the version pairings, the IFC schemas, review packets and drafting are applied (see
 [`docs/DECISIONS.md`](docs/DECISIONS.md)), and the gold-set tooling is built (slot plan,
 lane batches, checker, review packets, import, publish, pattern score; see
-[Gold set](#gold-set-b3)). No gold item is drafted yet: drafting waits for Chad's answers on
-two count questions in `docs/DECISIONS.md`.
+[Gold set](#gold-set-b3)). Chad answered the gold-set count questions on November 22,
+2026, so drafting may start; no gold item is reviewed or published yet.
 
 | Milestone | What it delivers | Status |
 | --- | --- | --- |
