@@ -427,7 +427,10 @@ review.
   from the line's own Bonsai docs or Manual. The 5.2 Manual does not stand in for
   `VL-older`. `setup check` also requires a line's `blender_manual` source to pin the
   branch `blender-v<release>-release` of the line's own `blender` release, so a swapped
-  Manual or both lines on one Manual fails.
+  Manual or both lines on one Manual fails. In the same way its `bonsai_docs` and
+  `bonsai_source` must both pin the tag `bonsai_tag`, and `bonsai_tag` must be the tag of
+  the line's `bonsai` release (`0.8.5-post1` and `0.8.5post1` are one release), so the
+  operator names a gold answer is grounded in come from the line's own add-on release.
 - **No LTS label.** The lines say Blender `5.2` and `4.5`. The history pages of both pinned
   Manuals end at 4.3, so neither release's LTS status can be cited.
 - **`not_citable`.** The claim about Blender 4.2 user-interface differences from 5.3 is
@@ -564,10 +567,11 @@ the end of this entry. No gold item has been drafted, reviewed or published.
 - **A review binds to the rendered setup.** A packet entry, each decision and each
   published item's `review.setup_sha256` hold a digest of what the item renders from the
   setup files: the profile's id, IFC schema, model state and discipline, the version
-  line's id and Blender and Bonsai releases, and the claims of the cited fact rows. A
-  change since export makes that block stale; a change after the decision makes
-  `gold publish` and `gold check --committed` (G22) refuse the item until it is exported
-  with `--items` and decided again. A fact row's status is left out: a rejected row
+  line's id, Blender and Bonsai releases and pinned sources (the packet's accepted forms
+  resolve against them), and the claims of the cited fact rows. A change since export
+  makes that block stale; a change after the decision makes `gold publish` and
+  `gold check --committed` (G22) refuse the item until it is exported with `--items` and
+  decided again, and `gold status` warns of it before that. A fact row's status is left out: a rejected row
   already fails the item check, and Chad accepting a row changes nothing he approved.
 - An import checks every edit against the old heads and then all of the packet's edits
   together, so two edits cannot pass alone and fail as a set (a repeated question, for
@@ -608,6 +612,15 @@ Manual-branch rule under "Every line has a Manual", the regex negative control, 
 `--items` refusal and the ignored blank blocks, the setup binding, the joint edit check and
 the `--committed --drafts` refusal above, and tests for the manifest digest and for a NOTE
 on a blank decision, which no test exercised before.
+
+**Third review (four findings)**
+
+A third review of the local B3 commits raised four findings; two of them were the same
+gap. Each was reproduced, all were real and all were applied; none was declined and none
+needs Chad. A line's Bonsai docs and add-on source pins are now tied to its `bonsai_tag`
+and release (under "Every line has a Manual"), the setup binding covers the line's pinned
+sources, a test now covers the cited fact claims in that binding, and `gold status` warns
+of a decided item whose setup changed (under "A review binds to the rendered setup").
 
 ### Open questions for Chad (B3 gold set)
 

@@ -531,6 +531,72 @@ def test_a_profile_change_after_review_blocks_publish_and_stales_the_published_i
     assert publish_tmp(tmp_path, ctx=ctx).lines[0] == "development.json: written (1 items)"
 
 
+def changed_claim(fact_id="SF-012") -> gold.Context:
+    """A context whose fact row renders a different claim; its status is unchanged."""
+    raw = FACTS.model_dump(by_alias=True)
+    next(r for r in raw["rows"] if r["id"] == fact_id)["claim"] += " (edited)"
+    return context(facts=type(FACTS).model_validate(raw))
+
+
+def changed_sources(**changes) -> gold.Context:
+    """A context whose VL-current (single()'s line) names other pinned sources."""
+    ctx = context()
+    profiles = ctx.profiles.model_dump(mode="json", by_alias=True)
+    next(v for v in profiles["version_lines"] if v["id"] == "VL-current")["sources"].update(changes)
+    ctx.profiles = setup.SetupProfiles.model_validate(profiles)
+    return ctx
+
+
+SETUP_CHANGED = (
+    "its profile, version line or cited fact claims changed since Chad's review; "
+    "export it with --items for a re-decision (G22)"
+)
+
+
+def test_a_cited_fact_claim_change_stales_the_block_and_then_the_review(tmp_path):
+    ingest(tmp_path, single(setup_facts=["SF-012"]))
+    export(tmp_path)
+    decide(tmp_path, "GS-SD-901", "approve")
+    with pytest.raises(gold_review.ProblemsFound) as caught:
+        import_(tmp_path, ctx=changed_claim())
+    assert caught.value.problems == [
+        "GS-SD-901: stale: the draft, its setup, its check or the lexicons, index or slots changed"
+    ]
+    import_(tmp_path)
+    publish_tmp(tmp_path)
+    problems, _ = gold.check_committed_set(tmp_path / "gold", changed_claim(), complete=False)
+    assert [str(p) for p in problems] == [f"gold: GS-SD-901: {SETUP_CHANGED}"], problems
+    # A claim of a row the item does not cite is not part of its review.
+    assert (
+        gold.check_committed_set(tmp_path / "gold", changed_claim("SF-013"), complete=False)[0]
+        == []
+    )
+
+
+def test_a_change_of_the_lines_pinned_sources_after_review_stales_the_published_item(tmp_path):
+    accept(tmp_path, single())
+    publish_tmp(tmp_path)
+    item = gold.load_items(tmp_path / "gold")[0]
+    ctx = changed_sources(bonsai_source="bonsai-source-0-8-5-post1")
+    assert gold.setup_sha(item, ctx) != gold.setup_sha(item, context())
+    assert gold.check_published_item(item, ctx) == [SETUP_CHANGED]
+
+
+def test_status_warns_of_a_decided_head_whose_setup_changed(tmp_path):
+    ingest(tmp_path, single(setup_facts=["SF-012"]))
+    export(tmp_path)
+    decide(tmp_path, "GS-SD-901", "approve")
+    import_(tmp_path)
+    assert gold_review.status(store(tmp_path), context(), tmp_path / "gold").warnings == []
+    for ctx in (changed_profile(discipline="architecture"), changed_claim()):
+        report = gold_review.status(store(tmp_path), ctx, tmp_path / "gold")
+        assert report.warnings == [
+            "GS-SD-901: its profile, version line or cited fact claims changed since Chad's "
+            "decision; export it with --items for a re-decision (G22)"
+        ]
+        assert any("state=chad_accepted" in line for line in report.lines)
+
+
 def test_a_redecision_supersedes_and_an_old_packet_cannot_override_silently(tmp_path, monkeypatch):
     ingest(tmp_path, single(), multi())
     export(tmp_path)

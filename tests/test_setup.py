@@ -137,6 +137,76 @@ def test_each_line_names_the_manual_of_its_own_blender_release(tmp_path, manuals
     assert found == [f"setup: setup-profiles.json: {m}" for m in message], found
 
 
+NEW_SOURCE = "VL-current: bonsai_source bonsai-source-0-8-5-post1 pins tag bonsai-0.8.5-post1"
+OLD_SOURCE = "VL-older: bonsai_source bonsai-source pins tag bonsai-0.9.0post1"
+NEW_DOCS = "VL-current: bonsai_docs bonsai-docs-0-8-5-post1 pins tag bonsai-0.8.5-post1"
+OLD_DOCS = "VL-older: bonsai_docs bonsai-docs pins tag bonsai-0.9.0post1"
+NOT_NEW, NOT_OLD = (
+    ", not the line's Bonsai tag bonsai-0.9.0post1",
+    ", not the line's Bonsai tag bonsai-0.8.5-post1",
+)
+
+
+@pytest.mark.parametrize(
+    "role, pins, message",
+    [
+        (
+            "bonsai_source",
+            ("bonsai-source-0-8-5-post1", "bonsai-source"),
+            [NEW_SOURCE + NOT_NEW, OLD_SOURCE + NOT_OLD],
+        ),
+        ("bonsai_source", ("bonsai-source", "bonsai-source"), [OLD_SOURCE + NOT_OLD]),
+        (
+            "bonsai_source",
+            ("bonsai-source-0-8-5-post1", "bonsai-source-0-8-5-post1"),
+            [NEW_SOURCE + NOT_NEW],
+        ),
+        (
+            "bonsai_docs",
+            ("bonsai-docs-0-8-5-post1", "bonsai-docs"),
+            [NEW_DOCS + NOT_NEW, OLD_DOCS + NOT_OLD],
+        ),
+        ("bonsai_docs", ("bonsai-docs", "bonsai-docs"), [OLD_DOCS + NOT_OLD]),
+    ],
+    ids=["source-swapped", "source-both-0.9", "source-both-0.8.5", "docs-swapped", "docs-both-0.9"],
+)
+def test_each_line_names_the_bonsai_pins_of_its_own_release(tmp_path, role, pins, message):
+    profiles = load(PROFILES)
+    for line, pin in zip(profiles["version_lines"], pins, strict=True):
+        line["sources"][role] = pin
+    # A moved docs pin also leaves some rows and the cited pairing without their own docs.
+    found = [p for p in problems(tmp_path, profiles=profiles) if "Bonsai tag" in p]
+    assert found == [f"setup: setup-profiles.json: {m}" for m in message], found
+
+
+@pytest.mark.parametrize(
+    "change, message",
+    [
+        (
+            {"bonsai_tag": "bonsai-0.9.0post1"},
+            [
+                "VL-older: bonsai_docs bonsai-docs-0-8-5-post1 pins tag bonsai-0.8.5-post1, "
+                "not the line's Bonsai tag bonsai-0.9.0post1",
+                "VL-older: bonsai_source bonsai-source-0-8-5-post1 pins tag bonsai-0.8.5-post1, "
+                "not the line's Bonsai tag bonsai-0.9.0post1",
+                "VL-older: bonsai_tag bonsai-0.9.0post1 is not the tag of Bonsai 0.8.5-post1",
+            ],
+        ),
+        (
+            {"bonsai": "0.9.0-post1"},
+            ["VL-older: bonsai_tag bonsai-0.8.5-post1 is not the tag of Bonsai 0.9.0-post1"],
+        ),
+        ({"bonsai": "0.8.5post1"}, []),
+    ],
+    ids=["tag-of-another-release", "release-of-another-tag", "same-release-spelled-apart"],
+)
+def test_a_lines_bonsai_tag_is_its_release_and_its_pins_tag(tmp_path, change, message):
+    profiles = load(PROFILES)
+    profiles["version_lines"][1].update(change)
+    found = problems(tmp_path, profiles=profiles)
+    assert found == [f"setup: setup-profiles.json: {m}" for m in message], found
+
+
 def test_a_cited_pairing_counts_only_its_own_bonsai_docs_pin(tmp_path):
     facts = load(FACTS)
     # SF-012 moved onto the older docs pin no longer cites VL-current's own docs.

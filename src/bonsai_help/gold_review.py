@@ -1041,7 +1041,8 @@ def published_ids(gold_dir: Path) -> set[str]:
 
 
 def status(store: Store, ctx: Context, gold_dir: Path) -> Report:
-    """Per slot: head, check, decision state, published. Never shows NOTE text."""
+    """Per slot: head, check, decision state, published; a decided head whose setup changed
+    since the decision is a warning. Never shows NOTE text."""
     report = Report()
     if (store.root / ".lock").exists():
         report.warnings.append("gold/.lock exists: a gold command is running or was interrupted")
@@ -1075,10 +1076,18 @@ def status(store: Store, ctx: Context, gold_dir: Path) -> Report:
         if head is None:
             state, check, shown = "empty", "-", "-"
         else:
-            state = store.state_of(head["sha256"], store.effective(head["sha256"], decisions))
+            decision = store.effective(head["sha256"], decisions)
+            state = store.state_of(head["sha256"], decision)
             check = "fail" if grouped[slot_id] else "pass"
             shown = head["sha256"][:16]
             item = current[slot_id]
+            if state in ("chad_accepted", "chad_amended") and decision[
+                "setup_sha256"
+            ] != gold.setup_sha(item, ctx):
+                report.warnings.append(
+                    f"{slot_id}: its profile, version line or cited fact claims changed since "
+                    f"Chad's decision; export it with --items for a re-decision (G22)"
+                )
             if item.unusual is not None:
                 unusual[item.unusual.reason] += 1
         states[state] += 1

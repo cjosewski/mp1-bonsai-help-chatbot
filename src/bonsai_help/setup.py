@@ -462,6 +462,11 @@ def _pairing_cited(line: VersionLine, rows: Mapping[str, FactRow]) -> bool:
     return False
 
 
+def _release(version: str) -> str:
+    """A Bonsai release as tags and docs spell it alike: `0.8.5-post1` and `0.8.5post1`."""
+    return re.sub(r"[-_.]?post", "post", version)
+
+
 def check_profiles(profiles: SetupProfiles, facts: SetupFacts, config: DocSources) -> list[Problem]:
     problems: list[Problem] = []
     label = "setup-profiles.json"
@@ -487,6 +492,27 @@ def check_profiles(profiles: SetupProfiles, facts: SetupFacts, config: DocSource
                             f"not the Blender {line.blender} Manual branch {branch}",
                         )
                     )
+            else:
+                # The line's Bonsai docs and add-on source are both its own release's tag.
+                ref = config.repository_of(config.source(sid)).ref
+                if (ref.kind, ref.name) != ("tag", line.bonsai_tag):
+                    problems.append(
+                        Problem(
+                            "setup",
+                            label,
+                            f"{line.id}: {role} {sid} pins {ref.kind} {ref.name}, "
+                            f"not the line's Bonsai tag {line.bonsai_tag}",
+                        )
+                    )
+        if _release(line.bonsai_tag.removeprefix("bonsai-")) != _release(line.bonsai):
+            problems.append(
+                Problem(
+                    "setup",
+                    label,
+                    f"{line.id}: bonsai_tag {line.bonsai_tag} is not the tag of "
+                    f"Bonsai {line.bonsai}",
+                )
+            )
         for claim in line.claims:
             if claim not in rows or rows[claim].kind not in ("version_claim", "doc_conflict"):
                 problems.append(

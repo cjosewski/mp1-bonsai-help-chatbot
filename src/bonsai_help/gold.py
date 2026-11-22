@@ -698,8 +698,9 @@ def pseudo_payload(item: GoldContent, ctx: Context) -> dict[str, str | list[str]
 
 def setup_sha(item: LaneItem, ctx: Context) -> str:
     """What an item renders from the setup files and a review binds to: its profile, its
-    line's releases and the claims of its cited fact rows. A fact row's status is left out:
-    a rejected row already fails the item check, and accepting one changes nothing shown."""
+    line's releases and pinned sources (the packet's accepted forms resolve against them)
+    and the claims of its cited fact rows. A fact row's status is left out: a rejected row
+    already fails the item check, and accepting one changes nothing shown."""
     profile, line = ctx.profile(item.profile), ctx.line(item.version_line)
     rows = {row.id: row for row in ctx.facts.rows}
     return sha256_hex(
@@ -708,7 +709,9 @@ def setup_sha(item: LaneItem, ctx: Context) -> str:
                 "profile": None
                 if profile is None
                 else [profile.id, profile.ifc_schema, profile.model_state, profile.discipline],
-                "line": None if line is None else [line.id, line.blender, line.bonsai],
+                "line": None
+                if line is None
+                else [line.id, line.blender, line.bonsai, line.sources.model_dump()],
                 "facts": [[f, rows[f].claim if f in rows else None] for f in item.setup_facts],
             }
         )

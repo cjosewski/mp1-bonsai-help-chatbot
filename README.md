@@ -227,7 +227,9 @@ says Blender 4.5. The pairing itself is evidence, not a scored fact. A line's
 (`schema_dependent`, `version_dependent`, `doc_absence`) needs a citation from the line's
 own Bonsai docs or Manual, so the 5.2 Manual does not stand in for `VL-older`, and a
 line's `blender_manual` source must pin the `blender-v<release>-release` branch of the
-line's own Blender release. The
+line's own Blender release. Its `bonsai_docs` and `bonsai_source` must both pin the tag
+`bonsai_tag`, and `bonsai_tag` must be the tag of the line's `bonsai` release, so swapped
+Bonsai pins or both lines on one pin fail too. The
 `ifc_schema` values are `partly cited`: SF-007 supports them for `new_project` only
 (`cited_for`); for opened and federated models all three are a stated default that Chad
 kept, and schema facts are scored only where a row cites them. The profiles are a
@@ -264,7 +266,7 @@ uv run --locked bonsai-help gold status
 | `gold slots [--write]` | Regenerate the slot plan from the targets, the profiles and `reference/gold/slot-substitutions.json`; compare (exit 1 on a difference) or write `reference/gold/slots.json` | `reference/gold/` |
 | `gold ingest BATCH [--supersede-accepted]` | Validate a lane batch (`gold-draft-batch-v1`, lane form only), derive every citation field from the pinned pages, run the checks against the current drafts, then write the drafts and a receipt, or nothing | `data/gold/` |
 | `gold check [--committed] [--complete] [--drafts]` | The slot plan and the published files: every check, with the fixture-slice rule; `--drafts` adds every draft head (it needs the data root, so not with `--committed`), `--complete` requires every slot published (the B3 acceptance check) | — |
-| `gold status` | Per slot: head draft, check, decision state, published; counts against the targets, unusual reasons, leftover temp files, orphan drafts, a leftover lock and packets not yet imported. Never shows NOTE text | — |
+| `gold status` | Per slot: head draft, check, decision state, published; counts against the targets, unusual reasons, leftover temp files, orphan drafts, a leftover lock, packets not yet imported and decided items whose setup changed since the decision (G22). Never shows NOTE text | — |
 | `gold packet export --split S [--size 25] [--items ID ...]` | Write review packets of pending drafts that pass the check, about 25 per Markdown file, one split per packet; `--items` re-exports items for a re-decision, refused for a draft in a packet not yet imported | `data/gold/packets/` |
 | `gold packet import GP-NNN [--decided-on D] [--skip-stale]` | Record Chad's decisions, all or nothing; runs only from an interactive terminal after a typed confirmation | `data/gold/` |
 | `gold publish [--write]` | Build `reference/gold/development.json` and `held-out.json` from Chad's accepted and amended items; compare (exit 1) or write | `reference/gold/` |
