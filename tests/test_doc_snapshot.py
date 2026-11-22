@@ -10,8 +10,14 @@ import pytest
 from doc_remotes import FILES, make_remote, source_config, write_config
 
 from bonsai_help import cli
-from bonsai_help.doc_snapshot import _write_new, build_manifest, dump_json, source_digest
-from bonsai_help.doc_sources import Source, glob_match, tag_for
+from bonsai_help.doc_snapshot import (
+    _with_digest,
+    _write_new,
+    build_manifest,
+    dump_json,
+    source_digest,
+)
+from bonsai_help.doc_sources import CATEGORIES, Source, glob_match, tag_for
 from bonsai_help.git_fetch import Result, git_blob_id, subprocess_runner
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -325,6 +331,32 @@ def test_hand_edit_outside_the_source_digest_fails_the_rebuild(ws):
     assert not (fresh / "snapshots").exists()
 
 
+def test_hand_edit_outside_the_source_digest_fails_check_of_built_snapshots(ws):
+    remote = make_remote(ws.tmp)
+    write_config(ws.config, remote)
+    ws.committed()
+    edit_manifest(ws.manifest, lambda e: e["not_selected"].update(png=99))
+    assert ws.run("check", "--committed")[0] == 0
+    code, _, err = ws.run("check")
+    assert code == 1 and "differs from the committed entry" in err
+    code, _, err = ws.run("build")
+    assert code == 5 and "refusing to overwrite" in err
+
+
+def test_blobs_the_server_did_not_send_are_exit_3(ws):
+    remote = make_remote(ws.tmp)
+    write_config(ws.config, remote)
+
+    def drop_blob_fetch(argv, cwd, env, stdin, timeout):
+        if "fetch" in argv and "--stdin" in argv:
+            return Result(0, b"", b"")
+        return subprocess_runner(argv, cwd, env, stdin, timeout)
+
+    code, _, err = ws.run("build", "--write-manifest", runner=drop_blob_fetch)
+    assert code == 3 and "did not send" in err
+    assert not (ws.data / "snapshots").exists() and not ws.manifest.exists()
+
+
 def test_snapshot_that_appears_during_the_build_is_not_replaced(ws):
     remote = make_remote(ws.tmp)
     write_config(ws.config, remote)
@@ -391,6 +423,15 @@ def test_tampered_snapshot_fails_check_and_is_never_overwritten(ws, tamper):
     code, _, err = ws.run("build")
     assert code == 5 and "refusing to overwrite" in err
     assert sorted((p, p.lstat().st_mtime_ns) for p in ws.snapshot().rglob("*")) == before
+
+
+def test_snapshot_without_receipt_is_an_incomplete_build(ws):
+    remote = make_remote(ws.tmp)
+    write_config(ws.config, remote)
+    ws.committed()
+    (ws.snapshot() / "receipt.json").unlink()
+    code, _, err = ws.run("check")
+    assert code == 1 and "incomplete build" in err
 
 
 def test_present_snapshot_is_verified_offline_and_left_alone(ws):
@@ -485,6 +526,37 @@ def test_fixture_export_never_silently_replaces(ws):
     assert ws.run("fixtures", "--replace")[0] == 0
     assert page.read_bytes() == FILES["docs/guide/page.rst"] and not extra.exists()
     assert ws.run("check", "--committed")[0] == 0
+
+
+def test_fixture_list_edited_with_a_recomputed_digest_fails_check(ws):
+    remote = make_remote(ws.tmp)
+    write_config(ws.config, remote)
+    ws.committed()
+    path = ws.fixtures / "fixtures.json"
+    document = json.loads(path.read_bytes())
+    first = document["sources"]["fake-docs"]["files"][0]
+    first["categories"] = sorted(set(first["categories"]) ^ {CATEGORIES[0]})
+    path.write_bytes(dump_json(_with_digest(document, "digest")))
+    code, _, err = ws.run("check", "--committed")
+    assert code == 1 and "differs from the config's fixture list and the manifest" in err
+    assert "digest does not match" not in err
+
+
+@pytest.mark.parametrize("notice", ["missing", "changed"])
+def test_notice_without_the_source_attribution_fails_check(ws, notice):
+    remote = make_remote(ws.tmp)
+    write_config(ws.config, remote)
+    ws.committed()
+    assert ws.run("check", "--committed")[0] == 0
+    if notice == "missing":
+        ws.notice.unlink()
+        message = "NOTICE.md: missing"
+    else:
+        attribution = source_config()["attribution"]
+        ws.notice.write_text(f"# Notice\n\n{attribution.replace(' ', ' and others ', 1)}\n")
+        message = "does not carry the source's attribution"
+    code, _, err = ws.run("check", "--committed")
+    assert code == 1 and message in err
 
 
 def test_fixture_privacy_matches_need_a_reviewed_allowance(ws):

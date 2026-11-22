@@ -573,10 +573,9 @@ def check_snapshot(source: Source, entry: dict, snapshot: Path, shown: str) -> l
         )
     try:
         own = json.loads((snapshot / "manifest.json").read_bytes())
-        if (
-            own.get("pin_id") != entry["pin_id"]
-            or own.get("source_digest") != entry["source_digest"]
-        ):
+        # Every field but the repository block, which follows the config (see _own_entry),
+        # so fields outside source_digest, such as not_selected, are compared too.
+        if canonical({**own, "repository": None}) != canonical({**entry, "repository": None}):
             problems.append(
                 Problem(sid, f"{shown}/manifest.json", "differs from the committed entry")
             )
