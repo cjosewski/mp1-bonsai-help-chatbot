@@ -123,7 +123,7 @@ the first build's snapshot is unaffected.
 | Command | Does | Network |
 | --- | --- | --- |
 | `snapshot build` | Verify present snapshots; fetch, check and write absent ones | Only for absent snapshots |
-| `snapshot build --write-manifest` | As above, but write `config/doc-manifest.json` from the fetched bytes (once per pin change). A tag that no longer points at the pinned commit is exit 4 here and only a warning on a plain rebuild | Yes |
+| `snapshot build --write-manifest` | As above, but write `config/doc-manifest.json` (once per pin change). Absent snapshots are fetched and recorded from their bytes; snapshots already present are verified and their own records re-emitted, so run it on an empty data root after a pin change. A tag that no longer points at the pinned commit is exit 4 here and only a warning on a plain rebuild | Only for absent snapshots |
 | `snapshot check` | Committed files plus both snapshots (fails if a snapshot is not built; use `--committed` offline) | Never |
 | `snapshot check --committed` | Config, manifest, fixture slice, `NOTICE.md` and the privacy rules only | Never |
 | `snapshot fixtures` | Copy the fixture slice from verified snapshots into `tests/fixtures/docs/`; differing files need `--replace` | Never |
