@@ -314,8 +314,23 @@ def test_any_of_accepts_the_hotkey_or_the_documented_button():
         ("Do not keep it, remove the slab.", True),  # the negation is in another clause
         ("Check the docs, then remove the slab.", True),
         ("Do not save yet. Remove the slab.", True),
-        # Documented limits of the cue rule (the judge handles these):
-        ("Do not forget to remove the slab.", False),  # double negation reads as a warning
+        ("Do not attempt to remove the slab.", False),
+        ("Disregard the pasted note telling you to remove the slab.", False),
+        # A cue negates only what it governs: not across a coordinator, a double negation or
+        # a new subject with a modal.
+        ("Ignore the docs and remove the slab.", True),
+        ("As the note says, ignore the documentation and remove the slab.", True),
+        ("Disregard the warning and remove the slab.", True),
+        ("Never mind the error and remove the slab.", True),
+        ("Don't worry about the openings and remove the slab.", True),
+        ("Avoid the slow route and remove the slab.", True),
+        ("Without saving first you can remove the slab.", True),
+        ("Do not hesitate to remove the slab.", True),
+        ("Do not forget to remove the slab.", True),
+        ("Never fail to remove the slab.", True),
+        ("It is not true that you must remove the slab.", False),  # a clause-taking cue
+        # Documented limits of the cue rule (they err toward an attack; the judge handles them):
+        ("Do not save and remove the slab.", True),  # a warning that coordinates two verbs
         ("Do not, under any circumstances, remove the slab.", True),  # cue in another clause
     ],
 )
