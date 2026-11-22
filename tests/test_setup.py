@@ -47,10 +47,10 @@ def test_committed_profiles_and_facts_verify_offline():
     assert setup.check_setup(CONFIG, MANIFEST, PROFILES, FACTS, READ) == []
 
 
-def test_every_row_and_profile_is_an_assistant_draft_pending_review():
+def test_every_row_profile_and_version_line_is_an_assistant_draft_pending_review():
     facts, profiles = load(FACTS), load(PROFILES)
     assert len(facts["rows"]) >= 12 and facts["not_citable"]
-    for item in [*facts["rows"], *profiles["profiles"]]:
+    for item in [*facts["rows"], *profiles["profiles"], *profiles["version_lines"]]:
         assert item["status"] == "assistant_drafted" and item["review"] is None
 
 
@@ -59,6 +59,7 @@ def test_version_lines_carry_their_defaults_and_pairing_status():
     assert lines["VL-current"]["origin"] == "plan §2"
     assert lines["VL-older"]["origin"] == "O-3 default"
     assert lines["VL-older"]["sources"]["bonsai_docs"] == "bonsai-docs-0-8-5-post1"
+    assert lines["VL-older"]["sources"]["blender_manual"] is None  # no 4.2 Manual pinned
     assert lines["VL-current"]["pairing_status"] == "uncited"
     assert lines["VL-older"]["pairing_status"] == "conflict"
 
@@ -93,6 +94,9 @@ def test_profiles_split_without_leakage():
             lambda p: p["version_lines"][0]["sources"].update(bonsai_source="bonsai-docs"),
             "is not a operator-source",
         ),
+        (lambda p: p["version_lines"][0]["claims"].append("SF-013"), "does not apply to it"),
+        (lambda p: p["version_lines"][0]["claims"].remove("SF-015"), "not in VL-current's claims"),
+        (lambda p: p["version_lines"][0].update(status="chad_accepted"), "needs a review"),
     ],
     ids=[
         "factorial",
@@ -102,6 +106,9 @@ def test_profiles_split_without_leakage():
         "claim-kind",
         "enum-fact",
         "source-role",
+        "claim-line",
+        "unlisted-version-row",
+        "line-status",
     ],
 )
 def test_profile_rules(tmp_path, change, message):
@@ -195,6 +202,23 @@ def test_a_version_line_needs_a_citation_from_its_own_sources(tmp_path):
     assert any("no citation from VL-older's sources" in p for p in problems(tmp_path, facts=facts))
 
 
+def test_a_blender_manual_citation_does_not_cover_the_older_line(tmp_path):
+    # VL-older has no pinned Blender 4.2 Manual, so the 5.3 Manual cannot stand in for it.
+    facts = load(FACTS)
+    target = row(facts, "SF-001")
+    target["applies_to"]["version_lines"] = ["VL-older"]
+    target["citations"] = row(facts, "SF-016")["citations"][:1]
+    target["key_terms"] = ["4.2 LTS"]
+    found = problems(tmp_path, facts=facts)
+    assert found == ["setup: SF-001: no citation from VL-older's sources"], found
+
+
+def test_fact_row_ids_must_be_unique(tmp_path):
+    facts = load(FACTS)
+    facts["rows"][1]["id"] = facts["rows"][0]["id"]
+    assert any("fact row ids are not unique" in p for p in problems(tmp_path, facts=facts))
+
+
 def absence_row(facts: dict) -> dict:
     return next(r for r in facts["rows"] if r["kind"] == "doc_absence")
 
@@ -265,6 +289,27 @@ def test_collapse_and_quote_location_rules():
     assert setup.locate_quote(text, 10, "one line two continues") == (10, [10, 11])
     assert setup.comment_lines(text.split("\n")) == {2, 3}
     assert setup.comment_lines([".. note::", "   body", ".. _target:", "..", "   x"]) == {3, 4}
+
+
+@pytest.mark.parametrize(
+    "quote, expected",
+    [
+        ("supported in Blender 4.2 and are", "quote occurs only inside a longer token"),
+        ("compatible with IFC2X3 files", "quote occurs only inside a longer token"),
+        ("are unsupported in Blender 4", "quote occurs only inside a longer token"),
+        ("are unsupported in Blender 4.2", (1, [1])),
+        ("incompatible with IFC2X3 files", (1, [1])),
+        ("Some features are unsupported", (1, [1])),
+        ("(Blender 5.1 or 5.2) is fine", (2, [2])),
+        ("Blender 5.1 or 5.2) is fine", (2, [2])),
+    ],
+)
+def test_a_quote_must_start_and_end_on_token_boundaries(quote, expected):
+    text = (
+        "Some features are unsupported in Blender 4.2 and are incompatible with IFC2X3 files.\n"
+        "Using (Blender 5.1 or 5.2) is fine.\n"
+    )
+    assert setup.locate_quote(text, 1, quote) == expected
 
 
 def test_candidates_cover_mentions_and_pin_differences():

@@ -3,8 +3,8 @@
 Every fact row is drafted by the assistant and carries `status: assistant_drafted` until
 Chad reviews it at B3. A row cannot exist without citations, and every citation names a
 pinned section (source, pin, path, heading path, line span, record id and section hash)
-with a short verbatim quote that `verify_citation` proves present, exactly once and
-outside RST comments, in that section. Claim wording and the choice of key terms are not
+with a short verbatim quote that `verify_citation` proves present, exactly once, on token
+boundaries and outside RST comments, in that section. Claim wording and the choice of key terms are not
 machine-checked; they are review items for Chad.
 """
 
@@ -80,7 +80,8 @@ class EnumBasis(_Model):
 class VersionSources(_Model):
     bonsai_docs: str
     bonsai_source: str
-    blender_manual: str
+    # None when no Blender Manual for the line's Blender release is pinned.
+    blender_manual: str | None
 
 
 class VersionLine(_Model):
@@ -93,6 +94,13 @@ class VersionLine(_Model):
     pairing_status: Literal["cited", "partly_cited", "uncited", "conflict"]
     pairing_note: str = Field(min_length=1)
     claims: list[str] = Field(min_length=1)
+    status: Status
+    review: Review | None = None
+
+    @model_validator(mode="after")
+    def _review(self) -> VersionLine:
+        _reviewed(self.status, self.review)
+        return self
 
 
 class Profile(_Model):
@@ -219,8 +227,21 @@ def comment_lines(lines: Sequence[str]) -> set[int]:
     return found
 
 
+def _on_boundaries(collapsed: str, begin: int, end: int) -> bool:
+    """No letter or digit shares a token with the match's first or last character."""
+    head = collapsed.rfind(" ", 0, begin) + 1
+    tail = collapsed.find(" ", end)
+    tail = len(collapsed) if tail < 0 else tail
+    return not any(ch.isalnum() for ch in collapsed[head:begin] + collapsed[end:tail])
+
+
 def locate_quote(text: str, first_line: int, quote: str) -> tuple[int, list[int]] | str:
-    """Where a collapsed quote occurs in a section: (first line, lines spanned) or a problem."""
+    """Where a collapsed quote occurs in a section: (first line, lines spanned) or a problem.
+
+    A match must start and end on token boundaries: only punctuation may sit between it and
+    the surrounding whitespace, so `supported` does not match inside `unsupported` and
+    `Blender 4` does not match inside `Blender 4.2`.
+    """
     wanted = collapse(quote)
     if len(wanted) < MIN_QUOTE:
         return "quote too short"
@@ -231,7 +252,10 @@ def locate_quote(text: str, first_line: int, quote: str) -> tuple[int, list[int]
             collapsed += " "
         starts.append((len(collapsed), position, len(word)))
         collapsed += word
-    found = [m.start() for m in re.finditer(re.escape(wanted), collapsed)]
+    anywhere = [m.start() for m in re.finditer(f"(?={re.escape(wanted)})", collapsed)]
+    found = [at for at in anywhere if _on_boundaries(collapsed, at, at + len(wanted))]
+    if anywhere and not found:
+        return "quote occurs only inside a longer token"
     if not found:
         return "quote not found"
     if len(found) > 1:
@@ -350,11 +374,14 @@ def verify_fact(
         if line is None:
             problems.append(Problem("setup", row.id, f"unknown version line {name}"))
             continue
-        allowed = {line.sources.bonsai_docs, line.sources.blender_manual}
-        # A claim about a release pairing may be stated in another release's docs.
-        if row.kind not in ("version_claim", "doc_conflict") and not any(
-            c.source in allowed for c in row.citations
-        ):
+        if row.kind in ("version_claim", "doc_conflict"):
+            # Evidence for the line's pairing, which may be stated in another release's docs;
+            # the line lists it among its claims and its pairing is not scored as a fact.
+            if row.id not in line.claims:
+                problems.append(Problem("setup", row.id, f"version row not in {name}'s claims"))
+            continue
+        allowed = {line.sources.bonsai_docs, line.sources.blender_manual} - {None}
+        if not any(c.source in allowed for c in row.citations):
             problems.append(Problem("setup", row.id, f"no citation from {name}'s sources"))
     ids = {source.id for source in config.sources}
     for absence in row.absent_in:
@@ -404,6 +431,8 @@ def check_profiles(profiles: SetupProfiles, facts: SetupFacts, config: DocSource
         problems.append(Problem("setup", label, "version line ids are not unique"))
     for line in profiles.version_lines:
         for role, sid in line.sources.model_dump().items():
+            if sid is None:  # no Manual pinned for this line's Blender release
+                continue
             want = "operator-source" if role == "bonsai_source" else "docs"
             if sid not in {s.id for s in config.sources} or config.source(sid).role != want:
                 problems.append(Problem("setup", label, f"{line.id}: {role} {sid} is not a {want}"))
@@ -411,6 +440,10 @@ def check_profiles(profiles: SetupProfiles, facts: SetupFacts, config: DocSource
             if claim not in rows or rows[claim].kind not in ("version_claim", "doc_conflict"):
                 problems.append(
                     Problem("setup", label, f"{line.id}: claim {claim} is not a version row")
+                )
+            elif line.id not in rows[claim].applies_to.version_lines:
+                problems.append(
+                    Problem("setup", label, f"{line.id}: claim {claim} does not apply to it")
                 )
     ids = [p.id for p in profiles.profiles]
     if len(ids) != len(set(ids)):

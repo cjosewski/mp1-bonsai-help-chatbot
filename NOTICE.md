@@ -23,7 +23,7 @@ Bonsai documentation by the IfcOpenShell contributors (https://github.com/IfcOpe
 Bonsai documentation by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/docs at tag bonsai-0.8.5-post1, commit e6258ab4a8e8c76d18b743ea80a6f7699809319b), licensed under the GNU General Public License v3.0 or later. Copied unmodified.
 
 - Pinned as the older-release contrast for the setup facts (open item O-3, plan default).
-- Files: `tests/fixtures/docs/bonsai-docs-0-8-5-post1/src/bonsai/docs/` (7 pages, the ones
+- Files: `tests/fixtures/docs/bonsai-docs-0-8-5-post1/src/bonsai/docs/` (8 pages, the ones
   setup-fact rows cite).
 - License text: the same `src/bonsai/COPYING` blob as above, committed once under
   `tests/fixtures/docs/bonsai-docs/`. This release's `src/bonsai/docs/conf.py` is recorded by

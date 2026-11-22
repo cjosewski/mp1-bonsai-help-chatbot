@@ -1,8 +1,9 @@
 {
-  "digest": "5e65a0cc35491a27c40da53079b92d6788d0e1818606bab4a1dec9135c589fc0",
+  "digest": "10800559a713eb7af8eaa20f4b94b5341c7e2ba270820f60c52e3b408a936867",
   "not_citable": [
     {"claim": "Bonsai 0.9.0-post1 supports Blender 5.3.", "reason": "No pinned text names Blender 5.3 with Bonsai 0.9.0-post1; the 0.9.0-post1 developer installation page lists Blender 5.1 or 5.2 (SF-012).", "wanted": "VL-current pairing (plan §2)"},
     {"claim": "Bonsai 0.8.5-post1 serves Blender 4.2 LTS.", "reason": "Only build metadata pairs them (src/bonsai/bonsai/blender_manifest.toml, blender_version_min); no snapshot selects it (the operator sources take .py files only) and it carries a contact address. The 0.8.5-post1 docs list Blender 4.3, 4.4, or 4.5 (SF-013).", "wanted": "VL-older pairing (plan §2, O-3 default)"},
+    {"claim": "Bonsai 0.8.5-post1 is published for Python 3.11 with a maximum Blender version of 5.1.0.", "reason": "Withdrawn row SF-014. The only pinned text is the 0.9.0-post1 maintenance page, which gives these values as a hypothetical example ('e.g.') of a release workaround (guides/development/maintenance.rst, lines 95-96), not as what 0.8.5-post1 is; no 0.8.5-post1 page states it.", "wanted": "VL-older pairing (plan §2, O-3 default)"},
     {"claim": "Blender 5.2 LTS is the long-term release.", "reason": "The pinned Manual history ends at 4.3; no pinned text names 5.2 LTS.", "wanted": "Blender LTS status for the current line"},
     {"claim": "Bonsai 0.9.0 was released on October 15, 2026; Blender 5.3 on November 10, 2026.", "reason": "Not in pinned text (no Bonsai changelog or release notes exist at either pin; GitHub release pages are not git content).", "wanted": "Release dates (plan §2)"},
     {"claim": "Blender 4.2 user-interface differences from Blender 5.3.", "reason": "Only the 5.3 Manual is pinned. A blender-v4.2-release Manual pin is an option for Chad, not a default.", "wanted": "Blender-side setup facts for VL-older"},
@@ -41,6 +42,19 @@
           "line_start": 10,
           "path": "src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst",
           "pin_id": "bonsai-docs-00e02b1ec8e4c266",
+          "quote": "There is a proposed convention to provide fallback support but this is not supported yet in any known vendor.",
+          "quote_line": 19,
+          "record_id": "bonsai-docs:src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst#L10-L42",
+          "section_sha256": "84a60c1021e4ef6f84cda534314aef706cc996c6e29b603f07f43eb7673f45be",
+          "source": "bonsai-docs"
+        },
+        {
+          "commit": "2744f8426bdef98a486406628a121298a5479690",
+          "heading_path": ["Georeferencing", "Coordinate reference systems"],
+          "line_end": 42,
+          "line_start": 10,
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst",
+          "pin_id": "bonsai-docs-00e02b1ec8e4c266",
           "quote": "Please consider upgrading to IFC4.",
           "quote_line": 21,
           "record_id": "bonsai-docs:src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst#L10-L42",
@@ -67,6 +81,19 @@
           "line_start": 10,
           "path": "src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst",
           "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
+          "quote": "There is a proposed convention to provide fallback support but this is not supported yet in any known vendor.",
+          "quote_line": 19,
+          "record_id": "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst#L10-L42",
+          "section_sha256": "84a60c1021e4ef6f84cda534314aef706cc996c6e29b603f07f43eb7673f45be",
+          "source": "bonsai-docs-0-8-5-post1"
+        },
+        {
+          "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
+          "heading_path": ["Georeferencing", "Coordinate reference systems"],
+          "line_end": 42,
+          "line_start": 10,
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst",
+          "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
           "quote": "Please consider upgrading to IFC4.",
           "quote_line": 21,
           "record_id": "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst#L10-L42",
@@ -74,7 +101,7 @@
           "source": "bonsai-docs-0-8-5-post1"
         }
       ],
-      "claim": "The Bonsai docs state that IFC2X3 models cannot be georeferenced (a proposed fallback convention is not supported by any known vendor) and ask users to consider upgrading to IFC4.",
+      "claim": "The Bonsai docs state that IFC2X3 models cannot be georeferenced; a proposed convention to provide fallback support is not supported yet in any known vendor, and users are asked to consider upgrading to IFC4.",
       "conflicts_with": [],
       "drafted_on": "2026-11-22",
       "id": "SF-001",
@@ -732,52 +759,6 @@
       "absent_in": [],
       "applies_to": {
         "ifc_schemas": ["IFC2X3", "IFC4", "IFC4X3"],
-        "version_lines": ["VL-older"]
-      },
-      "candidate_rule": "version-mention",
-      "citations": [
-        {
-          "commit": "2744f8426bdef98a486406628a121298a5479690",
-          "heading_path": ["Maintenance", "Release"],
-          "line_end": 130,
-          "line_start": 75,
-          "path": "src/bonsai/docs/guides/development/maintenance.rst",
-          "pin_id": "bonsai-docs-00e02b1ec8e4c266",
-          "quote": "(e.g., py313 as ``0.8.5`` and py311 as ``0.8.5-post1``)",
-          "quote_line": 95,
-          "record_id": "bonsai-docs:src/bonsai/docs/guides/development/maintenance.rst#L75-L130",
-          "section_sha256": "3e3937481718ea044c0300dfa79e88536e5bf357448a316ce89045c09fdc9980",
-          "source": "bonsai-docs"
-        },
-        {
-          "commit": "2744f8426bdef98a486406628a121298a5479690",
-          "heading_path": ["Maintenance", "Release"],
-          "line_end": 130,
-          "line_start": 75,
-          "path": "src/bonsai/docs/guides/development/maintenance.rst",
-          "pin_id": "bonsai-docs-00e02b1ec8e4c266",
-          "quote": "(e.g., set max version ``5.1.0`` for ``0.8.5-post1``, which restricts it to versions below 5.1.0)",
-          "quote_line": 96,
-          "record_id": "bonsai-docs:src/bonsai/docs/guides/development/maintenance.rst#L75-L130",
-          "section_sha256": "3e3937481718ea044c0300dfa79e88536e5bf357448a316ce89045c09fdc9980",
-          "source": "bonsai-docs"
-        }
-      ],
-      "claim": "As worked examples in its release procedure (not as a compatibility statement), the 0.9.0-post1 maintenance page publishes py311 as 0.8.5-post1 and sets a maximum Blender version of 5.1.0 for 0.8.5-post1, which restricts it to versions below 5.1.0.",
-      "conflicts_with": [],
-      "drafted_on": "2026-11-22",
-      "id": "SF-014",
-      "key_terms": ["0.8.5-post1", "5.1.0"],
-      "kind": "version_claim",
-      "note": "Worked examples ('e.g.') in a maintainer procedure; they do not state which Blender versions 0.8.5-post1 supports.",
-      "review": null,
-      "status": "assistant_drafted",
-      "topic": "0.8.5-post1 release mechanics"
-    },
-    {
-      "absent_in": [],
-      "applies_to": {
-        "ifc_schemas": ["IFC2X3", "IFC4", "IFC4X3"],
         "version_lines": ["VL-current"]
       },
       "candidate_rule": "version-mention",
@@ -896,7 +877,7 @@
           "line_start": 54,
           "path": "src/bonsai/docs/guides/authoring/basic_modeling/creating_walls.rst",
           "pin_id": "bonsai-docs-00e02b1ec8e4c266",
-          "quote": "A pen (Edit Wall) icon appears next to the wall in the 3D viewport",
+          "quote": "Select a single wall. A pen (Edit Wall) icon appears next to the wall in the 3D viewport",
           "quote_line": 60,
           "record_id": "bonsai-docs:src/bonsai/docs/guides/authoring/basic_modeling/creating_walls.rst#L54-L100",
           "section_sha256": "1269089e763ac69c723ed346683b6e230bf0ec581139e55544c9fabee40c0880",
@@ -909,14 +890,14 @@
           "line_start": 54,
           "path": "src/bonsai/docs/guides/authoring/basic_modeling/creating_walls.rst",
           "pin_id": "bonsai-docs-00e02b1ec8e4c266",
-          "quote": "Dragging only modifies the in-progress draft — the IFC file is not touched until you commit",
+          "quote": "Drag any handle to update the value. Dragging only modifies the in-progress draft — the IFC file is not touched until you commit",
           "quote_line": 66,
           "record_id": "bonsai-docs:src/bonsai/docs/guides/authoring/basic_modeling/creating_walls.rst#L54-L100",
           "section_sha256": "1269089e763ac69c723ed346683b6e230bf0ec581139e55544c9fabee40c0880",
           "source": "bonsai-docs"
         }
       ],
-      "claim": "The 0.9.0-post1 wall guide has an 'Interactive Parametric Editing' section: a single selected wall shows a pen (Edit Wall) icon, and dragging its handles only modifies the in-progress draft, so the IFC file is not touched until you commit. The section is not documented in bonsai-0.8.5-post1 guides/authoring/basic_modeling/creating_walls.rst.",
+      "claim": "The 0.9.0-post1 wall guide has an 'Interactive Parametric Editing' section: when a single wall is selected, a pen (Edit Wall) icon appears next to it in the 3D viewport, and dragging a handle only modifies the in-progress draft, so the IFC file is not touched until you commit. The section is not documented in bonsai-0.8.5-post1 guides/authoring/basic_modeling/creating_walls.rst.",
       "conflicts_with": [],
       "drafted_on": "2026-11-22",
       "id": "SF-017",
@@ -964,7 +945,7 @@
       "absent_in": [],
       "applies_to": {
         "ifc_schemas": ["IFC4"],
-        "version_lines": ["VL-current"]
+        "version_lines": ["VL-current", "VL-older"]
       },
       "candidate_rule": "schema-mention",
       "citations": [
@@ -975,18 +956,31 @@
           "line_start": 16,
           "path": "src/bonsai/docs/quickstart/create_model.rst",
           "pin_id": "bonsai-docs-00e02b1ec8e4c266",
-          "quote": "Metric (m) Project**. This will begin a blank IFC4 project.",
-          "quote_line": 20,
+          "quote": "Go to :menuselection:`Topbar --> File --> New IFC Project`, and select **New Metric (m) Project**. This will begin a blank IFC4 project.",
+          "quote_line": 19,
           "record_id": "bonsai-docs:src/bonsai/docs/quickstart/create_model.rst#L16-L79",
           "section_sha256": "9a82c692e184ed5076001a8f1802fd5faef1adbe6a4bf31fccd3c18e8e3cb7e3",
           "source": "bonsai-docs"
+        },
+        {
+          "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
+          "heading_path": ["Creating an IFC model", "Creating a single object"],
+          "line_end": 80,
+          "line_start": 16,
+          "path": "src/bonsai/docs/quickstart/create_model.rst",
+          "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
+          "quote": "Go to :menuselection:`Topbar --> File --> New IFC Project`, and select **New Metric (m) Project**. This will begin a blank IFC4 project.",
+          "quote_line": 19,
+          "record_id": "bonsai-docs-0-8-5-post1:src/bonsai/docs/quickstart/create_model.rst#L16-L80",
+          "section_sha256": "316bf4e489a798f5dcb0eb26031d028b26d08d4d50a138aa71d4e109e1119864",
+          "source": "bonsai-docs-0-8-5-post1"
         }
       ],
-      "claim": "In the 0.9.0-post1 quickstart, File > New IFC Project > New Metric (m) Project begins a blank IFC4 project.",
+      "claim": "In the quickstart of both releases, going to Topbar --> File --> New IFC Project and selecting New Metric (m) Project begins a blank IFC4 project.",
       "conflicts_with": [],
       "drafted_on": "2026-11-22",
       "id": "SF-019",
-      "key_terms": ["blank IFC4 project"],
+      "key_terms": ["New IFC Project", "blank IFC4 project"],
       "kind": "schema_dependent",
       "note": null,
       "review": null,

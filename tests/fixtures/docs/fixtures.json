@@ -1,5 +1,5 @@
 {
-  "digest": "17f03386de482c5fc7a72f941326e7161a0b18a2cc8fc686e2b20b8d7624753d",
+  "digest": "7a996baf7f590eba7a588f0737555350065ba782443819f4c7465cf298f50c93",
   "schema": "doc-fixtures-v1",
   "sources": {
     "blender-manual": {
@@ -479,6 +479,14 @@
           "path": "src/bonsai/docs/guides/viewing/dealing_with_large_models.rst",
           "roles": ["page"],
           "sha256": "aa3117192683bbf40cb559fed785263b56f895b03a254dfa304ba89d50cef357"
+        },
+        {
+          "blob": "581436ce9dca4ff717378598d7568ffad8c37a66",
+          "bytes": 3402,
+          "categories": ["bonsai_project_setup"],
+          "path": "src/bonsai/docs/quickstart/create_model.rst",
+          "roles": ["page"],
+          "sha256": "af7101e19584a6d6fc894e8a3019d560f889412ae21dd45e2b964240243edec2"
         },
         {
           "blob": "3ccc73830c4e37c5845e4e749dbfe3252def9408",

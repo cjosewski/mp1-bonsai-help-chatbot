@@ -398,6 +398,17 @@ def test_a_record_holding_a_jsonl_separator_is_refused():
         di.index_pages(source(), entry, lambda path: "T\n=\n\na b\n".encode())
 
 
+def test_a_page_listed_twice_is_a_duplicate_record_id_failure():
+    entry = {
+        "pin_id": "p",
+        "source_digest": "d",
+        "repository": {"commit": "0" * 40},
+        "pages": [{"path": "docs/x.rst"}, {"path": "docs/x.rst"}],
+    }
+    with pytest.raises(CheckFailed, match="duplicate record ids"):
+        di.index_pages(source(), entry, lambda path: "T\n=\n\na b\n".encode())
+
+
 def test_every_fixture_page_partitions_exactly():
     config = load_config(ROOT / "config/doc-sources.json")
     manifest = json.loads((ROOT / "config/doc-manifest.json").read_bytes())

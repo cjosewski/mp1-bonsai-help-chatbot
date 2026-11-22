@@ -537,6 +537,12 @@
           ]
         },
         {
+          "path": "src/bonsai/docs/quickstart/create_model.rst",
+          "categories": [
+            "bonsai_project_setup"
+          ]
+        },
+        {
           "path": "src/bonsai/docs/quickstart/explore_model.rst",
           "categories": [
             "model_exploration"
