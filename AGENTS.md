@@ -69,7 +69,9 @@ with Chad's four decisions (pairings, IFC schemas, review packets, drafting; quo
   Chad answered the count questions on November 22, 2026 (quoted in `docs/DECISIONS.md`):
   the 15 multi-part requests (10 development, 5 held-out) and 10 injection cases (all
   held out) are in addition to the 75 questions, and 10 benign control cases sit beside
-  the injection cases, held out, so the set is 110 items. Drafting may start.
+  the injection cases, held out, so the set is 110 items. All 110 are drafted and pass the
+  full-set check; the review packets await Chad's import (only he runs `gold packet import`
+  and `setup review import`).
 - Gold rules:
   - Only Chad writes a packet's `DECISION:` and `NOTE:` lines and its edit JSON, and only
     Chad runs `gold packet import` (interactive terminal, typed confirmation). An

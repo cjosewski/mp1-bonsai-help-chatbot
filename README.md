@@ -26,14 +26,16 @@ the version pairings, the IFC schemas, review packets and drafting are applied (
 [`docs/DECISIONS.md`](docs/DECISIONS.md)), and the gold-set tooling is built (slot plan,
 lane batches, checker, review packets, import, publish, pattern score; see
 [Gold set](#gold-set-b3)). Chad answered the gold-set count questions on November 22,
-2026, so drafting may start; no gold item is reviewed or published yet.
+2026. All 110 items are drafted by assistant lanes (each critiqued and revised) and pass the
+full-set check; review packets GP-001 to GP-005 and the setup packet SR-001 await Chad's
+decisions. No gold item is reviewed or published yet.
 
 | Milestone | What it delivers | Status |
 | --- | --- | --- |
 | B0 | Repository, licenses, decision log, porting map, packaging | Done |
 | B1 | Pinned, hashed documentation snapshots; fixture slice | Done |
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (rows await Chad's review at B3) |
-| B3 | Gold set and multi-part and injection requests | In progress: tooling built; no item drafted or reviewed |
+| B3 | Gold set and multi-part and injection requests | In progress: 110 items drafted; awaiting Chad's review |
 | B4 | Rubric, prompts, deterministic checks; generation, gate and collection modules ported | Not yet implemented |
 | B5 | Baseline run | Not yet implemented |
 | B6 | Baseline human labels | Not yet implemented |

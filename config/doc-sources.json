@@ -267,6 +267,13 @@
         {
           "path": "src/bonsai/docs/tutorials/project5.rst",
           "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/reference/general/hotkeys.rst",
+          "categories": [
+            "bonsai_modeling",
+            "files_versions_troubleshooting"
+          ]
         }
       ],
       "fixture_min_per_category": 2,
@@ -488,6 +495,18 @@
         {
           "path": "manual/getting_started/about/history.rst",
           "categories": []
+        },
+        {
+          "path": "manual/editors/3dview/modes.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "manual/editors/preferences/addons.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
         }
       ],
       "fixture_min_per_category": 1,
@@ -625,6 +644,48 @@
           "categories": [
             "files_versions_troubleshooting"
           ]
+        },
+        {
+          "path": "src/bonsai/docs/reference/toolbar/wall.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/reference/geometry_and_materials/index.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/basic_modeling/opening.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/basic_modeling/window.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/git_support.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/understanding_ifc/geometry_and_representations.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/quickstart/installation.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
         }
       ],
       "fixture_min_per_category": 0,
@@ -722,6 +783,24 @@
         {
           "path": "manual/getting_started/about/history.rst",
           "categories": []
+        },
+        {
+          "path": "manual/editors/preferences/addons.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        },
+        {
+          "path": "manual/editors/preferences/extensions.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        },
+        {
+          "path": "manual/editors/3dview/navigate/navigation.rst",
+          "categories": [
+            "model_exploration"
+          ]
         }
       ],
       "fixture_min_per_category": 0,
