@@ -613,6 +613,18 @@
         {
           "path": "src/bonsai/docs/tutorials/project5.rst",
           "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/reference/project_overview/project_info.rst",
+          "categories": [
+            "bonsai_project_setup"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/troubleshooting.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
         }
       ],
       "fixture_min_per_category": 0,
@@ -804,6 +816,22 @@
       "pattern": "home-path",
       "count": 1,
       "reason": "Upstream example of a loaded IFC file location for a generic user. Public upstream text, not this repository's owner's details."
+    },
+    {
+      "source": "bonsai-docs-0-8-5-post1",
+      "path": "src/bonsai/docs/guides/troubleshooting.rst",
+      "sha256": "50a1ccc49a859b781bbf54d3d4560df5d15e894ba5d1bf2796bb681eb0d08d31",
+      "pattern": "home-path",
+      "count": 2,
+      "reason": "Upstream examples of Blender configuration folders on macOS and Linux, one naming a Bonsai maintainer's public handle (the same lines as the 0.9.0-post1 page). Public upstream text, not this repository's owner's details. Allowed by Chad on November 22, 2026."
+    },
+    {
+      "source": "bonsai-docs-0-8-5-post1",
+      "path": "src/bonsai/docs/reference/project_overview/project_info.rst",
+      "sha256": "b0cb9a7b2165a644e8e65cf84f403b510653e3bb4b65ec80ef2a0a0f12604070",
+      "pattern": "home-path",
+      "count": 1,
+      "reason": "Upstream example of a loaded IFC file location for a generic user (as on the 0.9.0-post1 page). Public upstream text, not this repository's owner's details. Allowed by Chad on November 22, 2026."
     }
   ]
 }

@@ -164,7 +164,7 @@ failure; 4 upstream differs from the pins; 5 refused to write. Errors are one li
 each on stderr, without tracebacks or absolute paths. A failed build leaves its
 staging directory for inspection; `snapshot check` lists it as a warning.
 
-The fixture slice in `tests/fixtures/docs/` (33 Bonsai 0.9.0-post1 pages, 14 Bonsai
+The fixture slice in `tests/fixtures/docs/` (33 Bonsai 0.9.0-post1 pages, 16 Bonsai
 0.8.5-post1 pages, 22 Blender 5.2 Manual pages, 1 Blender 4.5 Manual page, the license
 texts and `fixtures.json`) covers every plan §5 category, every page a setup fact cites and
 the six Bonsai tutorials of each pin (`tutorials/project0.rst` to `project5.rst`, which gold

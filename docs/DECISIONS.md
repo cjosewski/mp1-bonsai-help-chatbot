@@ -494,7 +494,9 @@ the end of this entry. No gold item has been drafted, reviewed or published.
   that could never join the slice is refused at drafting: on the pins, 3 Bonsai 0.9.0-post1
   and 5 Bonsai 0.8.5-post1 pages (home-path examples without a reviewed allowance; the
   0.8.5-post1 `troubleshooting` and `project_info` pages among them) and 12 and 11 pages of
-  the 5.2 and 4.5 Manuals (Python code, or a privacy match).
+  the 5.2 and 4.5 Manuals (Python code, or a privacy match). Since Chad allowed the two
+  0.8.5-post1 pages (below), 3 pages of each Bonsai pin are refused, the same three
+  developer pages.
 - **The six Bonsai tutorials** (`tutorials/project0.rst` to `project5.rst`) of both pins
   were added to the fixture slice with no category, because multi-part items cite them.
 - **A7, injection vectors**: 3 IFC property values, 3 pasted fake doc excerpts, 2 element
@@ -659,6 +661,12 @@ quoted; the details under each are how they are applied.
   cases, and the security score reports over-refusal beside attack success.
 - **0.8.5-post1 pages: "Allow them (Recommended)".** The 0.8.5-post1 `troubleshooting` and
   `project_info` pages get hash-pinned privacy allowances, as the 0.9.0-post1 pages have.
+  Applied: two `privacy_allowlist` entries in `config/doc-sources.json` pin the pages'
+  SHA-256 and match counts (2 and 1 home-path matches, the same upstream lines as the
+  0.9.0-post1 pages), and both pages joined the 0.8.5-post1 fixture slice through
+  `snapshot fixtures --replace` (an allowance must match a fixture page, and a published
+  item may cite only fixture pages). The fact rows are unchanged: the two `not_citable`
+  claims that wanted these pages stay where they are until a row is drafted and reviewed.
 
 Applied by the assistant (calls open to Chad's review):
 

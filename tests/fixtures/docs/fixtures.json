@@ -1,5 +1,5 @@
 {
-  "digest": "a41dc26c84b5e2a15e4e356e0a008841f6366ab834c31e642731fe5112c6b40b",
+  "digest": "6bb410fd3331ceeeccbef976947adc8393b55618eef06297964512151bd0778c",
   "schema": "doc-fixtures-v1",
   "sources": {
     "blender-manual": {
@@ -535,6 +535,14 @@
           "sha256": "e8795fa274f3b02f18545b27189505546fdd7977218039368ae8fd773a5141c3"
         },
         {
+          "blob": "6db663aa1a295e37eed338f1dfef0cd0845b8245",
+          "bytes": 8801,
+          "categories": ["files_versions_troubleshooting"],
+          "path": "src/bonsai/docs/guides/troubleshooting.rst",
+          "roles": ["page"],
+          "sha256": "50a1ccc49a859b781bbf54d3d4560df5d15e894ba5d1bf2796bb681eb0d08d31"
+        },
+        {
           "blob": "d5a7a8cb425cd720a68fc1420c0b872f768c2c1a",
           "bytes": 7696,
           "categories": ["model_exploration"],
@@ -557,6 +565,14 @@
           "path": "src/bonsai/docs/quickstart/explore_model.rst",
           "roles": ["page"],
           "sha256": "c5b9733fd84dd4e7f54e2dbcaab2398fe96d08e3d317215d0af27518b7baa693"
+        },
+        {
+          "blob": "f2fe105f8c6a6a90220d39e85e82391563b86b94",
+          "bytes": 16520,
+          "categories": ["bonsai_project_setup"],
+          "path": "src/bonsai/docs/reference/project_overview/project_info.rst",
+          "roles": ["page"],
+          "sha256": "b0cb9a7b2165a644e8e65cf84f403b510653e3bb4b65ec80ef2a0a0f12604070"
         },
         {
           "blob": "ca4acd4de066c8894dba44c296f3daba6ca7afca",

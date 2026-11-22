@@ -24,8 +24,10 @@ Bonsai documentation by the IfcOpenShell contributors (https://github.com/IfcOpe
 
 - Pinned for the older version line (Blender 4.5 with Bonsai 0.8.5-post1, Chad's decision of
   November 22, 2026, which settles open item O-3).
-- Files: `tests/fixtures/docs/bonsai-docs-0-8-5-post1/src/bonsai/docs/` (14 pages: the ones
-  setup-fact rows cite and the six tutorials that gold multi-part requests cite).
+- Files: `tests/fixtures/docs/bonsai-docs-0-8-5-post1/src/bonsai/docs/` (16 pages: the ones
+  setup-fact rows cite, the six tutorials that gold multi-part requests cite, and the
+  `troubleshooting` and `project_info` pages, whose public example home paths Chad allowed
+  on November 22, 2026).
 - License text: the same `src/bonsai/COPYING` blob as above, committed once under
   `tests/fixtures/docs/bonsai-docs/`. This release's `src/bonsai/docs/conf.py` is recorded by
   its blob id and kept out of Git for the same reason as above.
