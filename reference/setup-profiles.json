@@ -1,0 +1,69 @@
+{
+  "digest": "accaf61852b1a8ed3dff5d0203c471c62cf6a87514c55b5f08f04fc39b2888c4",
+  "drafted_on": "2026-11-22",
+  "enums": {
+    "discipline": {
+      "basis": "assistant default",
+      "facts": [],
+      "note": "Plan §4 names the field, not its values.",
+      "values": ["architecture", "structure", "building_services"]
+    },
+    "ifc_schema": {
+      "basis": "cited",
+      "facts": ["SF-007"],
+      "note": null,
+      "values": ["IFC2X3", "IFC4", "IFC4X3"]
+    },
+    "model_state": {
+      "basis": "plan §4 wording",
+      "facts": [],
+      "note": "Plan §4: new project, opened IFC, large federated model.",
+      "values": ["new_project", "opened_ifc", "large_federated_model"]
+    }
+  },
+  "profiles": [
+    {"discipline": "architecture", "id": "SP-01", "ifc_schema": "IFC2X3", "model_state": "new_project", "review": null, "split": "assessed", "status": "assistant_drafted", "version_line": "VL-current"},
+    {"discipline": "structure", "id": "SP-02", "ifc_schema": "IFC2X3", "model_state": "opened_ifc", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-current"},
+    {"discipline": "building_services", "id": "SP-03", "ifc_schema": "IFC2X3", "model_state": "large_federated_model", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-current"},
+    {"discipline": "structure", "id": "SP-04", "ifc_schema": "IFC4", "model_state": "new_project", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-current"},
+    {"discipline": "building_services", "id": "SP-05", "ifc_schema": "IFC4", "model_state": "opened_ifc", "review": null, "split": "assessed", "status": "assistant_drafted", "version_line": "VL-current"},
+    {"discipline": "architecture", "id": "SP-06", "ifc_schema": "IFC4", "model_state": "large_federated_model", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-current"},
+    {"discipline": "building_services", "id": "SP-07", "ifc_schema": "IFC4X3", "model_state": "new_project", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-current"},
+    {"discipline": "architecture", "id": "SP-08", "ifc_schema": "IFC4X3", "model_state": "opened_ifc", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-current"},
+    {"discipline": "structure", "id": "SP-09", "ifc_schema": "IFC4X3", "model_state": "large_federated_model", "review": null, "split": "assessed", "status": "assistant_drafted", "version_line": "VL-current"},
+    {"discipline": "architecture", "id": "SP-10", "ifc_schema": "IFC2X3", "model_state": "new_project", "review": null, "split": "assessed", "status": "assistant_drafted", "version_line": "VL-older"},
+    {"discipline": "structure", "id": "SP-11", "ifc_schema": "IFC2X3", "model_state": "opened_ifc", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-older"},
+    {"discipline": "building_services", "id": "SP-12", "ifc_schema": "IFC2X3", "model_state": "large_federated_model", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-older"},
+    {"discipline": "structure", "id": "SP-13", "ifc_schema": "IFC4", "model_state": "new_project", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-older"},
+    {"discipline": "building_services", "id": "SP-14", "ifc_schema": "IFC4", "model_state": "opened_ifc", "review": null, "split": "assessed", "status": "assistant_drafted", "version_line": "VL-older"},
+    {"discipline": "architecture", "id": "SP-15", "ifc_schema": "IFC4", "model_state": "large_federated_model", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-older"},
+    {"discipline": "building_services", "id": "SP-16", "ifc_schema": "IFC4X3", "model_state": "new_project", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-older"},
+    {"discipline": "architecture", "id": "SP-17", "ifc_schema": "IFC4X3", "model_state": "opened_ifc", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-older"},
+    {"discipline": "structure", "id": "SP-18", "ifc_schema": "IFC4X3", "model_state": "large_federated_model", "review": null, "split": "assessed", "status": "assistant_drafted", "version_line": "VL-older"}
+  ],
+  "schema": "setup-profiles-v1",
+  "version_lines": [
+    {
+      "blender": "5.3",
+      "bonsai": "0.9.0-post1",
+      "bonsai_tag": "bonsai-0.9.0post1",
+      "claims": ["SF-012", "SF-015"],
+      "id": "VL-current",
+      "origin": "plan §2",
+      "pairing_note": "No pinned text pairs Blender 5.3 with Bonsai 0.9.0-post1: the developer installation page lists Blender 5.1 or 5.2 (SF-012), and the troubleshooting page says Blender 4.5 (SF-015, a conflict within the pin). Kept as the plan's pairing; not scored as a fact.",
+      "pairing_status": "uncited",
+      "sources": {"blender_manual": "blender-manual", "bonsai_docs": "bonsai-docs", "bonsai_source": "bonsai-source"}
+    },
+    {
+      "blender": "4.2 LTS",
+      "bonsai": "0.8.5-post1",
+      "bonsai_tag": "bonsai-0.8.5-post1",
+      "claims": ["SF-013", "SF-014", "SF-016"],
+      "id": "VL-older",
+      "origin": "O-3 default",
+      "pairing_note": "Blender 4.2 is not in the 0.8.5-post1 docs' supported list (Blender 4.3, 4.4, or 4.5, SF-013). The 0.9.0-post1 maintenance page gives only worked examples for 0.8.5-post1 (SF-014). Only the Blender 5.3 Manual is pinned; its history describes 4.2 LTS (SF-016). Kept as the O-3 default; not scored as a fact.",
+      "pairing_status": "conflict",
+      "sources": {"blender_manual": "blender-manual", "bonsai_docs": "bonsai-docs-0-8-5-post1", "bonsai_source": "bonsai-source-0-8-5-post1"}
+    }
+  ]
+}

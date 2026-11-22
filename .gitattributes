@@ -1,3 +1,5 @@
 # Documentation fixtures and committed hash manifest: compare byte for byte, never convert line endings.
 tests/fixtures/docs/** -text
 config/doc-manifest.json -text
+# Committed reference files are compared byte for byte by their checks.
+reference/** -text

@@ -108,6 +108,9 @@ def test_byte_exact_files_are_exempt_from_line_ending_conversion():
         "config/doc-manifest.json",
         "tests/fixtures/docs/fixtures.json",
         "tests/fixtures/docs/blender-manual/manual/copyright.rst",
+        "reference/docs-index.json",
+        "reference/lexicons/blender-manual.json",
+        "reference/setup-facts.json",
     ]
     out = subprocess.run(
         ["git", "check-attr", "text", "--", *paths], cwd=ROOT, capture_output=True, check=True

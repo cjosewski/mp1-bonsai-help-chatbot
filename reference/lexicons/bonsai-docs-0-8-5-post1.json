@@ -1,0 +1,772 @@
+{
+  "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
+  "digest": "76fc0fda25df6332c59d5f65917dee5f8ced7d08c444b6675f74656e0b26e0b1",
+  "entries": [
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`.`",
+      "locations": [25],
+      "value": "."
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`/`",
+      "locations": [22],
+      "value": "/"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`0`",
+      "locations": [33],
+      "value": "0"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`1`",
+      "locations": [25],
+      "value": "1"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`3`",
+      "locations": [25],
+      "value": "3"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`5`",
+      "locations": [40],
+      "value": "5"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`6`",
+      "locations": [44],
+      "value": "6"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`7`",
+      "locations": [25, 36],
+      "value": "7"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`8`",
+      "locations": [55],
+      "value": "8"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`9`",
+      "locations": [34],
+      "value": "9"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`A`",
+      "locations": [39, 54],
+      "value": "A"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Alt`",
+      "locations": [17],
+      "value": "Alt"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Alt` + :kbd:`D`",
+      "locations": [26, 51],
+      "value": "Alt-D"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Alt-H`",
+      "locations": [18],
+      "value": "Alt-H"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Alt` + :kbd:`O`",
+      "locations": [51],
+      "value": "Alt-O"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Alt` + :kbd:`P`",
+      "locations": [52],
+      "value": "Alt-P"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Alt-Z`",
+      "locations": [25],
+      "value": "Alt-Z"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Ctrl+D`",
+      "locations": [13],
+      "value": "Ctrl-D"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Ctrl` + :kbd:`J`",
+      "locations": [26],
+      "value": "Ctrl-J"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Ctrl` + :kbd:`N`",
+      "locations": [26, 30],
+      "value": "Ctrl-N"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Ctrl` + :kbd:`P`",
+      "locations": [52],
+      "value": "Ctrl-P"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Ctrl` + :kbd:`S`",
+      "locations": [26],
+      "value": "Ctrl-S"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Ctrl` + :kbd:`Shift` + :kbd:`D`",
+      "locations": [27],
+      "value": "Ctrl-Shift-D"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Ctrl` + :kbd:`Tab`",
+      "locations": [27, 29],
+      "value": "Ctrl-Tab"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Ctrl` + :kbd:`V`",
+      "locations": [26],
+      "value": "Ctrl-V"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`D`",
+      "locations": [39],
+      "value": "D"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Del`",
+      "locations": [26],
+      "value": "Del"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`H`",
+      "locations": [18],
+      "value": "H"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`M`",
+      "locations": [26],
+      "value": "M"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`MMB`",
+      "locations": [25],
+      "value": "MMB"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`N`",
+      "locations": [41],
+      "value": "N"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`P`",
+      "locations": [26],
+      "value": "P"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Q`",
+      "locations": [43, 53, 54],
+      "value": "Q"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`RMB`",
+      "locations": [15, 28],
+      "value": "RMB"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`S`",
+      "locations": [39],
+      "value": "S"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift`",
+      "locations": [25, 54],
+      "value": "Shift"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`0`",
+      "locations": [35],
+      "value": "Shift-0"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`2`",
+      "locations": [37],
+      "value": "Shift-2"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`6`",
+      "locations": [38],
+      "value": "Shift-6"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`7`",
+      "locations": [32],
+      "value": "Shift-7"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`8`",
+      "locations": [45],
+      "value": "Shift-8"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`9`",
+      "locations": [46],
+      "value": "Shift-9"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`A`",
+      "locations": [48, 54],
+      "value": "Shift-A"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`C`",
+      "locations": [39, 50],
+      "value": "Shift-C"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`D`",
+      "locations": [26],
+      "value": "Shift-D"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`Del`",
+      "locations": [26],
+      "value": "Shift-Del"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`E`",
+      "locations": [49],
+      "value": "Shift-E"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`F`",
+      "locations": [39, 49],
+      "value": "Shift-F"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`G`",
+      "locations": [1, 3, 49],
+      "value": "Shift-G"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift-H`",
+      "locations": [18],
+      "value": "Shift-H"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`K`",
+      "locations": [49],
+      "value": "Shift-K"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`M`",
+      "locations": [49, 50],
+      "value": "Shift-M"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift-MMB`",
+      "locations": [25],
+      "value": "Shift-MMB"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`N`",
+      "locations": [31],
+      "value": "Shift-N"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`O`",
+      "locations": [1, 3, 49],
+      "value": "Shift-O"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`R`",
+      "locations": [49, 54],
+      "value": "Shift-R"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`S`",
+      "locations": [30],
+      "value": "Shift-S"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`Spacebar`",
+      "locations": [32, 33, 34, 35, 36, 37, 38, 40, 42, 43, 44, 45, 46, 47, 55],
+      "value": "Shift-Spacebar"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`T`",
+      "locations": [49],
+      "value": "Shift-T"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`V`",
+      "locations": [50],
+      "value": "Shift-V"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift-W`",
+      "locations": [25],
+      "value": "Shift-W"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`W`",
+      "locations": [39],
+      "value": "Shift-W"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`X`",
+      "locations": [26, 50],
+      "value": "Shift-X"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Shift` + :kbd:`Y`",
+      "locations": [49],
+      "value": "Shift-Y"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`Tab`",
+      "locations": [13, 26],
+      "value": "Tab"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`W`",
+      "locations": [39],
+      "value": "W"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`WASD`",
+      "locations": [25],
+      "value": "WASD"
+    },
+    {
+      "kind": "hotkey",
+      "label": ":kbd:`X`",
+      "locations": [26],
+      "value": "X"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [13, 18, 19, 24, 25],
+      "value": "3D Viewport"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [16],
+      "value": "3D Viewport --> Add --> Mesh"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [25],
+      "value": "3D Viewport --> Explore Tool"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [18],
+      "value": "3D Viewport --> Object --> Show/Hidden --> Hide Selected"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [18],
+      "value": "3D Viewport --> Object --> Show/Hide --> Hide Unselected"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [18],
+      "value": "3D Viewport --> Object --> Show/Hide --> Show Hidden Objects"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [25],
+      "value": "3D Viewport --> View"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [22],
+      "value": "3D Viewport --> View --> Local View --> Toggle Local View"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [8],
+      "value": "Accounts --> Other users"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [8],
+      "value": "Add account"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [7, 8],
+      "value": "Blender Development"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [7, 8],
+      "value": "Clone repository"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [7, 8],
+      "value": "Edit --> Find in Files"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [9],
+      "value": "Edit --> Preferences --> Add-ons"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [7, 8],
+      "value": "Edit --> Preferences --> Experimental --> Debugging"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [10],
+      "value": "Edit --> Preferences --> Get Extensions --> \"V\" Icon (top right) --> Install from Disk"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [7, 8],
+      "value": "Edit --> Preferences --> Interface"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [8],
+      "value": "Edit... --> New"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [7, 8],
+      "value": "Explorer"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [7, 8],
+      "value": "File --> Export..."
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [7, 8],
+      "value": "File --> New File... --> Python File"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [8],
+      "value": "File --> Preferences --> Settings"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [8],
+      "value": "Get"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [19, 22],
+      "value": "Outliner"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [19, 22],
+      "value": "Properties"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [23],
+      "value": "Properties --> Geometry and Materials --> Materials"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [24],
+      "value": "Properties --> Geometry and Materials --> Placement --> Derived Coordinates"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [16, 20],
+      "value": "Properties --> Object Information"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [18],
+      "value": "Properties --> Object Information --> Object Metadata"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [20],
+      "value": "Properties --> Object Information --> Property Sets"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [20],
+      "value": "Properties --> Object Information --> Quantity Sets"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [16, 21],
+      "value": "Properties --> Object Information --> Spatial Container"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [22],
+      "value": "Properties --> Object Information --> Type"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [19],
+      "value": "Properties --> Project Overview --> Project Info"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [16, 17, 21],
+      "value": "Properties --> Project Overview --> Spatial Decomposition"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [7, 8],
+      "value": "Quality & Coordination --> Debug --> Experimental --> Debugging"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [7, 8],
+      "value": "Scripting"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [7, 8],
+      "value": "Settings"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [11, 18],
+      "value": "Status Bar"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [8],
+      "value": "System Properties --> Advanced --> Environment Variables"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [11, 14],
+      "value": "Topbar --> Edit --> Preferences --> Get Extensions"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [11],
+      "value": "Topbar --> Edit --> Preferences --> Get Extensions --> \"V\" Icon (top right) --> Install from Disk"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [11],
+      "value": "Topbar --> Edit --> Preferences --> Get Extensions --> Repositories (Top Right) --> \"+\" Icon --> Add Remote Remository"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [16, 19],
+      "value": "Topbar --> File"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [16],
+      "value": "Topbar --> File --> New IFC Project"
+    },
+    {
+      "kind": "menu_path",
+      "label": null,
+      "locations": [18],
+      "value": "Viewport"
+    },
+    {
+      "kind": "ui_path",
+      "label": null,
+      "locations": [4],
+      "value": "File > New IFC Project > New Project Wizard"
+    },
+    {
+      "kind": "ui_path",
+      "label": null,
+      "locations": [6],
+      "value": "File > Open IFC Project"
+    },
+    {
+      "kind": "ui_path",
+      "label": null,
+      "locations": [6],
+      "value": "File > Save"
+    },
+    {
+      "kind": "ui_path",
+      "label": null,
+      "locations": [6],
+      "value": "File > Save As..."
+    },
+    {
+      "kind": "ui_path",
+      "label": null,
+      "locations": [6],
+      "value": "File > Save IFC Project"
+    },
+    {
+      "kind": "ui_path",
+      "label": null,
+      "locations": [6],
+      "value": "File > Save IFC Project As..."
+    },
+    {
+      "kind": "ui_path",
+      "label": null,
+      "locations": [5],
+      "value": "IfcProject > IfcSite > IfcBuilding > IfcStorey"
+    },
+    {
+      "kind": "ui_path",
+      "label": null,
+      "locations": [12],
+      "value": "Is the z position of the selected object > 0 ?"
+    },
+    {
+      "kind": "ui_path",
+      "label": null,
+      "locations": [4],
+      "value": "Properties > Project Overview > Project Info"
+    },
+    {
+      "kind": "ui_path",
+      "label": null,
+      "locations": [0, 2],
+      "value": "Scene Properties > Geometry and Materials"
+    },
+    {
+      "kind": "ui_path",
+      "label": null,
+      "locations": [4],
+      "value": "Scene Properties > Project Overview"
+    }
+  ],
+  "extractor": "rst-roles-v1",
+  "license": "GPL-3.0-or-later",
+  "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
+  "records": ["bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/basic_modeling/door.rst#L23-L78", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/basic_modeling/door.rst#L90-L114", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/basic_modeling/window.rst#L23-L72", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/basic_modeling/window.rst#L73-L96", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/starting_new_project.rst#L39-L61", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/starting_new_project.rst#L73-L85", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/starting_new_project.rst#L86-L133", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/development/ide/linux_ide.rst#L1-L727", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/development/ide/windows_ide.rst#L1-L684", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/development/installation.rst#L281-L308", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/development/installation.rst#L309-L324", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/development/installation.rst#L39-L114", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/development/ux_guidelines.rst#L6-L80", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/troubleshooting.rst#L114-L153", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/troubleshooting.rst#L28-L42", "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/viewing/dealing_with_large_models.rst#L21-L44", "bonsai-docs-0-8-5-post1:src/bonsai/docs/quickstart/create_model.rst#L16-L80", "bonsai-docs-0-8-5-post1:src/bonsai/docs/quickstart/explore_model.rst#L121-L152", "bonsai-docs-0-8-5-post1:src/bonsai/docs/quickstart/explore_model.rst#L153-L228", "bonsai-docs-0-8-5-post1:src/bonsai/docs/quickstart/explore_model.rst#L21-L57", "bonsai-docs-0-8-5-post1:src/bonsai/docs/quickstart/explore_model.rst#L229-L297", "bonsai-docs-0-8-5-post1:src/bonsai/docs/quickstart/explore_model.rst#L298-L319", "bonsai-docs-0-8-5-post1:src/bonsai/docs/quickstart/explore_model.rst#L320-L368", "bonsai-docs-0-8-5-post1:src/bonsai/docs/quickstart/explore_model.rst#L369-L384", "bonsai-docs-0-8-5-post1:src/bonsai/docs/quickstart/explore_model.rst#L385-L426", "bonsai-docs-0-8-5-post1:src/bonsai/docs/quickstart/explore_model.rst#L58-L120", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/general/hotkeys.rst#L10-L34", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/general/hotkeys.rst#L35-L39", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/general/interface.rst#L1-L42", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/general/properties.rst#L13-L31", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/general/topbar.rst#L14-L40", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/general/topbar.rst#L41-L56", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/annotation.rst#L1-L10", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/beam.rst#L1-L9", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/column.rst#L1-L10", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/covering.rst#L1-L10", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/door.rst#L1-L10", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/duct.rst#L1-L11", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/element.rst#L1-L10", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/explore.rst#L25-L38", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/explore.rst#L8-L12", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/index.rst#L18-L33", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/index.rst#L47-L137", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/index.rst#L5-L17", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/slab.rst#L1-L10", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/spatial.rst#L1-L10", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/structural.rst#L1-L10", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/wall.rst#L19-L25", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/wall.rst#L29-L34", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/wall.rst#L42-L54", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/wall.rst#L55-L62", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/wall.rst#L63-L69", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/wall.rst#L70-L75", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/wall.rst#L76-L80", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/wall.rst#L81-L102", "bonsai-docs-0-8-5-post1:src/bonsai/docs/reference/toolbar/window.rst#L1-L11"],
+  "schema": "rst-lexicon-v1",
+  "source": "bonsai-docs-0-8-5-post1",
+  "source_digest": "8e2359af5403395ef00ae213417820d4d3cff57741d75ba05d0dba0ce0ffdbd0",
+  "summary": {
+    "counts": {"kbd_merged_runs": 63, "kbd_roles": 168},
+    "dangling_refs": [],
+    "entries": 125,
+    "occurrences": {"hotkey": 104, "menu_path": 79, "ui_path": 18},
+    "operator_ids": 0,
+    "operator_ids_wildcard": 0,
+    "unique_values": {"hotkey": 67, "menu_path": 46, "ui_path": 11}
+  }
+}
