@@ -330,12 +330,114 @@ These were made by the assistant while building B2 and are open to Chad's review
   line, its source mapping, `pairing_status`, `pairing_note` and `claims`) and the
   `not_citable` list.
 
+### B3 decisions (Chad, November 22, 2026)
+
+Chad answered the B3 questions above on November 22, 2026. His chosen answers are quoted;
+the details under each are how they were applied.
+
+- **Version pairings: "Cited pairings + matching Manuals (Recommended)".**
+  - `VL-current` is Blender 5.2 with Bonsai 0.9.0-post1; `VL-older` is Blender 4.5 with
+    Bonsai 0.8.5-post1. Both lines' origin is `Chad, 2026-11-22`.
+  - Each line's Blender steps come from its matching Manual. Two release branches of
+    https://projects.blender.org/blender/blender-manual.git are pinned through the B1
+    machinery: `blender-v5.2-release` at commit
+    `4a3be8f9ed3b66b24913e0a0d491d3429a70ea08` (source `blender-manual`, 2,358 pages) and
+    `blender-v4.5-release` at commit `c2b171709bbca119846f1cd8cda70ad719cf6296` (source
+    `blender-manual-4-5`, 2,072 pages).
+  - The pairing facts are the pairings' citations: SF-012 (the 0.9.0-post1 developer
+    installation page lists Blender 5.1 or 5.2) for `VL-current` and SF-013 (the
+    0.8.5-post1 page lists Blender 4.3, 4.4, or 4.5) for `VL-older`. Both lines'
+    `pairing_status` is `cited`. A pairing stays evidence, not a scored fact.
+  - This settles O-3: the older-release contrast is included, with Blender 4.5 instead of
+    the plan default's 4.2 LTS. It departs from plan §2 (Blender 5.3 and the 5.3 Manual
+    branch) and plan §11 (O-3's Blender 4.2 LTS). The plan text is unchanged.
+- **IFC schemas for the `opened_ifc` and `large_federated_model` profiles: "All three
+  (Recommended)".** IFC2X3, IFC4 and IFC4X3 stay in those profiles (SP-02, SP-03, SP-05,
+  SP-06, SP-08, SP-09 and their `VL-older` counterparts) as a stated default. The
+  `ifc_schema` enum stays `partly cited` (SF-007, `cited_for: ["new_project"]`), and its
+  note says so. Schema facts are scored only where a row cites them.
+- **Review: "Markdown packets in batches (Recommended)".** About 25 items per file. Each
+  item shows its question, setup profile, reference answer, cited doc sections (as text)
+  and check patterns, with a line for approve, edit or reject. Decisions are imported
+  append-only. Packets live outside Git under `data/`, and free-text reviewer notes never
+  enter Git.
+- **Drafting: "Claude, from cited sections (Recommended)".** Assistant lanes draft each
+  reference answer only from the pinned doc sections it cites. A deterministic check
+  verifies every cited section, quote and operator name. Chad approves, edits or rejects
+  each answer.
+
+Plan defaults that still apply: the O-2 categories as proposed in plan §5; the plan §9 B3
+sizes (50 development and 25 held-out questions, 15 multi-part requests, 10 injection
+cases); held-out items use the assessed setup profiles, so no profile leaks between the
+development and assessed sets (plan §4).
+
+Answered by these decisions: the version-pairing question, the IFC4X3 question and the
+Blender 4.2 Manual option (superseded: the 4.5 Manual is pinned instead). The review of
+every fact row, profile and version line now follows the packet method. Bonsai keymap
+hotkeys are still open.
+
+### Assistant's calls applying the B3 decisions (not owner decisions)
+
+These were made by the assistant while applying Chad's decisions and are open to his
+review.
+
+- **The 5.3 Manual pin is removed from active use.** After the re-pointing below, nothing
+  cites it. Its record: source `blender-manual`, branch `blender-v5.3-release`, commit
+  `3481be3f6163a7c34e317b685f09fe67ca1057f0`, pin id `blender-manual-dc59b772db8f70f7`,
+  2,450 pages, 5,961,691 bytes, Manual fixture pages as committed up to commit `251660b`.
+  The B1 and B2 entries above that give Manual measurements (all 2,450 pages; 484 `core`
+  pages; 1,443 operator ids; 9,367 records; the 5 cross-reference labels and the 17
+  separator labels; the "Should I Translate" title) were measured on that pin and are kept
+  as written.
+- **Source ids.** `blender-manual` keeps its id, fixture folder and lexicon file name and
+  now pins 5.2 (pin id `blender-manual-fea32ead8c72f97e`), as `bonsai-docs` names the
+  current Bonsai pin. The older Manual is `blender-manual-4-5` (pin id
+  `blender-manual-4-5-ec0c621a112c20c9`), after `bonsai-docs-0-8-5-post1`. The four Bonsai
+  manifest entries are unchanged.
+- **Rebuild evidence.** `snapshot build --write-manifest` on an empty data root wrote the
+  manifest; a plain build into a second empty root matched it; writing it again from a
+  third empty root gave identical bytes.
+- **Measured on the new pins.** Section records: 8,997 for the 5.2 Manual and 8,245 for
+  the 4.5 Manual (159 and 72 include stubs with no heading); all parser diagnostics 0.
+  Lexicons: 1,410 and 1,311 operator ids, no dangling `:ref:`, 3 bare cross-reference
+  terms and 3 continued menu paths in each. `core` pages: 477 and 447.
+- **License evidence.** The 4.5 Manual's `LICENSE` and `manual/copyright.rst` are the same
+  blobs as the 5.2 Manual's, so they are recorded with `commit_copy: false` and committed
+  once under `tests/fixtures/docs/blender-manual/`.
+- **Fixture slice.** All 22 Manual fixture paths exist in both new Manuals. Ten differ
+  between 5.3 and 5.2 and were replaced with `snapshot fixtures --replace`. The 4.5 slice
+  holds only the page a fact row cites (`manual/getting_started/about/history.rst`), with
+  no per-category minimum, as for the 0.8.5-post1 docs. Python code is refused in both
+  Manual slices.
+- **SF-016 re-pointed.** It cited the 5.3 Manual's history of 4.2 LTS as `VL-older`
+  pairing evidence. No line uses 4.2 any more, so it is now a `version_dependent` row for
+  both lines that cites the same three quotes in the 5.2 and the 4.5 Manual (re-verified,
+  same lines), and `VL-older`'s claims are SF-013 only. It is still `assistant_drafted`.
+  No other row cited the 5.3 Manual.
+- **`pairing_status` `cited` is now checked.** A `cited` line must list a
+  `version_claim` row that cites the line's own Bonsai docs pin and names the line's
+  Blender release in a key term on token boundaries (`5.2` is not found inside `5.2.1`).
+  `VL-current` keeps SF-015 in its claims: the same pin's troubleshooting page says
+  Blender 4.5. Under the B2 rule that page could make the line `conflict`; the assistant
+  reads Chad's "Cited pairings" as `cited` with the conflict disclosed in the claims and
+  the pairing note. This is a review item for Chad.
+- **Every line has a Manual.** `sources.blender_manual` may no longer be null, so the B2
+  exception for a line without a Manual is gone: a line's `version_claim` and
+  `doc_conflict` rows may still cite any docs pin, and every other row needs a citation
+  from the line's own Bonsai docs or Manual. The 5.2 Manual does not stand in for
+  `VL-older`.
+- **No LTS label.** The lines say Blender `5.2` and `4.5`. The history pages of both pinned
+  Manuals end at 4.3, so neither release's LTS status can be cited.
+- **`not_citable`.** The claim about Blender 4.2 user-interface differences from 5.3 is
+  removed, because each line now has its matching Manual. The entries for the plan's
+  pairings keep their text with an updated `wanted`, and the 5.2 LTS entry names the new
+  Manuals. Ten entries remain.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
 | --- | --- | --- |
 | O-2 | Confirm the five categories in plan §5 | Use them as proposed: `bonsai_project_setup`, `bonsai_modeling`, `ifc_data_and_materials`, `model_exploration`, `files_versions_troubleshooting` |
-| O-3 | Setup profiles: include Blender 4.2 LTS with Bonsai 0.8.5-post1, or only Blender 5.x with Bonsai 0.9.0 | Include it, as the older-release contrast (applied as the default at B2, see above) |
 | O-6 | Recheck the Unit 5 Module 2 exercises and the Unit 7 and Unit 8 Module 1 notebooks when they are published | Recheck at B4 and before B10 |
 | O-7 | Distribution reference for category balance | Uniform 20% target |
 
