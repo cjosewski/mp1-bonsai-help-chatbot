@@ -1,0 +1,1 @@
+        name="Disable Undo When Saving (Faster saves, no undo for you!)", default=False

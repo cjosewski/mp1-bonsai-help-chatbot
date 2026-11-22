@@ -1,0 +1,1 @@
+    should_force_triangulation: BoolProperty(name="Force Triangulation", default=False)

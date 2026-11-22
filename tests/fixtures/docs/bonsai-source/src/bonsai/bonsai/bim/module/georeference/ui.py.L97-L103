@@ -1,0 +1,7 @@
+        if not GeoreferenceData.data["projected_crs"]:
+            row = self.layout.row(align=True)
+            row.label(text="Not Georeferenced", icon="ERROR")
+            if tool.Ifc.get_schema() != "IFC2X3":
+                row = self.layout.row(align=True)
+                row.prop(props, "coordinate_operation_class", text="")
+                row.operator("bim.add_georeferencing", icon="ADD", text="")

@@ -1,0 +1,5 @@
+    def hotkey_S_Q(self):
+        if not bpy.context.selected_objects:
+            return
+
+        bpy.ops.bim.perform_quantity_take_off()

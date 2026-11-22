@@ -1,0 +1,8 @@
+    def set_layer_collection_visibility(cls, layer_collection: bpy.types.LayerCollection) -> None:
+        name = layer_collection.collection.name
+        if name in (
+            "IfcTypeProduct",
+            "IfcStructuralItem",
+            "Unsorted",
+        ):
+            layer_collection.hide_viewport = True

@@ -1,0 +1,3 @@
+    def edit_meshlike_item(cls, obj: bpy.types.Object) -> Union[ifcopenshell.entity_instance, None]:
+        """
+        :return: New IfcRepresentationItem or ``None`` if mesh hasn't changed.

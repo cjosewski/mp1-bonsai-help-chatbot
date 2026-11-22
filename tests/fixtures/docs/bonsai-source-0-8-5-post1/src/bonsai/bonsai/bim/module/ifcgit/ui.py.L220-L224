@@ -1,0 +1,5 @@
+        row.prop(props, "new_tag_name")
+        row = box.row()
+        row.prop(props, "new_tag_message")
+        row = box.row()
+        row.operator("ifcgit.add_tag", icon="GREASEPENCIL")

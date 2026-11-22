@@ -1,0 +1,2 @@
+class UpdateRepresentation(bpy.types.Operator, tool.Ifc.Operator):
+    bl_idname = "bim.update_representation"

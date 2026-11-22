@@ -1,0 +1,48 @@
+        if len(selected_objs) == 1 and context.active_object == selected_objs[0]:
+            self.handle_single_object(context, context.active_object)
+        elif len(selected_objs) == 0:
+            if aprops.in_aggregate_mode:
+                gprops = tool.Geometry.get_geometry_props()
+                if gprops.representation_obj:
+                    tool.Geometry.disable_item_mode()
+                    if active_obj := bpy.context.active_object:
+                        active_obj.select_set(False)
+                else:
+                    bonsai.core.aggregate.exit_aggregate_mode(tool.Aggregate)
+                return {"FINISHED"}
+            if nprops.in_nest_mode:
+                bonsai.core.nest.disable_nest_mode(tool.Nest)
+                return {"FINISHED"}
+            tool.Geometry.disable_item_mode()
+        elif len(selected_objs) > 1:
+            self.handle_multiple_selected_objects(context)
+
+    def handle_single_object(self, context: bpy.types.Context, obj: bpy.types.Object) -> None:
+        element = tool.Ifc.get_entity(obj)
+        props = tool.Geometry.get_geometry_props()
+        pprops = tool.Project.get_project_props()
+        aprops = tool.Aggregate.get_aggregate_props()
+        if obj == props.representation_obj:
+            self.report({"ERROR"}, f"Element '{obj.name}' is in item mode and cannot be edited directly")
+        elif obj in [o.obj for o in aprops.not_editing_objects]:
+            obj.select_set(False)
+            self.report(
+                {"ERROR"}, f"Element '{obj.name}' does not belong to this aggregate and cannot be edited directly"
+            )
+        elif obj in pprops.clipping_planes_objs:
+            self.report({"ERROR"}, "Clipping planes cannot be edited")
+        elif element:
+            if not obj.data or obj.type not in ("MESH", "CURVE"):
+                self.report({"INFO"}, "No geometry to edit")
+            elif tool.Geometry.is_locked(element):
+                self.report({"ERROR"}, lock_error_message(obj.name))
+            elif obj.data and tool.Geometry.is_profile_based(obj.data):
+                bpy.ops.bim.hotkey(hotkey="S_E")
+            elif element.is_a("IfcRelSpaceBoundary"):
+                bpy.ops.bim.enable_editing_boundary_geometry()
+            elif element.is_a("IfcGridAxis"):
+                self.enable_edit_mode(context)
+            elif tool.Blender.Modifier.try_applying_edit_mode(obj, element):
+                pass
+            else:
+                bpy.ops.bim.import_representation_items()

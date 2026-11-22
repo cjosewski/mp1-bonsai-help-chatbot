@@ -1,0 +1,3 @@
+        prop_with_search(row, self.props, "material_type", text="")
+        prop_with_search(row, self.props, "material", text="")
+        row.operator("bim.assign_material", icon="ADD", text="")

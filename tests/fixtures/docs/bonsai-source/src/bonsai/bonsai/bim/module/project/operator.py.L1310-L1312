@@ -1,0 +1,3 @@
+        for filter_category in self.props.filter_categories:
+            if not filter_category.is_selected:
+                continue

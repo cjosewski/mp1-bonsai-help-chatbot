@@ -1,0 +1,3 @@
+        x, y = ifcopenshell.util.geolocation.angle2xaxis(float(self.grid_north_angle))
+        self.x_axis_abscissa = str(x)
+        self.x_axis_ordinate = str(y)

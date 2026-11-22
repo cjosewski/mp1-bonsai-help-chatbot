@@ -1,0 +1,29 @@
+class SelectSimilarType(bpy.types.Operator):
+    bl_idname = "bim.select_similar_type"
+    bl_label = "Select Similar Type"
+    bl_options = {"REGISTER", "UNDO"}
+    related_object: bpy.props.StringProperty()
+
+    def execute(self, context):
+        self.file = tool.Ifc.get()
+        objects = bpy.context.selected_objects
+
+        # store relating types to avoid selecting same elements multiple times
+        relating_types = set()
+
+        for related_object in objects:
+            relating_type = ifcopenshell.util.element.get_type(tool.Ifc.get_entity(related_object))
+            if not relating_type:
+                # Keep objects without a type selected (retain current selection)
+                continue
+            relating_types.add(relating_type)
+
+        result = ""
+        for relating_type in relating_types:
+            related_objects = ifcopenshell.util.element.get_types(relating_type)
+
+            for element in related_objects:
+                obj = tool.Ifc.get_object(element)
+                if obj and obj in context.visible_objects:
+                    obj.select_set(True)
+

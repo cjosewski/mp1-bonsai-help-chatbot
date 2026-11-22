@@ -1,0 +1,13 @@
+class BIM_PT_material_psets(Panel):
+    bl_label = "Material Property Sets"
+    bl_idname = "BIM_PT_material_psets"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "scene"
+    bl_parent_id = "BIM_PT_materials"
+
+    @classmethod
+    def poll(cls, context):
+        ifc_file = tool.Ifc.get()
+        if not ifc_file or ifc_file.schema == "IFC2X3":
+            return False  # We don't support material psets in IFC2X3 because they suck

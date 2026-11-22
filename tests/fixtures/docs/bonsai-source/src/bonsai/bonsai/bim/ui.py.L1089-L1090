@@ -1,0 +1,2 @@
+    bl_idname = "BIM_PT_tab_project_info"
+    bl_label = "Project Info"

@@ -1,0 +1,57 @@
+
+        connected_to = getattr(element, "ConnectedTo", [])
+        connected_from = getattr(element, "ConnectedFrom", [])
+
+        for rel in connected_to:
+            if element.is_a("IfcDistributionPort"):
+                related_element = rel.RelatedPort
+            else:
+                related_element = rel.RelatedElement
+
+            realizing_elements = []
+            realizing_elements_connection_type = ""
+            if rel.is_a("IfcRelConnectsWithRealizingElements"):
+                realizing_elements.extend(rel.RealizingElements)
+                realizing_elements_connection_type = rel.ConnectionType
+
+            if rel.is_a("IfcRelConnectsPathElements"):
+                related_element_connection_type = rel.RelatedConnectionType
+            else:
+                related_element_connection_type = ""
+
+            results.append(
+                {
+                    "id": rel.id(),
+                    "is_relating": True,
+                    "Name": related_element.Name or "Unnamed",
+                    "ConnectionType": related_element_connection_type,
+                    "realizing_elements": realizing_elements,
+                    "realizing_elements_connection_type": realizing_elements_connection_type,
+                }
+            )
+
+        for rel in connected_from:
+            if element.is_a("IfcDistributionPort"):
+                relating_element = rel.RelatingPort
+            else:
+                relating_element = rel.RelatingElement
+
+            realizing_elements = []
+            realizing_elements_connection_type = ""
+            if rel.is_a("IfcRelConnectsWithRealizingElements"):
+                realizing_elements.extend(rel.RealizingElements)
+                realizing_elements_connection_type = rel.ConnectionType
+
+            if rel.is_a("IfcRelConnectsPathElements"):
+                relating_element_connection_type = rel.RelatingConnectionType
+            else:
+                relating_element_connection_type = ""
+
+            results.append(
+                {
+                    "id": rel.id(),
+                    "is_relating": False,
+                    "Name": relating_element.Name or "Unnamed",
+                    "ConnectionType": relating_element_connection_type,
+                    "realizing_elements": realizing_elements,
+                    "realizing_elements_connection_type": realizing_elements_connection_type,

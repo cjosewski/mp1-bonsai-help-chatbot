@@ -1,0 +1,1 @@
+                row.operator("bim.select_ifc_class", text="", icon="RESTRICT_SELECT_OFF")

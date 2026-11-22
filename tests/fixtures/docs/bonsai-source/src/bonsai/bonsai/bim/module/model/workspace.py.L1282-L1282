@@ -1,0 +1,1 @@
+            bpy.ops.bim.extend_walls_to_underside()

@@ -1,0 +1,7 @@
+        material_types = [
+            "IfcMaterial",
+            "IfcMaterialConstituentSet",
+            "IfcMaterialLayerSet",
+            "IfcMaterialProfileSet",
+            "IfcMaterialList",
+        ]

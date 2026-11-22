@@ -1,0 +1,2 @@
+    bl_label = "Selected Object History"
+    bl_idname = "ifcgit.object_log"

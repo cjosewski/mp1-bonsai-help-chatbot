@@ -1,0 +1,1 @@
+        self.layout.operator("bim.new_project", text="New Project Wizard").preset = "wizard"

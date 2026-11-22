@@ -1,0 +1,2 @@
+    bl_idname = "bim.select_type_objects"
+    bl_label = "Select Type Objects"

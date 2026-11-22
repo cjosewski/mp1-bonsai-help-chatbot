@@ -1,0 +1,3 @@
+class AddConstituent(bpy.types.Operator, tool.Ifc.Operator):
+    bl_idname = "bim.add_constituent"
+    bl_label = "Add Constituent"

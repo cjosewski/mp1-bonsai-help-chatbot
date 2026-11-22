@@ -507,6 +507,36 @@
           "categories": [
             "files_versions_troubleshooting"
           ]
+        },
+        {
+          "path": "manual/editors/3dview/navigate/projections.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/editors/3dview/navigate/walk_fly.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/editors/preferences/introduction.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        },
+        {
+          "path": "manual/editors/preferences/navigation.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/scene_layout/object/selecting.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
         }
       ],
       "fixture_min_per_category": 1,
@@ -801,6 +831,48 @@
           "categories": [
             "model_exploration"
           ]
+        },
+        {
+          "path": "manual/advanced/command_line/index.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/advanced/command_line/launch/windows.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/editors/3dview/navigate/projections.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/editors/3dview/navigate/viewpoint.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/editors/3dview/navigate/walk_fly.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/editors/preferences/navigation.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/getting_started/installing/linux.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
         }
       ],
       "fixture_min_per_category": 0,
@@ -841,6 +913,91 @@
       "fixture_pages": [],
       "fixture_code_spans": [
         {
+          "path": "src/bonsai/bonsai/bim/module/geometry/__init__.py",
+          "line_start": 147,
+          "line_end": 150
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/__init__.py",
+          "line_start": 162,
+          "line_end": 162
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/__init__.py",
+          "line_start": 180,
+          "line_end": 182
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/data.py",
+          "line_start": 244,
+          "line_end": 300
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/operator.py",
+          "line_start": 288,
+          "line_end": 296
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/operator.py",
+          "line_start": 509,
+          "line_end": 510
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/operator.py",
+          "line_start": 647,
+          "line_end": 647
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/operator.py",
+          "line_start": 1174,
+          "line_end": 1175
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/operator.py",
+          "line_start": 2259,
+          "line_end": 2261
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/operator.py",
+          "line_start": 2287,
+          "line_end": 2334
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/operator.py",
+          "line_start": 2369,
+          "line_end": 2381
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/operator.py",
+          "line_start": 2487,
+          "line_end": 2494
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/prop.py",
+          "line_start": 284,
+          "line_end": 284
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/ui.py",
+          "line_start": 143,
+          "line_end": 145
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/ui.py",
+          "line_start": 315,
+          "line_end": 347
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/ui.py",
+          "line_start": 397,
+          "line_end": 424
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/ui.py",
+          "line_start": 587,
+          "line_end": 611
+        },
+        {
           "path": "src/bonsai/bonsai/bim/module/georeference/data.py",
           "line_start": 66,
           "line_end": 68
@@ -856,9 +1013,274 @@
           "line_end": 95
         },
         {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 97,
+          "line_end": 99
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 97,
+          "line_end": 103
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 193,
+          "line_end": 211
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/operator.py",
+          "line_start": 154,
+          "line_end": 155
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/operator.py",
+          "line_start": 291,
+          "line_end": 291
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/operator.py",
+          "line_start": 465,
+          "line_end": 466
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/prop.py",
+          "line_start": 106,
+          "line_end": 111
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/prop.py",
+          "line_start": 136,
+          "line_end": 136
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 17,
+          "line_end": 25
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 74,
+          "line_end": 84
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 87,
+          "line_end": 94
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 91,
+          "line_end": 91
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 91,
+          "line_end": 95
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 112,
+          "line_end": 118
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 114,
+          "line_end": 118
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 119,
+          "line_end": 119
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 132,
+          "line_end": 135
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 134,
+          "line_end": 134
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 220,
+          "line_end": 224
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 313,
+          "line_end": 319
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/data.py",
+          "line_start": 203,
+          "line_end": 207
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/opening.py",
+          "line_start": 689,
+          "line_end": 689
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/prop.py",
+          "line_start": 1217,
+          "line_end": 1224
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/ui.py",
+          "line_start": 510,
+          "line_end": 521
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/ui.py",
+          "line_start": 512,
+          "line_end": 517
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/ui.py",
+          "line_start": 531,
+          "line_end": 577
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/ui.py",
+          "line_start": 531,
+          "line_end": 578
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/ui.py",
+          "line_start": 537,
+          "line_end": 537
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/ui.py",
+          "line_start": 553,
+          "line_end": 553
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/wall.py",
+          "line_start": 104,
+          "line_end": 104
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/wall.py",
+          "line_start": 1816,
+          "line_end": 1816
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/wall.py",
+          "line_start": 1944,
+          "line_end": 1946
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/wall.py",
+          "line_start": 3707,
+          "line_end": 3710
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/wall.py",
+          "line_start": 3773,
+          "line_end": 3781
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/wall.py",
+          "line_start": 4007,
+          "line_end": 4007
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 59,
+          "line_end": 67
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 74,
+          "line_end": 74
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 76,
+          "line_end": 77
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 77,
+          "line_end": 80
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 79,
+          "line_end": 79
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 80,
+          "line_end": 80
+        },
+        {
           "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
           "line_start": 82,
           "line_end": 82
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 108,
+          "line_end": 108
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 113,
+          "line_end": 117
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 157,
+          "line_end": 161
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 529,
+          "line_end": 529
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 539,
+          "line_end": 568
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 735,
+          "line_end": 756
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 876,
+          "line_end": 879
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 948,
+          "line_end": 949
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 971,
+          "line_end": 971
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 984,
+          "line_end": 985
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 984,
+          "line_end": 988
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 984,
+          "line_end": 998
         },
         {
           "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
@@ -866,9 +1288,319 @@
           "line_end": 1060
         },
         {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1094,
+          "line_end": 1094
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1193,
+          "line_end": 1197
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1282,
+          "line_end": 1282
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1289,
+          "line_end": 1290
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1420,
+          "line_end": 1426
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/operator.py",
+          "line_start": 88,
+          "line_end": 98
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/operator.py",
+          "line_start": 91,
+          "line_end": 98
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/operator.py",
+          "line_start": 96,
+          "line_end": 133
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/operator.py",
+          "line_start": 110,
+          "line_end": 113
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/operator.py",
+          "line_start": 132,
+          "line_end": 132
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/operator.py",
+          "line_start": 138,
+          "line_end": 139
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/operator.py",
+          "line_start": 155,
+          "line_end": 157
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/operator.py",
+          "line_start": 1310,
+          "line_end": 1312
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/operator.py",
+          "line_start": 2064,
+          "line_end": 2076
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/prop.py",
+          "line_start": 127,
+          "line_end": 137
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/prop.py",
+          "line_start": 211,
+          "line_end": 211
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/prop.py",
+          "line_start": 367,
+          "line_end": 367
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/prop.py",
+          "line_start": 377,
+          "line_end": 377
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/ui.py",
+          "line_start": 77,
+          "line_end": 77
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/ui.py",
+          "line_start": 383,
+          "line_end": 400
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/ui.py",
+          "line_start": 400,
+          "line_end": 400
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/ui.py",
+          "line_start": 625,
+          "line_end": 629
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/workspace.py",
+          "line_start": 115,
+          "line_end": 116
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/pset/ui.py",
+          "line_start": 379,
+          "line_end": 380
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/pset/ui.py",
+          "line_start": 464,
+          "line_end": 464
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/qto/operator.py",
+          "line_start": 168,
+          "line_end": 168
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/root/data.py",
+          "line_start": 271,
+          "line_end": 274
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/root/ui.py",
+          "line_start": 28,
+          "line_end": 34
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/root/ui.py",
+          "line_start": 28,
+          "line_end": 35
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/root/ui.py",
+          "line_start": 75,
+          "line_end": 75
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/root/ui.py",
+          "line_start": 78,
+          "line_end": 78
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/spatial/operator.py",
+          "line_start": 285,
+          "line_end": 294
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/spatial/ui.py",
+          "line_start": 37,
+          "line_end": 43
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/spatial/ui.py",
+          "line_start": 69,
+          "line_end": 70
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/void/operator.py",
+          "line_start": 54,
+          "line_end": 55
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/void/ui.py",
+          "line_start": 40,
+          "line_end": 53
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/prop.py",
+          "line_start": 530,
+          "line_end": 530
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/prop.py",
+          "line_start": 531,
+          "line_end": 531
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 109,
+          "line_end": 113
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 278,
+          "line_end": 279
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 580,
+          "line_end": 580
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1064,
+          "line_end": 1082
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1088,
+          "line_end": 1094
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1088,
+          "line_end": 1104
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1089,
+          "line_end": 1090
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1089,
+          "line_end": 1094
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1446,
+          "line_end": 1448
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1446,
+          "line_end": 1453
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1447,
+          "line_end": 1453
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1516,
+          "line_end": 1523
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1517,
+          "line_end": 1523
+        },
+        {
+          "path": "src/bonsai/bonsai/core/project.py",
+          "line_start": 96,
+          "line_end": 98
+        },
+        {
+          "path": "src/bonsai/bonsai/core/project.py",
+          "line_start": 96,
+          "line_end": 100
+        },
+        {
+          "path": "src/bonsai/bonsai/core/project.py",
+          "line_start": 97,
+          "line_end": 98
+        },
+        {
           "path": "src/bonsai/bonsai/core/project.py",
           "line_start": 98,
           "line_end": 98
+        },
+        {
+          "path": "src/bonsai/bonsai/tool/blender.py",
+          "line_start": 227,
+          "line_end": 229
+        },
+        {
+          "path": "src/bonsai/bonsai/tool/blender.py",
+          "line_start": 455,
+          "line_end": 455
+        },
+        {
+          "path": "src/bonsai/bonsai/tool/blender.py",
+          "line_start": 1015,
+          "line_end": 1015
+        },
+        {
+          "path": "src/bonsai/bonsai/tool/blender.py",
+          "line_start": 1015,
+          "line_end": 1039
+        },
+        {
+          "path": "src/bonsai/bonsai/tool/collector.py",
+          "line_start": 69,
+          "line_end": 70
+        },
+        {
+          "path": "src/bonsai/bonsai/tool/collector.py",
+          "line_start": 189,
+          "line_end": 196
+        },
+        {
+          "path": "src/bonsai/bonsai/tool/geometry.py",
+          "line_start": 1599,
+          "line_end": 1605
+        },
+        {
+          "path": "src/bonsai/bonsai/tool/geometry.py",
+          "line_start": 2423,
+          "line_end": 2425
         }
       ],
       "fixture_min_per_category": 0,
@@ -909,6 +1641,41 @@
       "fixture_pages": [],
       "fixture_code_spans": [
         {
+          "path": "src/bonsai/bonsai/bim/module/attribute/ui.py",
+          "line_start": 63,
+          "line_end": 69
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/debug/operator.py",
+          "line_start": 258,
+          "line_end": 260
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/debug/operator.py",
+          "line_start": 304,
+          "line_end": 308
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/debug/ui.py",
+          "line_start": 26,
+          "line_end": 32
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/__init__.py",
+          "line_start": 162,
+          "line_end": 162
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/__init__.py",
+          "line_start": 181,
+          "line_end": 182
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/geometry/ui.py",
+          "line_start": 131,
+          "line_end": 163
+        },
+        {
           "path": "src/bonsai/bonsai/bim/module/georeference/data.py",
           "line_start": 66,
           "line_end": 68
@@ -919,9 +1686,229 @@
           "line_end": 106
         },
         {
+          "path": "src/bonsai/bonsai/bim/module/georeference/prop.py",
+          "line_start": 76,
+          "line_end": 78
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 70,
+          "line_end": 72
+        },
+        {
           "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
           "line_start": 93,
           "line_end": 95
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 97,
+          "line_end": 99
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 99,
+          "line_end": 109
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 119,
+          "line_end": 129
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 134,
+          "line_end": 136
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 162,
+          "line_end": 169
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 186,
+          "line_end": 188
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 193,
+          "line_end": 208
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 17,
+          "line_end": 25
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 91,
+          "line_end": 91
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 119,
+          "line_end": 119
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 133,
+          "line_end": 133
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 212,
+          "line_end": 212
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 220,
+          "line_end": 224
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 313,
+          "line_end": 319
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/ifcgit/ui.py",
+          "line_start": 336,
+          "line_end": 336
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/data.py",
+          "line_start": 57,
+          "line_end": 63
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/data.py",
+          "line_start": 57,
+          "line_end": 66
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/data.py",
+          "line_start": 60,
+          "line_end": 60
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/operator.py",
+          "line_start": 265,
+          "line_end": 267
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/operator.py",
+          "line_start": 278,
+          "line_end": 281
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/operator.py",
+          "line_start": 294,
+          "line_end": 296
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/ui.py",
+          "line_start": 135,
+          "line_end": 140
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/ui.py",
+          "line_start": 144,
+          "line_end": 146
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/ui.py",
+          "line_start": 169,
+          "line_end": 170
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/ui.py",
+          "line_start": 186,
+          "line_end": 205
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/ui.py",
+          "line_start": 187,
+          "line_end": 189
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/ui.py",
+          "line_start": 249,
+          "line_end": 273
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/ui.py",
+          "line_start": 306,
+          "line_end": 310
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/material/ui.py",
+          "line_start": 348,
+          "line_end": 348
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/ui.py",
+          "line_start": 92,
+          "line_end": 95
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/ui.py",
+          "line_start": 118,
+          "line_end": 118
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/wall.py",
+          "line_start": 91,
+          "line_end": 93
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/wall.py",
+          "line_start": 127,
+          "line_end": 127
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/wall.py",
+          "line_start": 288,
+          "line_end": 289
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/wall.py",
+          "line_start": 309,
+          "line_end": 313
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 59,
+          "line_end": 67
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 74,
+          "line_end": 78
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 76,
+          "line_end": 76
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 77,
+          "line_end": 77
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 77,
+          "line_end": 80
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 79,
+          "line_end": 79
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 80,
+          "line_end": 80
         },
         {
           "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
@@ -930,13 +1917,308 @@
         },
         {
           "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 83,
+          "line_end": 83
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 84,
+          "line_end": 84
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 113,
+          "line_end": 117
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 168,
+          "line_end": 172
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 529,
+          "line_end": 569
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 778,
+          "line_end": 785
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 846,
+          "line_end": 860
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 846,
+          "line_end": 866
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 854,
+          "line_end": 856
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 949,
+          "line_end": 950
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 968,
+          "line_end": 970
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 985,
+          "line_end": 989
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 985,
+          "line_end": 999
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1012,
+          "line_end": 1015
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1038,
+          "line_end": 1038
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
           "line_start": 1061,
           "line_end": 1061
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1095,
+          "line_end": 1095
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1240,
+          "line_end": 1261
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1274,
+          "line_end": 1274
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1288,
+          "line_end": 1289
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1302,
+          "line_end": 1303
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1324,
+          "line_end": 1339
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1352,
+          "line_end": 1353
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1404,
+          "line_end": 1410
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/profile/ui.py",
+          "line_start": 35,
+          "line_end": 42
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/data.py",
+          "line_start": 84,
+          "line_end": 91
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/operator.py",
+          "line_start": 107,
+          "line_end": 110
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/operator.py",
+          "line_start": 1279,
+          "line_end": 1282
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/operator.py",
+          "line_start": 2965,
+          "line_end": 2979
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/prop.py",
+          "line_start": 57,
+          "line_end": 57
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/prop.py",
+          "line_start": 392,
+          "line_end": 399
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/ui.py",
+          "line_start": 247,
+          "line_end": 254
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/ui.py",
+          "line_start": 263,
+          "line_end": 263
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/workspace.py",
+          "line_start": 31,
+          "line_end": 31
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/workspace.py",
+          "line_start": 74,
+          "line_end": 74
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/workspace.py",
+          "line_start": 112,
+          "line_end": 113
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/pset/ui.py",
+          "line_start": 462,
+          "line_end": 474
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/root/operator.py",
+          "line_start": 654,
+          "line_end": 655
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/search/prop.py",
+          "line_start": 213,
+          "line_end": 213
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/spatial/operator.py",
+          "line_start": 432,
+          "line_end": 433
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/spatial/operator.py",
+          "line_start": 547,
+          "line_end": 547
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/spatial/ui.py",
+          "line_start": 195,
+          "line_end": 196
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/spatial/ui.py",
+          "line_start": 222,
+          "line_end": 222
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/type/operator.py",
+          "line_start": 223,
+          "line_end": 251
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/type/operator.py",
+          "line_start": 266,
+          "line_end": 267
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/type/ui.py",
+          "line_start": 61,
+          "line_end": 63
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/type/ui.py",
+          "line_start": 99,
+          "line_end": 99
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/prop.py",
+          "line_start": 497,
+          "line_end": 497
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 118,
+          "line_end": 122
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1074,
+          "line_end": 1074
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1155,
+          "line_end": 1156
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1460,
+          "line_end": 1464
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1620,
+          "line_end": 1627
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/ui.py",
+          "line_start": 1621,
+          "line_end": 1627
+        },
+        {
+          "path": "src/bonsai/bonsai/core/model.py",
+          "line_start": 79,
+          "line_end": 80
+        },
+        {
+          "path": "src/bonsai/bonsai/core/model.py",
+          "line_start": 111,
+          "line_end": 121
+        },
+        {
+          "path": "src/bonsai/bonsai/core/project.py",
+          "line_start": 97,
+          "line_end": 99
         },
         {
           "path": "src/bonsai/bonsai/core/project.py",
           "line_start": 99,
           "line_end": 99
+        },
+        {
+          "path": "src/bonsai/bonsai/tool/blender.py",
+          "line_start": 635,
+          "line_end": 635
+        },
+        {
+          "path": "src/bonsai/bonsai/tool/material.py",
+          "line_start": 85,
+          "line_end": 87
+        },
+        {
+          "path": "src/bonsai/bonsai/tool/search.py",
+          "line_start": 133,
+          "line_end": 144
         }
       ],
       "fixture_min_per_category": 0,

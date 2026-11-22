@@ -1,0 +1,3 @@
+    bl_description = (
+        "Look for errors in all the shapes contained in the file.\n\nSee system console for the detailed results."
+    )

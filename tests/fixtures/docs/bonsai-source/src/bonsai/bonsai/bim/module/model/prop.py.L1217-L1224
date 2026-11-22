@@ -1,0 +1,8 @@
+        name="Overall Height",
+        default=2.0,
+        min=0,
+        subtype="DISTANCE",
+        update=update_door,
+    )
+    overall_width: bpy.props.FloatProperty(
+        name="Overall Width",

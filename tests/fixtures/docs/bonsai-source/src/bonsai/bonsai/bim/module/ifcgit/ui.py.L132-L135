@@ -1,0 +1,4 @@
+        if not is_dirty:
+            row.operator("ifcgit.display_revision", icon="SELECT_DIFFERENCE")
+            row.operator("ifcgit.switch_revision", icon="CURRENT_FILE")
+            row.operator("ifcgit.merge", icon="SYSTEM")

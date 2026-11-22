@@ -1,0 +1,12 @@
+        if ifc_filter.type == "instance":
+            if "bpy.data.texts" in ifc_filter.value:
+                data_name = ifc_filter.value.split("bpy.data.texts")[1][2:-2]
+                value = bpy.data.texts[data_name].as_string()
+            else:
+                value = ifc_filter.value
+
+            if preferences.chain_filter_with_set_operations:
+                value = value.lstrip("!")
+                if ifc_filter.filter_mode == "SUBTRACT":
+                    value = f"!{value}"
+            return value

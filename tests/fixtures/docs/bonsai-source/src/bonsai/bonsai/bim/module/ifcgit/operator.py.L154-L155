@@ -1,0 +1,2 @@
+    bl_label = "Tag selected revision"
+    bl_idname = "ifcgit.add_tag"

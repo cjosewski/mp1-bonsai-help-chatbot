@@ -1,0 +1,6 @@
+        name="New tag name",
+        description="A short name used to refer to this tag",
+        default="",
+    )
+    new_tag_message: StringProperty(
+        name="Tag message (optional)",

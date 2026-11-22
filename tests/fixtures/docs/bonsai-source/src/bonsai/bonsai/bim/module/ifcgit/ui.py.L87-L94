@@ -1,0 +1,8 @@
+        is_dirty = IfcGitData.data["is_dirty"]
+
+        if is_dirty:
+            row = layout.row()
+            row.label(text="Saved changes have not been committed", icon="ERROR")
+
+            row = layout.row()
+            row.operator("ifcgit.display_uncommitted", icon="SELECT_DIFFERENCE")

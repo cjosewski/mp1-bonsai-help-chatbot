@@ -1,0 +1,12 @@
+class BIM_PT_door(bpy.types.Panel):
+    bl_label = "Door"
+    bl_idname = "BIM_PT_door"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "scene"
+    bl_options = {"DEFAULT_CLOSED"}
+    bl_parent_id = "BIM_PT_tab_parametric_geometry"
+
+    @classmethod
+    def poll(cls, context):
+        return tool.Blender.Modifier.is_eligible_for_door_modifier(context.active_object)

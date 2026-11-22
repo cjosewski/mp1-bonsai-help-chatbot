@@ -1,0 +1,4 @@
+    def get_blacklist_elements(self) -> set[ifcopenshell.entity_instance]:
+        return set(self.file.by_type("IfcElement")) - set(
+            ifcopenshell.util.selector.filter_elements(self.file, self.props.filter_query)
+        )

@@ -1,0 +1,19 @@
+class BIM_PT_tab_new_project_wizard(Panel):
+    bl_idname = "BIM_PT_tab_new_project_wizard"
+    bl_label = "New Project Wizard"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "scene"
+    bim_tab_name = "PROJECT"
+
+    @classmethod
+    def poll(cls, context):
+        if not tool.Blender.should_show_panel(context, cls.bim_tab_name, cls.bl_idname):
+            return False
+        bim_props = tool.Blender.get_bim_props()
+        pprops = tool.Project.get_project_props()
+        if pprops.is_loading:
+            return False
+        elif tool.Ifc.get() or bim_props.ifc_file:
+            return False
+        return True

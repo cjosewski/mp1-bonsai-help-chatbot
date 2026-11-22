@@ -1,0 +1,7 @@
+    def select_connection(cls, connection: ifcopenshell.entity_instance) -> None:
+        obj = tool.Ifc.get_object(connection.RelatingElement)
+        if obj:
+            obj.select_set(True)
+        obj = tool.Ifc.get_object(connection.RelatedElement)
+        if obj:
+            obj.select_set(True)

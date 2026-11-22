@@ -1,0 +1,1 @@
+            op = row.operator("bim.enable_editing_material_set_item", icon="GREASEPENCIL", text="")

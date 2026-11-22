@@ -1,0 +1,2 @@
+        elif self.active_class in ("IfcWindow", "IfcWindowStandardCase", "IfcDoor", "IfcDoorStandardCase"):
+            bpy.ops.bim.flip_fill()

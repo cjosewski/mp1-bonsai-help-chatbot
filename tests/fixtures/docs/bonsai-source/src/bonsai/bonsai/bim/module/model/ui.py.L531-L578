@@ -1,0 +1,48 @@
+        if DoorData.data["pset_data"]:
+            row = self.layout.row(align=True)
+            row.label(text="Door parameters", icon="OUTLINER_OB_LATTICE")
+
+            if props.is_editing:
+                row = self.layout.row(align=True)
+                row.operator("bim.finish_editing_door", icon="CHECKMARK", text="Finish Editing")
+                row.operator("bim.cancel_editing_door", icon="CANCEL", text="")
+
+                draw_door_properties(self.layout, props)
+
+                self.layout.use_property_split = True
+                self.layout.label(text="Material Properties")
+
+                row = prop_with_search(self.layout, props, "lining_material")
+                tool.Model.draw_material_ui_select(row, props.lining_material)
+                row = prop_with_search(self.layout, props, "framing_material", text="Panel Framing Material")
+                tool.Model.draw_material_ui_select(row, props.framing_material)
+                if props.transom_thickness:
+                    row = prop_with_search(self.layout, props, "glazing_material")
+                    tool.Model.draw_material_ui_select(row, props.framing_material)
+            else:
+                row.operator("bim.enable_editing_door", icon="GREASEPENCIL", text="")
+                row.operator("bim.remove_door", icon="X", text="")
+
+                box = self.layout.box()
+                for prop_name, prop_value in DoorData.data["general_params"].items():
+                    row = box.row(align=True)
+                    row.label(text=prop_name)
+                    row.label(text=str(prop_value))
+
+                self.layout.label(text="Lining properties")
+                lining_box = self.layout.box()
+                for prop_name, prop_value in DoorData.data["lining_params"].items():
+                    row = lining_box.row(align=True)
+                    row.label(text=prop_name)
+                    row.label(text=str(prop_value))
+
+                self.layout.label(text="Panel properties")
+                panel_box = self.layout.box()
+                for prop_name, prop_value in DoorData.data["panel_params"].items():
+                    row = panel_box.row(align=True)
+                    row.label(text=prop_name)
+                    row.label(text=str(prop_value))
+        else:
+            row = self.layout.row()
+            row.label(text="No Door Found")
+            row.operator("bim.add_door", icon="ADD", text="")

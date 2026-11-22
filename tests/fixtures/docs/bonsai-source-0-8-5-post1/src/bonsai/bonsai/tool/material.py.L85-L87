@@ -1,0 +1,3 @@
+    def get_material_category(cls, material: ifcopenshell.entity_instance) -> str:
+        # IfcMaterial has Category since IFC4.
+        return getattr(material, "Category", None) or "Uncategorised"

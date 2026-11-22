@@ -1,0 +1,3 @@
+        reason = tool.Wall.validate_for_parametric_edit(obj)
+        if reason:
+            self.report({"WARNING"}, f"Cannot edit wall parametrically: {reason}")

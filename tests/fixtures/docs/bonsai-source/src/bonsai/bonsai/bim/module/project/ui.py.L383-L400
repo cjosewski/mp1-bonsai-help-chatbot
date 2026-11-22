@@ -1,0 +1,18 @@
+        prop_with_search(self.layout, pprops, "export_schema")
+        row = self.layout.row()
+        row.prop(context.scene.unit_settings, "system")
+        row = self.layout.row()
+        row.prop(context.scene.unit_settings, "length_unit")
+        row = self.layout.row()
+        row.prop(props, "area_unit", text="Area Unit")
+        row = self.layout.row()
+        row.prop(props, "volume_unit", text="Volume Unit")
+        row = self.layout.row()
+        row.prop(props, "mass_unit", text="Mass Unit")
+        row = self.layout.row()
+        row.prop(props, "time_unit", text="Time Unit")
+        prop_with_search(self.layout, pprops, "template_file", text="Template")
+
+        self.layout.use_property_split = True
+        row = self.layout.row()
+        row.operator("bim.create_project")

@@ -1,0 +1,5 @@
+            row.label(text="Saved changes have not been committed", icon="ERROR")
+
+            row = layout.row()
+            row.operator("ifcgit.display_uncommitted", icon="SELECT_DIFFERENCE")
+            row.operator("ifcgit.discard", icon="TRASH")

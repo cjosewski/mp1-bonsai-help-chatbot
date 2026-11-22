@@ -1,0 +1,5 @@
+            row.label(text=f"{item.name} ({item.total_elements})")
+            row.prop(
+                item,
+                "is_selected",
+                icon="CHECKBOX_HLT" if item.is_selected else "CHECKBOX_DEHLT",

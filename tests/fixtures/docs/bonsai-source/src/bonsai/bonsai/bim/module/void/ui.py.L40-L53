@@ -1,0 +1,14 @@
+class BIM_PT_voids(Panel):
+    bl_label = "Voids"
+    bl_idname = "BIM_PT_voids"
+    bl_options = {"DEFAULT_CLOSED"}
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "scene"
+    bl_order = 1
+    bl_parent_id = "BIM_PT_tab_geometric_relationships"
+
+    @classmethod
+    def poll(cls, context):
+        if not tool.Ifc.get_entity(context.active_object):
+            return False

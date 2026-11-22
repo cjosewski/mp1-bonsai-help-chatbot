@@ -1,0 +1,3 @@
+class BIM_PT_tab_object_metadata(Panel):
+    bl_idname = "BIM_PT_tab_object_metadata"
+    bl_label = "Object"

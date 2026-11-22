@@ -1,0 +1,4 @@
+        if AuthoringData.data["active_class"] in ("IfcOpeningElement",):
+            row = cls.layout.row(align=True)
+            op_text = "" if IS_TOOL_HEADER else "Edit Openings"
+            row.operator("bim.edit_openings", icon="CHECKMARK", text=op_text)

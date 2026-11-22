@@ -1,0 +1,2 @@
+        elif element.is_a("IfcTypeProduct"):
+            collection = cls._create_project_child_collection("IfcTypeProduct")

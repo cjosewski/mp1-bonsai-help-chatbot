@@ -1,0 +1,2 @@
+        if len(context.selected_objects) < 2:
+            cls.poll_message_set("Select openings and a target element")

@@ -1,0 +1,1 @@
+            self.report({"ERROR"}, "Please select at least one LAYER2 element and one active LAYER2 element")

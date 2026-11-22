@@ -1,0 +1,1 @@
+        op = row_.operator("bim.select_decomposed_elements", icon="RESTRICT_SELECT_OFF", text="")

@@ -1,0 +1,1 @@
+            connection = "ATEND" if intersection_point > 0.5 else "ATSTART"

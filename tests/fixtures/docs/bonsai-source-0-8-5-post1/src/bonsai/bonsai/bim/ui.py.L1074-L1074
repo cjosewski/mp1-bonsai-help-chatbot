@@ -1,0 +1,1 @@
+            box.operator("bim.copy_debug_information", text="Copy Error Message To Clipboard")

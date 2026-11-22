@@ -1,0 +1,25 @@
+        header_map = {
+            "layer": "Material Layers",
+            "profile": "Material Profiles",
+            "constituent": "Material Constituents",
+            "list_item": "Material List Items",
+        }
+        header_text = header_map.get(set_item_name, "Material Items")
+        self.layout.label(text=header_text)
+
+        total_items = len(ObjectMaterialData.data["set_items"])
+
+        row = self.layout.row(align=True)
+        box = row.box()
+
+        # Add Material Section (at the top of this box)
+        if ObjectMaterialData.data["set_item_name"] == "profile" and not self.mprops.profiles:
+            box_row = box.row(align=True)
+            box_row.label(text="No Profiles Available")
+            box_row.operator("bim.add_profile_def", icon="ADD", text="")
+        else:
+            box_row = box.row(align=True)
+            if ObjectMaterialData.data["set_item_name"] == "profile":
+                prop_with_search(box_row, self.mprops, "profiles", icon="ITALIC", text="")
+            prop_with_search(box_row, self.props, "material", icon="MATERIAL", text="")
+            op = box_row.operator(f"bim.add_{ObjectMaterialData.data['set_item_name']}", icon="ADD", text="")

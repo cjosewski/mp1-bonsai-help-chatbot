@@ -1,0 +1,2 @@
+    def hotkey_S_C(self):
+        bpy.ops.bim.create_clipping_plane("INVOKE_DEFAULT")

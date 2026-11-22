@@ -1,0 +1,9 @@
+class BimTool(WorkSpaceTool):
+    bl_space_type = "VIEW_3D"
+    bl_context_mode = "OBJECT"
+    bl_idname = "bim.bim_tool"
+    bl_label = "Multi Object Tool"
+    bl_description = "Create and edit elements by construction class"
+    bl_icon = os.path.join(os.path.dirname(__file__), "ops.authoring.bim")
+    bl_widget = None
+    bl_keymap = tool.Blender.get_default_selection_keypmap() + (

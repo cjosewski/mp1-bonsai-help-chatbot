@@ -1,0 +1,5 @@
+        return cls.data["active_material_usage"] in ("LAYER2", "PROFILE") or cls.data["active_class"] in (
+            "IfcWindow",
+            "IfcWindowStandardCase",
+            "IfcDoor",
+            "IfcDoorStandardCase",

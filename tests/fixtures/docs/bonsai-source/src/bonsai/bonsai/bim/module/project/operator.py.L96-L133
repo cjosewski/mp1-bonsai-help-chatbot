@@ -1,0 +1,38 @@
+
+    def execute(self, context) -> set["rna_enums.OperatorReturnItems"]:
+        bpy.ops.wm.read_homefile()
+        pprops = tool.Project.get_project_props()
+        bim_props = tool.Blender.get_bim_props()
+
+        assert bpy.context.scene
+        if self.preset == "metric_m":
+            pprops.export_schema = "IFC4"
+            bpy.context.scene.unit_settings.system = "METRIC"
+            bpy.context.scene.unit_settings.length_unit = "METERS"
+            bim_props.area_unit = "SQUARE_METRE"
+            bim_props.volume_unit = "CUBIC_METRE"
+            pprops.template_file = "0"
+        elif self.preset == "metric_mm":
+            pprops.export_schema = "IFC4"
+            bpy.context.scene.unit_settings.system = "METRIC"
+            bpy.context.scene.unit_settings.length_unit = "MILLIMETERS"
+            bim_props.area_unit = "SQUARE_METRE"
+            bim_props.volume_unit = "CUBIC_METRE"
+            pprops.template_file = "0"
+        elif self.preset == "imperial_ft":
+            pprops.export_schema = "IFC4"
+            bpy.context.scene.unit_settings.system = "IMPERIAL"
+            bpy.context.scene.unit_settings.length_unit = "FEET"
+            bim_props.area_unit = "square foot"
+            bim_props.volume_unit = "cubic foot"
+            pprops.template_file = "0"
+        elif self.preset == "demo":
+            pprops.export_schema = "IFC4"
+            bpy.context.scene.unit_settings.system = "METRIC"
+            bpy.context.scene.unit_settings.length_unit = "MILLIMETERS"
+            bim_props.area_unit = "SQUARE_METRE"
+            bim_props.volume_unit = "CUBIC_METRE"
+            pprops.template_file = "IFC4 Demo Template.ifc"
+
+        if self.preset != "wizard":
+            bpy.ops.bim.create_project()

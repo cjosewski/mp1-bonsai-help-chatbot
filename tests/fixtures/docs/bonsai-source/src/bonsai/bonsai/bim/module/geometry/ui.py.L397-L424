@@ -1,0 +1,28 @@
+    bl_options = {"DEFAULT_CLOSED"}
+    bl_parent_id = "BIM_PT_tab_representations"
+
+    @classmethod
+    def poll(cls, context):
+        return (
+            (obj := context.active_object) is not None
+            and (mesh := obj.data)
+            and isinstance(mesh, bpy.types.Mesh)
+            and tool.Geometry.get_mesh_props(mesh).ifc_definition_id
+        )
+
+    def draw(self, context):
+        obj = context.active_object
+        assert obj
+        mesh = obj.data
+        assert isinstance(mesh, bpy.types.Mesh)
+
+        row = self.layout.row()
+        row.label(text="Advanced Users Only", icon="ERROR")
+
+        layout = self.layout
+
+        row = layout.row()
+        text = "Manually Save Representation"
+        if tool.Ifc.is_edited(obj):
+            text += "*"
+        row.operator("bim.update_representation", text=text)

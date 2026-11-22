@@ -1,0 +1,4 @@
+    """Activates when a LAYER3 element (typically a slab) is active and a LAYER2
+    wall is co-selected. Mirrors the N-panel ``Extend To Underside`` button (which
+    shows under the same active-LAYER3 + LAYER2-in-selection rule). Clicking
+    dispatches ``bim.extend_walls_to_underside``, which extends the wall up to the

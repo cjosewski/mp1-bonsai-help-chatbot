@@ -1,0 +1,25 @@
+
+class BIM_PT_workarounds(Panel):
+    bl_label = "Vendor Workarounds"
+    bl_idname = "BIM_PT_workarounds"
+    bl_options = {"DEFAULT_CLOSED"}
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "data"
+    bl_parent_id = "BIM_PT_tab_geometric_relationships"
+
+    @classmethod
+    def poll(cls, context):
+        return (
+            (obj := context.active_object) is not None
+            and (mesh := obj.data)
+            and isinstance(mesh, bpy.types.Mesh)
+            and tool.Geometry.get_mesh_props(mesh).ifc_definition_id
+        )
+
+    def draw(self, context):
+        props = tool.Geometry.get_geometry_props()
+        row = self.layout.row()
+        row.prop(props, "should_force_faceted_brep")
+        row = self.layout.row()
+        row.prop(props, "should_force_triangulation")

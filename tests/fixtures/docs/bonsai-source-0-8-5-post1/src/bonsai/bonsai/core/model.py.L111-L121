@@ -1,0 +1,11 @@
+    reference_obj = blender.get_active_object(is_selected=True)
+    if not reference_obj or not (e := ifc.get_entity(reference_obj)) or not model.get_usage_type(e) == "LAYER2":
+        reference_obj = None
+    objs = [
+        o
+        for o in blender.get_selected_objects()
+        if o != reference_obj and (e := ifc.get_entity(o)) and model.get_usage_type(e) == "LAYER2"
+    ]
+    if not reference_obj or not objs:
+        raise RequireAtLeastTwoLayeredElements(
+            "At least two vertically layered elements must be selected to match alignments."

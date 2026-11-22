@@ -1,0 +1,1 @@
+    deflection_tolerance: FloatProperty(name="Deflection Tolerance", default=0.05)

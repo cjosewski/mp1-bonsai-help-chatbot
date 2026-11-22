@@ -1,0 +1,13 @@
+        committed, failed_commits = tool.Parametric.commit_pending_edits()
+        # Previews are session-transient — discard rather than commit. Sibling
+        # gizmo polls gate on each preview's is_active flag, and a stuck flag
+        # persisted through the save would silently hide them on reload.
+        preview_base.discard_pending_previews(context.scene)
+        # Suffix is appended to the IFC save-success report below so the auto-commit
+        # info isn't immediately overwritten by the success message in Blender's
+        # status bar (only the latest self.report({"INFO"}, ...) sticks).
+        commit_suffix = f" (auto-committed {committed} pending parametric edit(s))" if committed else ""
+        if failed_commits:
+            names = ", ".join(o.name for o in failed_commits)
+            msg = f"Auto-commit failed for {len(failed_commits)} object(s): {names}"
+            print(f"Bonsai: {msg} (their drafts are NOT saved to the IFC file).")

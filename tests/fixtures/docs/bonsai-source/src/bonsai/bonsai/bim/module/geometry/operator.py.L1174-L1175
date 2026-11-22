@@ -1,0 +1,2 @@
+    bl_idname = "bim.override_object_duplicate_move_macro"
+    bl_label = "IFC Duplicate Objects"

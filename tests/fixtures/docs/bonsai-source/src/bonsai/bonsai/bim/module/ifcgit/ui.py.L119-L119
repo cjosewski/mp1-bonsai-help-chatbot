@@ -1,0 +1,1 @@
+        row.prop(props, "ifcgit_filter", text="Filter revisions")

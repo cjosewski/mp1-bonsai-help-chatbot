@@ -1,0 +1,2 @@
+                row.operator("bim.select_container", icon="OBJECT_DATA", text="").container = 0
+                row.operator("bim.select_similar_container", icon="RESTRICT_SELECT_OFF", text="")

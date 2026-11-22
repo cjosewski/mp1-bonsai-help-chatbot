@@ -1,0 +1,8 @@
+        if context.active_object and self.should_save:
+            element = tool.Ifc.get_entity(context.active_object)
+            if element and element.is_a("IfcRelSpaceBoundary"):
+                return bpy.ops.bim.edit_boundary_geometry()
+            elif tool.Geometry.is_representation_item(context.active_object):
+                self.edit_representation_item(context.active_object)
+                tool.Root.reload_item_decorator()
+                # So you can keep hitting tab to cycle out of edit mode

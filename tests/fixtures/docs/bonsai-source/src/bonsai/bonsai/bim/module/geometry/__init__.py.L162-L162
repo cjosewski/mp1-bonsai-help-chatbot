@@ -1,0 +1,1 @@
+        kmi = km.keymap_items.new("bim.override_mode_set_edit", "TAB", "PRESS")

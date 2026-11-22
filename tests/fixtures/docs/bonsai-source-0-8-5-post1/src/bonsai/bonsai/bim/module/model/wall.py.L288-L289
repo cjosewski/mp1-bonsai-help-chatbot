@@ -1,0 +1,2 @@
+    bl_idname = "bim.flip_wall"
+    bl_label = "Flip Wall"

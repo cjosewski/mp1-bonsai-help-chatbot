@@ -1,0 +1,22 @@
+        if len(bpy.context.selected_objects) == 1:
+            # Active object was probably unselected because it doesn't have a usage.
+            if bpy.context.selected_objects[0] != active_object:
+                return
+
+            if self.active_material_usage == "LAYER3":
+                # Edit LAYER3 profile
+                if (
+                    active_object.mode == "OBJECT"
+                    and (representation := tool.Geometry.get_active_representation(active_object))
+                    and tool.Model.get_extrusion(representation)
+                ):
+                    bpy.ops.bim.enable_editing_extrusion_profile()
+            elif self.active_material_usage == "LAYER2":
+                # Extend LAYER2 to cursor
+                core.extend_walls(
+                    tool.Ifc,
+                    tool.Blender,
+                    tool.Geometry,
+                    DumbWallJoiner(),
+                    tool.Model,
+                    bpy.context.scene.cursor.location,

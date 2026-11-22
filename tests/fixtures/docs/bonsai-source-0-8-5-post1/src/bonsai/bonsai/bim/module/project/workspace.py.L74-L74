@@ -1,0 +1,1 @@
+        op = row.operator("bim.explore_hotkey", text="Measure Tool", icon="CON_DISTLIMIT")

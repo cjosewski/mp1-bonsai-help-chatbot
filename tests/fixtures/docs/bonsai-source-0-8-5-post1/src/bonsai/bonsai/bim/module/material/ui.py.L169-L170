@@ -1,0 +1,2 @@
+            row.label(text="No Materials Available")
+            row.operator("bim.add_material", icon="ADD", text="")

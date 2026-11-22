@@ -1,0 +1,8 @@
+        row.prop(pprops, "element_limit_mode")
+
+        if pprops.element_limit_mode == "RANGE":
+            row = self.layout.row()
+            row.label(text="Element Range")
+            row = self.layout.row(align=True)
+            row.prop(pprops, "element_offset", text="")
+            row.prop(pprops, "element_limit", text="")

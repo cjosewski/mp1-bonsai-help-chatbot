@@ -1,0 +1,3 @@
+            add_layout_hotkey_operator(
+                row, "Trim", "S_T", "Connects and trims two non-parallel elements into a joint", ui_context
+            )

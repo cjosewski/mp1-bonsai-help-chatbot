@@ -1,0 +1,3 @@
+            if key == "XAxisOrdinate":
+                row = self.layout.row(align=True)
+                row.label(text="*Angle to Grid North")

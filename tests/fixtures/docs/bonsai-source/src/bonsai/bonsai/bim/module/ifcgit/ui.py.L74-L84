@@ -1,0 +1,11 @@
+            row.label(text="No IFC project saved", icon="FILE")
+
+            box = layout.box()
+            row = box.row()
+            row.label(text="Clone a remote Git repository")
+            row = box.row()
+            row.prop(props, "remote_url")
+            row = box.row()
+            row.prop(props, "local_folder")
+            row = box.row()
+            row.operator("ifcgit.clone_repo", icon="IMPORT")

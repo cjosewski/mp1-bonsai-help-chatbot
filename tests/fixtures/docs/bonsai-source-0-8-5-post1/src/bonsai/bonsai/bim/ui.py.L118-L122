@@ -1,0 +1,5 @@
+                        if schema_lower == "ifc2x3":
+                            row = box.row()
+                            op = row.operator("bim.run_migrate_patch", text="Upgrade to IFC4")
+                            op.infile = filepath
+                            op.outfile = filepath[0:-4] + "-IFC4.ifc"

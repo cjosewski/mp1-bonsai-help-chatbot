@@ -1,0 +1,2 @@
+        if self.active_material_usage == "LAYER2":
+            bpy.ops.bim.rotate_90(axis="Z")

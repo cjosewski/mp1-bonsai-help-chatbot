@@ -1,0 +1,7 @@
+    bl_label = "Debug"
+    bl_idname = "BIM_PT_debug"
+    bl_options = {"DEFAULT_CLOSED"}
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "scene"
+    bl_parent_id = "BIM_PT_tab_quality_control"

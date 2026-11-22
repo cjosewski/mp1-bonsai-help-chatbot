@@ -1,0 +1,2 @@
+        if AuthoringData.data["is_flippable_element"]:
+            cls.draw_flip(ui_context, row)

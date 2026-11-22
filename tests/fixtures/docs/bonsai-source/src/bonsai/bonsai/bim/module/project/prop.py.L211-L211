@@ -1,0 +1,1 @@
+    is_selected: BoolProperty(name="Is Selected", default=False)

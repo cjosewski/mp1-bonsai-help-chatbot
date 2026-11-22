@@ -1,0 +1,5 @@
+            print(f"{i}/{total}:", element)
+            start = time.time()
+            shape = None
+            try:
+                shape = ifcopenshell.geom.create_shape(settings, element, geometry_library=geometry_library)

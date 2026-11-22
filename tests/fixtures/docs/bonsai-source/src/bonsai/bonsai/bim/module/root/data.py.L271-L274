@@ -1,0 +1,4 @@
+        name = element.is_a()
+        predefined_type = ifcopenshell.util.element.get_predefined_type(element)
+        if predefined_type:
+            name += f"[{predefined_type}]"

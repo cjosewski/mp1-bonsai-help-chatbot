@@ -1,0 +1,3 @@
+        description = "Assign current IfcMaterial to the selected objects"
+        if material_type != "IfcMaterial":
+            description += f" as part of a new {material_type}"

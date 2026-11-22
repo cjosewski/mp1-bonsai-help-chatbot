@@ -1,0 +1,5 @@
+        op = row.operator("bim.edit_material_set_item", icon="CHECKMARK", text="Save Changes")
+        op.material_set_item = set_item["id"]
+        row.operator("bim.disable_editing_material_set_item", icon="CANCEL", text="")
+
+        draw_attributes(self.props.material_set_item_attributes, box)

@@ -1,0 +1,7 @@
+    def hotkey_S_O(self):
+        if len(bpy.context.selected_objects) > 1:
+            bpy.ops.bim.add_opening()
+        else:
+            bpy.ops.bim.add_element(
+                "INVOKE_DEFAULT", ifc_product="IfcFeatureElement", ifc_class="IfcOpeningElement", skip_dialog=True
+            )

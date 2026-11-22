@@ -1,0 +1,3 @@
+        if len(bpy.context.scene.objects) != 3:
+            return False
+        if {obj.type for obj in bpy.context.scene.objects} == {"MESH", "LIGHT", "CAMERA"}:

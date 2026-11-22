@@ -1,0 +1,20 @@
+        row = self.layout.row(align=True)
+        prop_with_search(row, self.props, "material_type", text="")
+        prop_with_search(row, self.props, "material", text="")
+        row.operator("bim.assign_material", icon="ADD", text="")
+
+    def draw_material_ui(self):
+        row = self.layout.row(align=True)
+        row.label(text=ObjectMaterialData.data["material_class"])
+
+        if self.props.is_editing:
+            op = row.operator("bim.edit_assigned_material", icon="CHECKMARK", text="")
+            op.material_set = ObjectMaterialData.data["set"]["id"]
+            if "Usage" in ObjectMaterialData.data["material_class"]:
+                op.material_set_usage = ObjectMaterialData.data["material_id"]
+            row.operator("bim.disable_editing_assigned_material", icon="CANCEL", text="")
+        else:
+            op = row.operator("bim.material_ui_select", icon="ZOOM_SELECTED", text="")
+            op.material_id = ObjectMaterialData.data["material_id"]
+            row.operator("bim.enable_editing_assigned_material", icon="GREASEPENCIL", text="")
+            row.operator("bim.unassign_material", icon="X", text="")

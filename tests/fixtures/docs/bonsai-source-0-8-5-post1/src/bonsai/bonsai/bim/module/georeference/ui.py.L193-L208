@@ -1,0 +1,16 @@
+    bl_label = "Blender Coordinates"
+    bl_options = {"DEFAULT_CLOSED"}
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "scene"
+    bl_parent_id = "BIM_PT_gis"
+
+    def draw(self, context):
+        if not GeoreferenceData.is_loaded:
+            GeoreferenceData.load()
+
+        props = tool.Georeference.get_georeference_props()
+
+        if props.has_blender_offset:
+            row = self.layout.row()
+            row.label(text="Temporary Offset Is Active", icon="TRACKING_REFINE_FORWARDS")

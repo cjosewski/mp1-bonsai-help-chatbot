@@ -1,0 +1,9 @@
+    """Activates when exactly two LAYER2 walls are selected. Dispatches between four
+    state-specific icons based on the geometric + IFC relationship of the walls:
+
+    - **Joined** (``IfcRelConnectsPathElements`` between them):
+      ``unjoin_icon`` (``VIEW3D_GT_split``, outward arrows) at the shared corner.
+      Clicking dispatches ``bim.unjoin_walls``.
+    - **Collinear** (axes on the same infinite line, not joined):
+      ``merge_icon`` (``VIEW3D_GT_merge``, inward arrows) at the midpoint of the
+      closest endpoint pair. Clicking dispatches ``bim.merge_wall``.

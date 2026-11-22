@@ -1,0 +1,4 @@
+    bl_idname = "bim.launch_type_manager"
+    bl_label = "Launch Type Manager"
+    bl_options = {"REGISTER", "UNDO"}
+    bl_description = "Browse, Edit and Manage Types"

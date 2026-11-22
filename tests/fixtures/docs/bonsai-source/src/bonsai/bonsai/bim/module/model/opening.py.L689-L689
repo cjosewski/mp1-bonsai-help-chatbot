@@ -1,0 +1,1 @@
+            if not element or not element.FillsVoids:

@@ -1,0 +1,3 @@
+    bl_idname = "bim.extend_walls_to_wall"
+    bl_label = "Extend Walls To Wall"
+    bl_description = "Extend and trim selected walls to another wall"

@@ -1,0 +1,2 @@
+    def hotkey_S_W(self):
+        bpy.ops.view3d.walk("INVOKE_DEFAULT")

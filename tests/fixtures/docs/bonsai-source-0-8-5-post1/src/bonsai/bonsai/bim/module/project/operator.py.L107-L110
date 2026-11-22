@@ -1,0 +1,4 @@
+        elif self.preset == "metric_mm":
+            pprops.export_schema = "IFC4"
+            bpy.context.scene.unit_settings.system = "METRIC"
+            bpy.context.scene.unit_settings.length_unit = "MILLIMETERS"

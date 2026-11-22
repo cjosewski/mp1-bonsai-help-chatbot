@@ -1,0 +1,30 @@
+        if ui_context != "TOOL_HEADER":
+            row = box.row(align=True)
+            row.alignment = "CENTER"
+            row.template_icon(icon_value=0, scale=3.3)
+
+            row = box.row(align=True)
+            row.alignment = "CENTER"
+            op = row.operator(
+                "bim.add_element", text=f"Create New {AuthoringData.data['ifc_element_type'] or 'Type'}", icon="ADD"
+            )
+            op.is_specific_tool = bool(AuthoringData.data["ifc_element_type"])
+            op.ifc_product = "IfcElementType"
+            op.ifc_class = AuthoringData.data["ifc_element_type"] or props.ifc_class or ""
+
+            row = box.row(align=True)
+
+            if not AuthoringData.data["ifc_element_type"]:
+                row = box.row(align=True)
+                row.alignment = "CENTER"
+                row.template_icon(icon_value=0, scale=1)
+
+            row = box.row(align=True)
+            row.alignment = "CENTER"
+            row.template_icon(icon_value=0, scale=3.5)
+        elif AuthoringData.data["ifc_element_type"]:
+            row = cls.layout.row(align=True)
+            op = row.operator(
+                "bim.add_default_type",
+                icon_value=custom_icon_previews["QUICK_DEFAULT"].icon_id,
+                text=f"Quick Create {AuthoringData.data['ifc_element_type']}",

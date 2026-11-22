@@ -1,0 +1,3 @@
+        row.label(text=f"{TypeData.data['total_instances']} Typed Objects")
+        select_type_objects_row = row.row(align=True)
+        select_type_objects_row.operator("bim.select_type_objects", icon="RESTRICT_SELECT_OFF", text="")

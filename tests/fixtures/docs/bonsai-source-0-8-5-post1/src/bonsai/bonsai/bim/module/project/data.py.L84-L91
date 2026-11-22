@@ -1,0 +1,8 @@
+        for export_schema in cls.data["export_schema"]:
+            template_files[export_schema[0]].append(("0", "Blank Project", ""))
+
+        for f in tool.Blender.get_data_dir_paths(Path("templates") / "projects", "*.ifc*"):
+            current_schema = cls.get_file_schema(f)
+            if current_schema not in template_files:
+                continue
+            template_files[current_schema].append((f.name, f.stem, "Template"))

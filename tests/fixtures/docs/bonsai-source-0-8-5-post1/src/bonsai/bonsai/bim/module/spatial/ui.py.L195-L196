@@ -1,0 +1,2 @@
+        row_.enabled = container_has_elements
+        op = row_.operator("bim.set_element_visibility", icon="FULLSCREEN_EXIT", text="")

@@ -1,0 +1,2 @@
+        name="Draw Gizmos In 3D Viewport",
+        default=True,

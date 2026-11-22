@@ -1,0 +1,1 @@
+            add_layout_hotkey_operator(row, "Regen", "S_G", "Recalculate Element Geometry", ui_context)

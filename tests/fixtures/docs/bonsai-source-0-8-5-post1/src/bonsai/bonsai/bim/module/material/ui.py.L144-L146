@@ -1,0 +1,3 @@
+    def poll(cls, context):
+        if not (obj := context.active_object):
+            return False

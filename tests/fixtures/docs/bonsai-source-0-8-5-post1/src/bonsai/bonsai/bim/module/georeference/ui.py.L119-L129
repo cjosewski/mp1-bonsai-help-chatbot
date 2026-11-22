@@ -1,0 +1,11 @@
+        if GeoreferenceData.data["coordinate_operation"]:
+            row = self.layout.row(align=True)
+            row.label(text="Coordinate Operation", icon="GRID")
+
+        for key, value in GeoreferenceData.data["coordinate_operation"].items():
+            if value is None:
+                continue
+            if key == "type":
+                key = "Type"
+            row = self.layout.row(align=True)
+            if key in ("Eastings", "Northings", "OrthogonalHeight"):

@@ -1,0 +1,33 @@
+        return tool.Ifc.get() and (obj := tool.Blender.get_active_object()) and tool.Ifc.get_entity(obj)
+
+    def draw(self, context):
+        layout = self.layout
+        if not RepresentationsData.is_loaded:
+            RepresentationsData.load()
+
+        obj = context.active_object
+        assert obj
+        props = tool.Geometry.get_object_geometry_props(obj)
+
+        row = self.layout.row(align=True)
+        prop_with_search(row, props, "contexts", text="")
+        row.operator("bim.add_representation", icon="ADD", text="")
+
+        if not RepresentationsData.data["representations"]:
+            self.layout.label(text="No Representations Found")
+            return
+
+        for representation in RepresentationsData.data["representations"]:
+            row = self.layout.row(align=True)
+            row.label(text=representation["ContextType"])
+            row.label(text=representation["ContextIdentifier"])
+            row.label(text=representation["TargetView"])
+            row.label(text=representation["RepresentationType"])
+            op = row.operator(
+                "bim.switch_representation",
+                icon="FILE_REFRESH" if representation["is_active"] else "OUTLINER_DATA_MESH",
+                text="",
+            )
+            op.ifc_definition_id = representation["id"]
+            op.disable_opening_subtractions = False
+            row.operator("bim.remove_representation", icon="X", text="").representation_id = representation["id"]

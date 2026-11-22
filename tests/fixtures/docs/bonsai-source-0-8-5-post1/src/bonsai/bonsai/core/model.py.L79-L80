@@ -1,0 +1,2 @@
+    if len(selected_objs) != 2:
+        raise RequireTwoWallsError("Two vertically layered elements must be selected to connect their paths together")

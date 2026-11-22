@@ -1,0 +1,2 @@
+    bl_idname = "bim.create_project"
+    bl_label = "Create Project"

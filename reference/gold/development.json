@@ -1,0 +1,271 @@
+{
+  "checker": "gold-check-v2",
+  "counts": {"multi_part": 1, "single": 1},
+  "digest": "7df14e97d519bbb13922fb3e5b656cadcd6220c22bd7764aa967e561933cedbb",
+  "docs_index": "5dc286fdb8c2cadf2ab90af85a4e4b637ebd8826e0bbb931ab4638ab683b252d",
+  "input_rendering": "gold-input-v1",
+  "items": [
+    {
+      "category": "model_exploration",
+      "citations": [
+        {
+          "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
+          "heading_path": ["Project 5: Apartment Block", "Tutorial Steps", "7. Advanced MEP Systems"],
+          "id": "C1",
+          "line_end": 91,
+          "line_start": 83,
+          "path": "src/bonsai/docs/tutorials/project5.rst",
+          "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
+          "quotes": [
+            {"id": "Q1", "line": 87, "text": "Create a multi-level plumbing system with pressure zones"}
+          ],
+          "record_id": "bonsai-docs-0-8-5-post1:src/bonsai/docs/tutorials/project5.rst#L83-L91",
+          "role": "support",
+          "section_sha256": "d4954af6655d8ef9fb9b9d551c69485e703a0f74573f7326b04ab33109bc87d1",
+          "source": "bonsai-docs-0-8-5-post1"
+        },
+        {
+          "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
+          "heading_path": ["Dealing with large models", "Linking in models"],
+          "id": "C2",
+          "line_end": 44,
+          "line_start": 21,
+          "path": "src/bonsai/docs/guides/viewing/dealing_with_large_models.rst",
+          "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
+          "quotes": [
+            {"id": "Q1", "line": 27, "text": "overall federated model coordination"},
+            {"id": "Q2", "line": 29, "text": "it's much more efficient to link a model rather than to open a model."},
+            {"id": "Q3", "line": 30, "text": "In the **Links Panel**, click on **Link IFC**, and browse to your IFC."},
+            {"id": "Q4", "line": 33, "text": "You will not be able to directly edit geometry or data in a linked model"},
+            {"id": "Q5", "line": 37, "text": "Activate the **Explore Tool** to quickly navigate these linked models."},
+            {"id": "Q6", "line": 37, "text": "You can **Enable Culling** to improve FPS speeds further, and use the :kbd:`RMB` to query data about a selected object."},
+            {"id": "Q7", "line": 41, "text": "Once loaded, the linked model is cached as a ``.cache.blend`` file for subsequent loads in the same folder as the ``.ifc``."},
+            {"id": "Q8", "line": 42, "text": "The data is cached in a ``.cache.sqlite`` file."},
+            {"id": "Q9", "line": 31, "text": "You can also bulk select multiple IFCs."},
+            {"id": "Q10", "line": 34, "text": "you will be able to efficiently load multiple huge models easily and navigate it with a reasonable FPS."},
+            {"id": "Q11", "line": 25, "text": "sometimes only geometry and basic attributes such as names are sufficient."}
+          ],
+          "record_id": "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/viewing/dealing_with_large_models.rst#L21-L44",
+          "role": "support",
+          "section_sha256": "21f5c75da58ca45f89ea3b9f2836fa6405ebe77d0f43a6c701f7561d13ce2bd7",
+          "source": "bonsai-docs-0-8-5-post1"
+        }
+      ],
+      "control": null,
+      "draft": {"drafted_on": "2026-11-22", "lane": "multi-1", "origin": "GI-32256e0aa172", "sha256": "a058a05885ace77b4a73803ad8bffb673c44b6704b6f60417a0ca9170472387b", "supersedes": "62350f3605d271b9c04899ffdf3a15f26e038a26367673895029bbd44a017e1e"},
+      "id": "GS-MD-004",
+      "injection": null,
+      "kind": "multi_part",
+      "parts": [
+        {
+          "answer": {
+            "support": ["C2.Q11", "C2.Q1", "C2.Q2", "C2.Q3", "C2.Q4"],
+            "text": "Yes: link them instead of opening them. When only geometry and basic attributes such as names are sufficient, as in overall federated model coordination, it's much more efficient to link a model rather than to open a model: in the Links Panel, click Link IFC and browse to the IFCs. You will not be able to directly edit geometry or data in a linked model."
+          },
+          "category": "model_exploration",
+          "id": "a",
+          "span": "Is there a lighter way to bring them in?",
+          "steps": [0, 1]
+        },
+        {
+          "answer": {
+            "support": ["C2.Q7", "C2.Q8"],
+            "text": "Cache files: once loaded, the linked model is cached as a .cache.blend file for subsequent loads, in the same folder as the .ifc, and its data is cached in a .cache.sqlite file."
+          },
+          "category": "model_exploration",
+          "id": "b",
+          "span": "what are they?",
+          "steps": [2]
+        },
+        {
+          "answer": {
+            "support": ["C2.Q5", "C2.Q6"],
+            "text": "Activate the Explore Tool to quickly navigate the linked models, enable culling to improve FPS speeds further, and use the `RMB` to query data about a selected object."
+          },
+          "category": "model_exploration",
+          "id": "c",
+          "span": "how do I move around them quickly and check what something is?",
+          "steps": [3, 4]
+        }
+      ],
+      "patterns": [
+        {
+          "field": "any",
+          "id": "P1",
+          "kind": "bonsai_operator",
+          "part": "a",
+          "polarity": "required",
+          "reason": null,
+          "support": [],
+          "value": "bim.link_ifc"
+        },
+        {
+          "field": "any",
+          "id": "P2",
+          "kind": "regex",
+          "part": "b",
+          "polarity": "required",
+          "reason": "The cache file names may be written with or without the leading folder or backticks, so match either file extension.",
+          "support": [],
+          "value": "\\.cache\\.(blend|sqlite)"
+        },
+        {
+          "field": "any",
+          "id": "P3",
+          "kind": "bonsai_tool",
+          "part": "c",
+          "polarity": "required",
+          "reason": null,
+          "support": [],
+          "value": "bim.explore_tool"
+        }
+      ],
+      "profile": "SP-12",
+      "question": "We're on the Advanced MEP Systems step of the Project 5 apartment block tutorial in Bonsai 0.8.5, routing pipes in our big IFC2X3 services model, and opening the architect's and the structural engineer's IFCs as well makes the viewport crawl. I only need to see them to route around. Is there a lighter way to bring them in? The second time I loaded one, it came in much faster and two new files appeared beside it; what are they? And once they're in, how do I move around them quickly and check what something is?",
+      "reference": {
+        "answer": {
+          "support": ["C2.Q2", "C2.Q3", "C2.Q4", "C2.Q10", "C2.Q7", "C2.Q8", "C2.Q5", "C2.Q6"],
+          "text": "Link the architectural and structural IFCs with Link IFC instead of opening them: linked models can't be edited but load and navigate efficiently. The new files are the linked model's cache (.cache.blend, with the data in .cache.sqlite), used for subsequent loads. Navigate with the Explore Tool and use the `RMB` to query a selected object."
+        },
+        "assumptions": ["blender", "bonsai", "model_state"],
+        "hazard": null,
+        "scope_note": null,
+        "steps": [
+          {
+            "support": ["C1.Q1", "C2.Q3", "C2.Q9"],
+            "text": "To route the tutorial's plumbing against the other disciplines, go to the Links Panel, click Link IFC and browse to the architectural and structural IFCs; you can also bulk select multiple IFCs."
+          },
+          {
+            "support": ["C2.Q4", "C2.Q10"],
+            "text": "Expect the linked models to be view-only: you cannot directly edit their geometry or data, but you can efficiently load multiple huge models and navigate them with a reasonable FPS."
+          },
+          {
+            "support": ["C2.Q7", "C2.Q8"],
+            "text": "On later loads the linked model comes from its cache: a .cache.blend file in the same folder as the .ifc, with its data in a .cache.sqlite file."
+          },
+          {
+            "support": ["C2.Q5", "C2.Q6"],
+            "text": "Activate the Explore Tool to quickly navigate the linked models, and enable culling to improve FPS speeds further."
+          },
+          {
+            "support": ["C2.Q6"],
+            "text": "Use the `RMB` on a selected object to query its data."
+          }
+        ],
+        "tools": [
+          {"display": "Link IFC", "kind": "bonsai_operator", "value": "bim.link_ifc"},
+          {"display": "Explore Tool", "kind": "bonsai_tool", "value": "bim.explore_tool"},
+          {"display": "RMB", "kind": "hotkey", "value": "RMB"}
+        ]
+      },
+      "review": {"decided_on": "2026-11-22", "decision_id": "GP-001.04", "packet_id": "GP-001", "reviewed_draft_sha256": "a058a05885ace77b4a73803ad8bffb673c44b6704b6f60417a0ca9170472387b", "setup_sha256": "526a3ca158c5e23af02675b612a150dd44e297b9368efc8906105896e3c07dbc", "status": "chad_accepted", "words": "approve"},
+      "setup_facts": [],
+      "split": "development",
+      "unusual": null,
+      "user_context": null,
+      "version_line": "VL-older"
+    },
+    {
+      "category": "model_exploration",
+      "citations": [
+        {
+          "commit": "2744f8426bdef98a486406628a121298a5479690",
+          "heading_path": ["Dealing with large models", "Large polygon counts"],
+          "id": "C1",
+          "line_end": 126,
+          "line_start": 113,
+          "path": "src/bonsai/docs/guides/viewing/dealing_with_large_models.rst",
+          "pin_id": "bonsai-docs-00e02b1ec8e4c266",
+          "quotes": [
+            {"id": "Q1", "line": 116, "text": "If objects with large polygon counts are blocking you from importing, consider enabling **Native Meshes**"},
+            {"id": "Q2", "line": 119, "text": "The **Debug Panel** allows you to **Select High Polygon Meshes** or **Select Highest Polygon Meshes** to isolate geometrically complex objects by a polygon number threshold or a percentage."},
+            {"id": "Q3", "line": 123, "text": "you can view them in edit mode to see a polygon count and where the offending polygons are."},
+            {"id": "Q4", "line": 124, "text": "Often, fixing a single object may cut out 50MB."}
+          ],
+          "record_id": "bonsai-docs:src/bonsai/docs/guides/viewing/dealing_with_large_models.rst#L113-L126",
+          "role": "support",
+          "section_sha256": "97ed87b3fd1d724287666ba8be127530c3b76e37379514d95a99a73cbbaea470",
+          "source": "bonsai-docs"
+        },
+        {
+          "commit": "2744f8426bdef98a486406628a121298a5479690",
+          "heading_path": ["Dealing with large models"],
+          "id": "C2",
+          "line_end": 20,
+          "line_start": 1,
+          "path": "src/bonsai/docs/guides/viewing/dealing_with_large_models.rst",
+          "pin_id": "bonsai-docs-00e02b1ec8e4c266",
+          "quotes": [
+            {"id": "Q1", "line": 11, "text": "Individual object polygon counts over 100k, which may cause unreasonable loading times"}
+          ],
+          "record_id": "bonsai-docs:src/bonsai/docs/guides/viewing/dealing_with_large_models.rst#L1-L20",
+          "role": "support",
+          "section_sha256": "874a4a9a0aae902f66e991481e6cc89300a896c0db947d199dfe598a33677930",
+          "source": "bonsai-docs"
+        }
+      ],
+      "control": null,
+      "draft": {"drafted_on": "2026-11-22", "lane": "single-model-exploration", "origin": "GI-de60925557ef", "sha256": "e341d8b35bbd18b1a6d1dc7265297785f93db495f59831cad9a11e9a3166d268", "supersedes": "876634f4b217258be012039d3d508bea1780fe8a0d9e5e3f39a8c4941c1f8aec"},
+      "id": "GS-SD-039",
+      "injection": null,
+      "kind": "single",
+      "parts": [],
+      "patterns": [
+        {
+          "field": "any",
+          "id": "P1",
+          "kind": "regex",
+          "part": null,
+          "polarity": "required",
+          "reason": "Either Debug Panel operator, by label or id, answers how to find the dense objects.",
+          "support": [],
+          "value": "select[ _]high(est)?[ _]polygon[ _]meshes"
+        }
+      ],
+      "profile": "SP-03",
+      "question": "One of the MEP subcontractor models in our federation takes forever to load and the viewport crawls. I suspect a few fittings are insanely dense meshes. How do I find the heavy objects?",
+      "reference": {
+        "answer": {
+          "support": ["C2.Q1", "C1.Q2"],
+          "text": "Individual objects with polygon counts over 100k can cause unreasonable loading times. In the Debug Panel use Select High Polygon Meshes (`bim.select_high_polygon_meshes`) or Select Highest Polygon Meshes (`bim.select_highest_polygon_meshes`) to isolate geometrically complex objects by a polygon number threshold or a percentage."
+        },
+        "assumptions": ["blender", "bonsai", "model_state", "discipline"],
+        "hazard": null,
+        "scope_note": {
+          "support": ["C1.Q4"],
+          "text": "The docs note that fixing a single object may cut out 50MB but do not describe how to repair its geometry, so that repair is not covered here."
+        },
+        "steps": [
+          {
+            "support": ["C1.Q2"],
+            "text": "Open the Debug Panel and run `bim.select_high_polygon_meshes` with a polygon threshold, or `bim.select_highest_polygon_meshes` with a percentage."
+          },
+          {
+            "support": ["C1.Q3"],
+            "text": "View the selected objects in edit mode to see the polygon count and where the offending polygons are."
+          },
+          {
+            "support": ["C1.Q1"],
+            "text": "If dense objects block the import, consider enabling Native Meshes in the Advanced Loading Mode when loading."
+          }
+        ],
+        "tools": [
+          {"display": "Select High Polygon Meshes", "kind": "bonsai_operator", "value": "bim.select_high_polygon_meshes"},
+          {"display": "Select Highest Polygon Meshes", "kind": "bonsai_operator", "value": "bim.select_highest_polygon_meshes"}
+        ]
+      },
+      "review": {"decided_on": "2026-11-22", "decision_id": "GP-002.24", "packet_id": "GP-002", "reviewed_draft_sha256": "e341d8b35bbd18b1a6d1dc7265297785f93db495f59831cad9a11e9a3166d268", "setup_sha256": "9bc7f07f4cde2c0f04e8aaef8029e2d457039489d34bb3e39c99d80c68ddc909", "status": "chad_accepted", "words": "approve"},
+      "setup_facts": [],
+      "split": "development",
+      "unusual": null,
+      "user_context": null,
+      "version_line": "VL-current"
+    }
+  ],
+  "lexicons": {"blender-manual-4-5.json": "54c67c22edfa3aaa26e608a6eea31523f591086a1a83be9c5db4ca918d4e6db0", "blender-manual.json": "8a118ef2b61bcb669ac71997aefb45313f9d5556a86d05f3d05e08639b994694", "bonsai-docs-0-8-5-post1.json": "67f0a885ed84b2e7b25bf0cb37141189e144905ebe1da8ff93e5faf1f47cfb8f", "bonsai-docs.json": "45223548ae51e866fae908fecb2645d9966a86b465e333689e6918c21e3d72a4", "bonsai-source-0-8-5-post1.json": "59ff95eab17409bb4f89e753522030fd3495b8f1e039cd48ae22edde1807d62c", "bonsai-source.json": "4f6a6cbacaa650cf366447726638fce54d43ab2caaf35787de506508b8167891"},
+  "license": "CC BY-SA 4.0 (generated data); quoted Bonsai or Blender Manual text keeps its source license",
+  "pins": {"blender-manual": "blender-manual-fea32ead8c72f97e", "blender-manual-4-5": "blender-manual-4-5-ec0c621a112c20c9", "bonsai-docs": "bonsai-docs-00e02b1ec8e4c266", "bonsai-docs-0-8-5-post1": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f", "bonsai-source": "bonsai-source-0af9a03ac2055c14", "bonsai-source-0-8-5-post1": "bonsai-source-0-8-5-post1-2ef0a8933f49af97"},
+  "schema": "gold-set-v1",
+  "slots": "00028b960737fc7c08e1f5443ba196a895f0843cde7b4c6b823794b44618b2d4",
+  "split": "development"
+}

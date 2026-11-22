@@ -1,0 +1,3 @@
+class OverrideModeSetEdit(bpy.types.Operator, tool.Ifc.Operator):
+    bl_description = "Switch from Object to Item to Edit mode"
+    bl_idname = "bim.override_mode_set_edit"

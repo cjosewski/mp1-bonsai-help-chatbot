@@ -1,0 +1,11 @@
+    bl_idname = "bim.new_project"
+    bl_label = "New Project"
+    bl_options = {"REGISTER", "UNDO"}
+    bl_description = "Start a new IFC project in a fresh session"
+    preset: bpy.props.EnumProperty(items=[(i, i, "") for i in get_args(PresetType)])
+
+    if TYPE_CHECKING:
+        preset: PresetType
+
+    def execute(self, context) -> set["rna_enums.OperatorReturnItems"]:
+        bpy.ops.wm.read_homefile()

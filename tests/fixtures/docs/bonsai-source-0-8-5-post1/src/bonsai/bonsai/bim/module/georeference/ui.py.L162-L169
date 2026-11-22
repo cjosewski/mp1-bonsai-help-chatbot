@@ -1,0 +1,8 @@
+        row.prop(self.props, "true_north_angle", text="Angle")
+        row = self.layout.row()
+        row.prop(self.props, "true_north_abscissa", text="Abscissa")
+        row = self.layout.row()
+        row.prop(self.props, "true_north_ordinate", text="Ordinate")
+
+        row = self.layout.row(align=True)
+        row.operator("bim.edit_true_north", icon="CHECKMARK")

@@ -1,0 +1,3 @@
+        if AuthoringData.data["is_regenable_element"]:
+            op = row.operator("bim.hotkey", text="", icon_value=custom_icon)
+            description = "Recalculate Element Geometry\nHotkey: S G"

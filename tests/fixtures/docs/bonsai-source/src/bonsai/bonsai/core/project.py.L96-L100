@@ -1,0 +1,5 @@
+    project.run_root_assign_class(obj=site, ifc_class="IfcSite", context=body)
+    project.run_root_assign_class(obj=building, ifc_class="IfcBuilding", context=body)
+    project.run_root_assign_class(obj=storey, ifc_class="IfcBuildingStorey", context=body)
+
+    project.run_aggregate_assign_object(relating_obj=project_obj, related_obj=site)

@@ -1,0 +1,1 @@
+    should_merge_materials_by_colour: BoolProperty(name="Merge Materials by Colour", default=False)

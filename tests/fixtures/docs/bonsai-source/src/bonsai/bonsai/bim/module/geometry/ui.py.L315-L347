@@ -1,0 +1,33 @@
+class BIM_PT_connections(Panel):
+    bl_label = "Connections"
+    bl_idname = "BIM_PT_connections"
+    bl_options = {"DEFAULT_CLOSED"}
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "object"
+    bl_order = 1
+    bl_parent_id = "BIM_PT_tab_geometric_relationships"
+
+    @classmethod
+    def poll(cls, context):
+        if not (obj := context.active_object):
+            return False
+        if not tool.Ifc.get_object_by_identifier(tool.Blender.get_ifc_definition_id(obj)):
+            return False
+        return tool.Ifc.get()
+
+    def draw(self, context):
+        if not ConnectionsData.is_loaded:
+            ConnectionsData.load()
+
+        layout = self.layout
+
+        if not ConnectionsData.data["connections"] and not ConnectionsData.data["is_connection_realization"]:
+            layout.label(text="No connections found")
+
+        for connection in ConnectionsData.data["connections"]:
+            row = self.layout.row(align=True)
+            row.label(text=connection["Name"], icon="SNAP_ON" if connection["is_relating"] else "SNAP_OFF")
+            row.label(text=connection["ConnectionType"])
+            op = row.operator("bim.select_connection", icon="RESTRICT_SELECT_OFF", text="")
+            op.connection = connection["id"]

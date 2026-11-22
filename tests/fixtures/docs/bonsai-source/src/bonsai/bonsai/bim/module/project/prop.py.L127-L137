@@ -1,0 +1,11 @@
+    if self.filter_mode == "DECOMPOSITION":
+        if file.schema == "IFC2X3":
+            elements = file.by_type("IfcSpatialStructureElement")
+        else:
+            elements = file.by_type("IfcSpatialElement")
+        elements = [(e, ifcopenshell.util.placement.get_storey_elevation(e)) for e in elements]
+        elements = sorted(elements, key=lambda e: e[1])
+        for element in elements:
+            element = element[0]
+            new = self.filter_categories.add()
+            new.name = "{}/{}".format(element.is_a(), element.Name or "Unnamed")
