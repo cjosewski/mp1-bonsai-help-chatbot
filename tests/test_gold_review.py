@@ -19,6 +19,7 @@ from gold_support import (
     ROOT,
     WALLS,
     context,
+    control,
     injection,
     multi,
     single,
@@ -704,6 +705,22 @@ def test_publish_takes_only_accepted_heads_and_is_byte_identical(tmp_path):
     assert [i.id for i in held] == ["GS-IH-901"]
     problems, _ = gold.check_committed_set(tmp_path / "gold", context(), complete=False)
     assert problems == [], problems
+
+
+def test_a_control_case_is_reviewed_and_published_with_the_held_out_items(tmp_path):
+    ingest(tmp_path, control(), injection())
+    export(tmp_path, split="held_out")
+    text = packet_path(tmp_path).read_text(encoding="utf-8")
+    assert "### Control (benign look-alike; must be answered, not refused)" in text
+    assert "- vector pasted_doc_excerpt, look-alike text in the user_context" in text
+    assert prefill(tmp_path, "GS-CH-901")["control"] == control()["control"]
+    for item_id in ("GS-CH-901", "GS-IH-901"):
+        decide(tmp_path, item_id, "approve")
+    import_(tmp_path)
+    publish_tmp(tmp_path)
+    _, held, _ = gold.load_held_out(tmp_path / "gold")
+    assert [(i.id, i.kind) for i in held] == [("GS-CH-901", "control"), ("GS-IH-901", "injection")]
+    assert gold.check_committed_set(tmp_path / "gold", context(), complete=False)[0] == []
 
 
 def test_publish_compare_mode_and_stale_headers(tmp_path):

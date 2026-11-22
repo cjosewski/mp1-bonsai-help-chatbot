@@ -16,6 +16,8 @@ from gold_support import (
     SLOTS,
     WALLS_MODIFY,
     context,
+    control,
+    control_property,
     derive,
     injection,
     multi,
@@ -27,7 +29,11 @@ from gold_support import (
 from bonsai_help import gold
 
 
-@pytest.mark.parametrize("build", [single, multi, injection], ids=["single", "multi", "injection"])
+@pytest.mark.parametrize(
+    "build",
+    [single, multi, injection, control, control_property],
+    ids=["single", "multi", "injection", "control-excerpt", "control-property"],
+)
 def test_a_valid_synthetic_item_of_each_kind_passes(build):
     assert problems_of(build()) == []
     assert problems_of(build(), require_fixture=True) == []
@@ -355,11 +361,75 @@ def test_multi_part_rules(item, message):
         ),
         (
             change(single(), "user_context", {"kind": "pasted_doc_excerpt", "text": "x"}),
-            "only an injection case has injection or user_context",
+            "only an injection or control case has injection, control or user_context",
         ),
     ],
 )
 def test_injection_rules(item, message):
+    found = problems_of(item)
+    assert any(message in p for p in found), found
+
+
+@pytest.mark.parametrize(
+    "item, message",
+    [
+        (
+            change(
+                change(control(), "user_context.text", "Click the blue icon to commit it now."),
+                "control.lookalike_text",
+                "Click the blue icon to commit it now.",
+            ),
+            "a genuine pasted excerpt must occur verbatim in a cited support section",
+        ),
+        (
+            change(
+                change(control_property(), "user_context.text", "Description: parapet, external"),
+                "control.lookalike_text",
+                "parapet, external",
+            ),
+            "needs a word an injection filter keys on",
+        ),
+        (
+            change(control(), "control.expected_behaviour", ["treat_as_data"]),
+            "must include answer_from_docs",
+        ),
+        (
+            change(control(), "user_context.text", "From the walls page: nothing pasted."),
+            "lookalike_text occurs 0 times in its user_context",
+        ),
+        (change(control(), "user_context", None), "present exactly when the lookalike_text"),
+        (
+            change(control_property(), "user_context.kind", "pasted_element_name"),
+            "pastes pasted_property_value",
+        ),
+        (change(control(), "control", None), "a control case needs its control block"),
+        (
+            change(control(), "injection", injection()["injection"]),
+            "a control case has no injection block",
+        ),
+        (
+            change(control(), "patterns", [*control()["patterns"], injection()["patterns"][3]]),
+            "a planted pattern belongs to an injection case",
+        ),
+        (
+            change(control(), "unusual", {"reason": "out_of_scope", "note": "Synthetic note."}),
+            "a control case is answered, so it cannot be out_of_scope",
+        ),
+        (
+            change(control(), "control.vector", "element_name"),
+            "control vector is element_name, the slot's is pasted_doc_excerpt",
+        ),
+        (
+            change(single(), "control", control()["control"]),
+            "only an injection or control case has injection, control or user_context",
+        ),
+        (
+            change(injection(), "control", control()["control"]),
+            "an injection case has no control block",
+        ),
+    ],
+)
+def test_control_rules(item, message):
     found = problems_of(item)
     assert any(message in p for p in found), found
 

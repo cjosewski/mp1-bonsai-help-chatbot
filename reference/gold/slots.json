@@ -1,5 +1,5 @@
 {
-  "digest": "c9f037e6df75be95f83071912eaff8b3748a2c3e045c1b42e57ed098f159e71b",
+  "digest": "00028b960737fc7c08e1f5443ba196a895f0843cde7b4c6b823794b44618b2d4",
   "profiles_digest": "780fa0dd45efa1b9e64958c480fce230686760aac2c03177f7bfbb99372ac098",
   "schema": "gold-slots-v1",
   "slots": [
@@ -102,7 +102,17 @@
     {"category": "bonsai_modeling", "id": "GS-IH-007", "kind": "injection", "profile": "SP-01", "split": "held_out", "substitution": null, "vector": "element_name", "version_line": "VL-current"},
     {"category": "ifc_data_and_materials", "id": "GS-IH-008", "kind": "injection", "profile": "SP-10", "split": "held_out", "substitution": null, "vector": "ignore_docs_request", "version_line": "VL-older"},
     {"category": "model_exploration", "id": "GS-IH-009", "kind": "injection", "profile": "SP-05", "split": "held_out", "substitution": null, "vector": "ifc_property_value", "version_line": "VL-current"},
-    {"category": "files_versions_troubleshooting", "id": "GS-IH-010", "kind": "injection", "profile": "SP-14", "split": "held_out", "substitution": null, "vector": "pasted_doc_excerpt", "version_line": "VL-older"}
+    {"category": "files_versions_troubleshooting", "id": "GS-IH-010", "kind": "injection", "profile": "SP-14", "split": "held_out", "substitution": null, "vector": "pasted_doc_excerpt", "version_line": "VL-older"},
+    {"category": "bonsai_project_setup", "id": "GS-CH-001", "kind": "control", "profile": "SP-01", "split": "held_out", "substitution": null, "vector": "ifc_property_value", "version_line": "VL-current"},
+    {"category": "bonsai_modeling", "id": "GS-CH-002", "kind": "control", "profile": "SP-10", "split": "held_out", "substitution": null, "vector": "pasted_doc_excerpt", "version_line": "VL-older"},
+    {"category": "ifc_data_and_materials", "id": "GS-CH-003", "kind": "control", "profile": "SP-05", "split": "held_out", "substitution": null, "vector": "element_name", "version_line": "VL-current"},
+    {"category": "model_exploration", "id": "GS-CH-004", "kind": "control", "profile": "SP-14", "split": "held_out", "substitution": null, "vector": "ignore_docs_request", "version_line": "VL-older"},
+    {"category": "files_versions_troubleshooting", "id": "GS-CH-005", "kind": "control", "profile": "SP-09", "split": "held_out", "substitution": null, "vector": "ifc_property_value", "version_line": "VL-current"},
+    {"category": "bonsai_project_setup", "id": "GS-CH-006", "kind": "control", "profile": "SP-18", "split": "held_out", "substitution": null, "vector": "pasted_doc_excerpt", "version_line": "VL-older"},
+    {"category": "bonsai_modeling", "id": "GS-CH-007", "kind": "control", "profile": "SP-01", "split": "held_out", "substitution": null, "vector": "element_name", "version_line": "VL-current"},
+    {"category": "ifc_data_and_materials", "id": "GS-CH-008", "kind": "control", "profile": "SP-10", "split": "held_out", "substitution": null, "vector": "ignore_docs_request", "version_line": "VL-older"},
+    {"category": "model_exploration", "id": "GS-CH-009", "kind": "control", "profile": "SP-05", "split": "held_out", "substitution": null, "vector": "ifc_property_value", "version_line": "VL-current"},
+    {"category": "files_versions_troubleshooting", "id": "GS-CH-010", "kind": "control", "profile": "SP-14", "split": "held_out", "substitution": null, "vector": "pasted_doc_excerpt", "version_line": "VL-older"}
   ],
   "substitutions_digest": null,
   "targets": [
@@ -110,7 +120,8 @@
     {"count": 25, "kind": "single", "split": "held_out"},
     {"count": 10, "kind": "multi_part", "split": "development"},
     {"count": 5, "kind": "multi_part", "split": "held_out"},
-    {"count": 10, "kind": "injection", "split": "held_out"}
+    {"count": 10, "kind": "injection", "split": "held_out"},
+    {"count": 10, "kind": "control", "split": "held_out"}
   ],
   "vector_targets": {"element_name": 2, "ifc_property_value": 3, "ignore_docs_request": 2, "pasted_doc_excerpt": 3}
 }

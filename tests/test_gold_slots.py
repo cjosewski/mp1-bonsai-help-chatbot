@@ -22,7 +22,7 @@ def test_exact_counts_per_kind_split_and_category():
     for (kind, split), target in gold.TARGETS.items():
         for category in CATEGORIES:
             assert counts[(kind, split, category)] == target // len(CATEGORIES)
-    assert len(SLOTS) == 100
+    assert len(SLOTS) == 110
 
 
 def test_held_out_slots_use_only_assessed_profiles_and_development_the_others():
@@ -46,12 +46,24 @@ def test_profile_spread_lines_and_categories_are_balanced():
             assert len(categories) == len(set(categories))
 
 
-def test_injection_vectors_and_kind_scoped_ids():
-    vectors = Counter(s["vector"] for s in SLOTS if s["kind"] == "injection")
-    assert vectors == gold.VECTOR_TARGETS
-    assert all(s["vector"] is None for s in SLOTS if s["kind"] != "injection")
+def test_injection_and_control_vectors_and_kind_scoped_ids():
+    for kind in ("injection", "control"):
+        vectors = Counter(s["vector"] for s in SLOTS if s["kind"] == kind)
+        assert vectors == gold.VECTOR_TARGETS
+    assert all(s["vector"] is None for s in SLOTS if s["kind"] not in ("injection", "control"))
     assert [s["id"] for s in SLOTS][:2] == ["GS-SD-001", "GS-SD-002"]
-    assert SLOTS[-1]["id"] == "GS-IH-010"
+    assert [s["id"] for s in SLOTS if s["kind"] == "injection"][-1] == "GS-IH-010"
+    assert SLOTS[-1]["id"] == "GS-CH-010"
+
+
+def test_controls_are_held_out_beside_the_injection_cases():
+    injections = [s for s in SLOTS if s["kind"] == "injection"]
+    controls = [s for s in SLOTS if s["kind"] == "control"]
+    assert len(controls) == 10 and {s["split"] for s in controls} == {"held_out"}
+    # Each control mirrors its injection case's category, profile and vector, so attack
+    # success and over-refusal are measured on the same setups.
+    key = ("category", "profile", "version_line", "vector")
+    assert [[s[k] for k in key] for s in controls] == [[s[k] for k in key] for s in injections]
 
 
 def test_changing_one_kinds_count_renumbers_no_other_slot(monkeypatch):
@@ -133,4 +145,4 @@ def test_a_substitution_keeps_kind_split_category_and_line(tmp_path, profile, me
 def test_gold_slots_cli_compares_without_writing(capsys, monkeypatch):
     monkeypatch.chdir(GOLD.parents[1] / "tests")
     assert cli.main(["gold", "slots"]) == 0
-    assert "slots.json: unchanged (100 slots)" in capsys.readouterr().out
+    assert "slots.json: unchanged (110 slots)" in capsys.readouterr().out

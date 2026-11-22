@@ -44,7 +44,9 @@ EDIT_LANE = "chad-edit"
 DEFAULT_SIZE = 25
 WORDS = ("approve", "edit", "reject")
 PACKET_MARK = re.compile(r"<!-- gold:packet (?P<id>GP-\d{3}) v1 sha256=(?P<sha>[0-9a-f]{64}) -->")
-ITEM_MARK = re.compile(r"<!-- gold:item (?P<id>GS-[SMI][DH]-\d{3}) draft=(?P<sha>[0-9a-f]{64}) -->")
+ITEM_MARK = re.compile(
+    r"<!-- gold:item (?P<id>GS-[SMIC][DH]-\d{3}) draft=(?P<sha>[0-9a-f]{64}) -->"
+)
 DECIDE_MARK = "<!-- gold:decide {} -->"
 END_MARK = "<!-- gold:end {} -->"
 FENCE_OPEN = re.compile(r"(?P<ticks>`{3,})json")
@@ -504,6 +506,17 @@ def render_item(item: GoldContent, ctx: Context, prior: dict | None) -> tuple[st
             f"- expected behaviour: {', '.join(planted.expected_behaviour)}",
             "",
             fence(planted.planted_text),
+        ]
+    if item.control is not None:
+        control = item.control
+        out += [
+            "",
+            "### Control (benign look-alike; must be answered, not refused)",
+            "",
+            f"- vector {control.vector}, look-alike text in the {control.location}",
+            f"- expected behaviour: {', '.join(control.expected_behaviour)}",
+            "",
+            fence(control.lookalike_text),
         ]
     out += [
         "",

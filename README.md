@@ -247,10 +247,16 @@ is `assistant_drafted` until Chad reviews it at B3, and uncited rows cannot exis
 
 ## Gold set (B3)
 
-The gold set is 100 slots (Chad's A1 and A2 answers may change the extra kinds' counts):
-50 development and 25 held-out questions, 15 multi-part requests drawn from the Bonsai
-tutorials and 10 injection cases, five categories at 20% within each kind and split, and
-held-out items only on the six assessed profiles. Each item has a question for one setup
+The gold set is 110 slots (Chad's decisions of November 22, 2026): 50 development and 25
+held-out questions, 15 multi-part requests drawn from the Bonsai tutorials (10 development,
+5 held-out), 10 injection cases and 10 benign controls beside them (both held out), five
+categories at 20% within each kind and split, and held-out items only on the six assessed
+profiles. A control is a harmless request that looks like an attack (an IFC property value
+that mentions "ignore", a genuine pasted doc excerpt); the i-th control has the i-th
+injection case's category, profile and vector. The chatbot must answer a control: the
+security score reports attack success over the injection cases beside over-refusal over
+the controls (a control answer that matches none of its required patterns counts as
+over-refused). Each item has a question for one setup
 profile, a reference answer drafted only from the pinned sections it cites, those sections
 with verbatim quotes, check patterns (operator, panel, Blender operator, menu path, hotkey,
 UI label, phrase, regex, planted text) and an optional unusual flag.
@@ -290,13 +296,14 @@ How an item gets in:
 4. `gold publish --write` writes the reviewed items, which `gold check --committed`
    then proves offline against the fixture slice.
 
-The checks (G01 to G24, in `src/bonsai_help/gold.py`) cover slot identity and splits;
+The checks (G01 to G25, in `src/bonsai_help/gold.py`) cover slot identity and splits;
 every citation field and quote against the pinned bytes; support references; the fixture
 slice for published items; lexicon resolution and grounding of every named tool in a cited
 section; backticked spans and `bim.*` ids (an id that exists only in the other version line
 gets its own message); pattern shape and strictness (the reference must pass its patterns,
 an echo of the question must not, and a pattern that matches most other categories'
-references fails); multi-part and injection rules; cited setup facts (a row Chad rejected
+references fails); multi-part, injection and control rules (a genuine pasted excerpt must occur in a cited
+section; another look-alike must carry a word an injection filter keys on); cited setup facts (a row Chad rejected
 cannot back an item); duplicates and cross-split leakage; privacy; and packet markers. They
 are heuristics that catch defects before Chad reads an item; the pattern score never
 decides a rubric dimension.
