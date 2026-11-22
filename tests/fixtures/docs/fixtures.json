@@ -1,0 +1,410 @@
+{
+  "digest": "2d420a3bfb37abc3d5b68ad88b534f59620944ee8d8b6726f59b7bce5b578b56",
+  "schema": "doc-fixtures-v1",
+  "sources": {
+    "blender-manual": {
+      "files": [
+        {
+          "blob": "bae2dce38a5b3d56c5138b277bd1ecf2687ce753",
+          "bytes": 20554,
+          "categories": [],
+          "path": "LICENSE",
+          "roles": ["license"],
+          "sha256": "057d8e91eb4a5b468bb7cf0c44b1a485c1a3706be2ab8981c9f3272829368b1d"
+        },
+        {
+          "blob": "69d205968c099191805cdfec34f573c326282c25",
+          "bytes": 1937,
+          "categories": [],
+          "path": "manual/copyright.rst",
+          "roles": ["license"],
+          "sha256": "56892712ea46b18e75f70f587b34d18b3cfe5a5a4603008834399882a85d3d67"
+        },
+        {
+          "blob": "25c3d2697748b41036405a6ea30a9e899663b43c",
+          "bytes": 6182,
+          "categories": ["bonsai_project_setup"],
+          "path": "manual/editors/3dview/3d_cursor.rst",
+          "roles": ["page"],
+          "sha256": "cc058a8785236dadffb690018c750cd86d444df5cac40f707c60629b78be8cf1"
+        },
+        {
+          "blob": "9f1ddd4a5fa91a9abddce3f3616db1225dc6272b",
+          "bytes": 7860,
+          "categories": ["bonsai_modeling"],
+          "path": "manual/editors/3dview/controls/snapping.rst",
+          "roles": ["page"],
+          "sha256": "ff815357c23146d2183bcfb4b7208a39e7ab8da9918a63cbbefe72ff017c8116"
+        },
+        {
+          "blob": "cf4032df2825b6208c297a30394bdcfdda753693",
+          "bytes": 2265,
+          "categories": ["model_exploration"],
+          "path": "manual/editors/3dview/navigate/local_view.rst",
+          "roles": ["page"],
+          "sha256": "2df7edf71566f5ecd2f951096008d80396399866f21f197ba8a470de099a3f77"
+        },
+        {
+          "blob": "f96253a596bf63cab5ddd94e2957366c5eac16cf",
+          "bytes": 7596,
+          "categories": ["model_exploration"],
+          "path": "manual/editors/3dview/navigate/navigation.rst",
+          "roles": ["page"],
+          "sha256": "e34f0dc0ca9592adefbac1d565ea43b66db1d1f1c099029e155d2b8ffc568bd6"
+        },
+        {
+          "blob": "f509717601cdb869c92daa17d4c62921ad678f25",
+          "bytes": 1489,
+          "categories": ["model_exploration"],
+          "path": "manual/editors/3dview/selecting.rst",
+          "roles": ["page"],
+          "sha256": "34a85e8085579e59613e4da14a2e5b3ae722b9a996f18114f0e88d993991e390"
+        },
+        {
+          "blob": "faed6c22cf457b68b3f9d583fab405534ecf0e46",
+          "bytes": 896,
+          "categories": ["ifc_data_and_materials"],
+          "path": "manual/editors/outliner/introduction.rst",
+          "roles": ["page"],
+          "sha256": "3b36c52bc30554e56f5303e99d7ba2430ed2b449cdbd3f65e235808ba31cf199"
+        },
+        {
+          "blob": "83497e64e33e0e76c6348db0fe7de993348c28e4",
+          "bytes": 4966,
+          "categories": ["files_versions_troubleshooting"],
+          "path": "manual/editors/preferences/extensions.rst",
+          "roles": ["page"],
+          "sha256": "85f2c44bc06e2ed99e64299b263eb96d75b35dc4f4f3bc09e5e772c195b8c53b"
+        },
+        {
+          "blob": "f5b60f189a6de211cabcdfbf387032228934b1e5",
+          "bytes": 8646,
+          "categories": ["files_versions_troubleshooting"],
+          "path": "manual/files/blend/open_save.rst",
+          "roles": ["page"],
+          "sha256": "f3242502661f60c429d60423048ba6f77833ab7d42bca1e046ffcdff87942813"
+        },
+        {
+          "blob": "05d89f6477b42b825d7f1dcf5e4d9e6d55d892a4",
+          "bytes": 9777,
+          "categories": ["files_versions_troubleshooting"],
+          "path": "manual/files/linked_libraries/link_append.rst",
+          "roles": ["page"],
+          "sha256": "15e0c75cfff7770c45319593c0f3164702db58585eb2fa5b2c39e3aaa4859c28"
+        },
+        {
+          "blob": "3a9c1f9e7a42b6bdf6bd4d349a75399a45a2e3ec",
+          "bytes": 8468,
+          "categories": ["model_exploration"],
+          "path": "manual/interface/selecting.rst",
+          "roles": ["page"],
+          "sha256": "6b2286a66b9e1556dda0feac4800cb917e45533fbff12217754a0b8377d9964e"
+        },
+        {
+          "blob": "c3f2f78699386ebaffa9272fae3c3fce7a064c78",
+          "bytes": 5376,
+          "categories": ["files_versions_troubleshooting"],
+          "path": "manual/interface/undo_redo.rst",
+          "roles": ["page"],
+          "sha256": "f9d8d85cdea002c057418813077a31ce189315d24e789da0b0fbf704b0f799bc"
+        },
+        {
+          "blob": "82e504c615d28ccdd914c0581993e19f465314d2",
+          "bytes": 11209,
+          "categories": ["bonsai_modeling"],
+          "path": "manual/modeling/modifiers/introduction.rst",
+          "roles": ["page"],
+          "sha256": "0e84ce80dbf96dd3e62ab7275885f54eec4998511c264360e7540281b9afc9aa"
+        },
+        {
+          "blob": "18b9a2f284f10306d4889ddea07b4429fd867899",
+          "bytes": 11916,
+          "categories": ["ifc_data_and_materials"],
+          "path": "manual/scene_layout/collections/collections.rst",
+          "roles": ["page"],
+          "sha256": "c23431dba6528ea890114ddfb2d5f28eec4f130d970071ba0b3c08d56e385af2"
+        },
+        {
+          "blob": "a4af07782c1fa976970663bcccfadc3ed4bfbcdb",
+          "bytes": 9335,
+          "categories": ["bonsai_modeling"],
+          "path": "manual/scene_layout/object/editing/apply.rst",
+          "roles": ["page"],
+          "sha256": "e618085a7f909135c527c5edc99ad7e824224298ef912a80df1b9aac66920d18"
+        },
+        {
+          "blob": "2dcefa0e8c3da6866b63b6ca2a82f6979443cdd3",
+          "bytes": 599,
+          "categories": ["ifc_data_and_materials"],
+          "path": "manual/scene_layout/object/editing/delete.rst",
+          "roles": ["page"],
+          "sha256": "2994768da5f586cff3cb7bf527af43d4cf661503f712fca53e1cdfc682e939c5"
+        },
+        {
+          "blob": "f57956c4de64b9e379062f7d385cdd92cfc4b15f",
+          "bytes": 762,
+          "categories": ["bonsai_modeling"],
+          "path": "manual/scene_layout/object/editing/join.rst",
+          "roles": ["page"],
+          "sha256": "ebbb0a662e1a00256730353d693b09523fa5dcaf71afa3c74657363f53e1e9fa"
+        },
+        {
+          "blob": "099cdd1408afd659c66dd10e386f49ad36428e28",
+          "bytes": 1120,
+          "categories": ["bonsai_modeling"],
+          "path": "manual/scene_layout/object/editing/transform/introduction.rst",
+          "roles": ["page"],
+          "sha256": "d0555c73fba45fb969e6a47c289ca3520aa36b65361ee9efa2f259bd82960ae2"
+        },
+        {
+          "blob": "42795bd8c4918a5df2d612e540eaf8e75164a280",
+          "bytes": 1693,
+          "categories": ["bonsai_modeling"],
+          "path": "manual/scene_layout/object/editing/transform/move.rst",
+          "roles": ["page"],
+          "sha256": "dd97b03008d03449b996076548a27828409c6a585c33124d39680e32d78ab604"
+        },
+        {
+          "blob": "0ec67157c22e1298c7a85c02f81396f48b72af48",
+          "bytes": 5732,
+          "categories": ["bonsai_modeling"],
+          "path": "manual/scene_layout/object/properties/transforms.rst",
+          "roles": ["page"],
+          "sha256": "b2629164549f001d566099d17772b30168be8d1c8930fce4f2d4b6b8bc0d28f5"
+        },
+        {
+          "blob": "73952caf3611ff67a7e92399f3cf7b2f618304ce",
+          "bytes": 7696,
+          "categories": ["bonsai_project_setup"],
+          "path": "manual/scene_layout/scene/properties.rst",
+          "roles": ["page"],
+          "sha256": "7864f2c6493f32d61f39e68097ac2491af1b9eecac9aca0fad6cd9a100c49f59"
+        },
+        {
+          "blob": "d684e38b92c6d884a9a9c05697fd365937ae9dc0",
+          "bytes": 2912,
+          "categories": ["files_versions_troubleshooting"],
+          "path": "manual/troubleshooting/recover.rst",
+          "roles": ["page"],
+          "sha256": "4e0c9e70f138baa6fe0e9caa81740d5df5bf3d9360162fedfdb60943e589569e"
+        }
+      ],
+      "pin_id": "blender-manual-dc59b772db8f70f7",
+      "source_digest": "285b9e1905ac1291eeaa502e7d2699d536e9598becba3b45ca1ca56a13cec7f0"
+    },
+    "bonsai-docs": {
+      "files": [
+        {
+          "blob": "810fce6e9bf2aa10265b85614db5ac65941ecf81",
+          "bytes": 32473,
+          "categories": [],
+          "path": "src/bonsai/COPYING",
+          "roles": ["license"],
+          "sha256": "1b3782ccad7b8614100cda30d3faf42fc39f2e97932908c543005053b654ca68"
+        },
+        {
+          "blob": "83bbf8fc0e432b42f3eb2901f2667547262c8f0c",
+          "bytes": 209,
+          "categories": [],
+          "path": "src/bonsai/docs/_incomplete_message.rst",
+          "roles": ["page"],
+          "sha256": "750395942f5e22e43e86c2de59f564e5ce2d648e8617a21061bd7e427b94d731"
+        },
+        {
+          "blob": "a25dbf1c6174703fab0c6b87d3f228cff4a733c2",
+          "bytes": 12044,
+          "categories": ["bonsai_project_setup"],
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst",
+          "roles": ["page"],
+          "sha256": "ae3d46f3e6ce880ebee7254e309d3fafdd551566f847908b929d5278d6778574"
+        },
+        {
+          "blob": "7bb9d4297ab88676334dc2c6f4650ed6c6da44d5",
+          "bytes": 3678,
+          "categories": ["ifc_data_and_materials"],
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/material_assignment.rst",
+          "roles": ["page"],
+          "sha256": "93705bc5bf8bf9e40d0cf93d1522f44ab124daa1485f8a7c80ab16564bdb8baa"
+        },
+        {
+          "blob": "996bb272fb79a3ee17a34d33f343877d537b30b1",
+          "bytes": 1793,
+          "categories": ["bonsai_modeling"],
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/parametric_geometry.rst",
+          "roles": ["page"],
+          "sha256": "847bb32c94f8c19ea5b40032ac2e1e24418565f404dbb49387ad91d97b3e0734"
+        },
+        {
+          "blob": "6298cedda3a42b999609297f119aaba4f9ab996b",
+          "bytes": 6516,
+          "categories": ["bonsai_modeling"],
+          "path": "src/bonsai/docs/guides/authoring/basic_modeling/creating_walls.rst",
+          "roles": ["page"],
+          "sha256": "38061dd2698f6d90132e9f655a09ac3c8674d5ea56d8180a696cfda76769c1fe"
+        },
+        {
+          "blob": "501d771d6e15e1ac92b4f9036a95b511f03c8db4",
+          "bytes": 5783,
+          "categories": ["bonsai_modeling"],
+          "path": "src/bonsai/docs/guides/authoring/basic_modeling/door.rst",
+          "roles": ["page"],
+          "sha256": "cbae3223a754fd26a1f479385a3febf6ee21b6febe5543bf13246e16e1ae383a"
+        },
+        {
+          "blob": "27bf71b0ef9d6ad6c8182936874a67ea9a526d64",
+          "bytes": 2391,
+          "categories": ["bonsai_modeling"],
+          "path": "src/bonsai/docs/guides/authoring/basic_modeling/opening.rst",
+          "roles": ["page"],
+          "sha256": "eb57ce25100a880f8712fa56901c9df09b896c3213c375b04612a239549695ef"
+        },
+        {
+          "blob": "5059bcb0df6788c21c5b120d8753d7c75e534fdf",
+          "bytes": 5450,
+          "categories": ["bonsai_modeling"],
+          "path": "src/bonsai/docs/guides/authoring/basic_modeling/window.rst",
+          "roles": ["page"],
+          "sha256": "f3e6fcd39a148e123aa590dbe53e8747f89954f880f0151c9549b5adb3a275ba"
+        },
+        {
+          "blob": "f866465704cd7054a14fa9bc80ea48bddea0a6ca",
+          "bytes": 9607,
+          "categories": ["files_versions_troubleshooting"],
+          "path": "src/bonsai/docs/guides/authoring/git_support.rst",
+          "roles": ["page"],
+          "sha256": "519a035c446f742abdd18acc121e90fa5a37a4cc502f5c641f5031b1a40cf88c"
+        },
+        {
+          "blob": "32d1116500aeafac78db9578162d0b0f1e527269",
+          "bytes": 2786,
+          "categories": ["files_versions_troubleshooting"],
+          "path": "src/bonsai/docs/guides/authoring/other_addons.rst",
+          "roles": ["page"],
+          "sha256": "bc91d241667cd43956cc2fab1b72d9779d4ae1fc4dc9966999f9b12c04338d47"
+        },
+        {
+          "blob": "a8ad6e9b4c71e7a7e38ef4aba1d9ee0a0f184c5e",
+          "bytes": 5589,
+          "categories": ["bonsai_project_setup"],
+          "path": "src/bonsai/docs/guides/authoring/starting_new_project.rst",
+          "roles": ["page"],
+          "sha256": "92f40d38fe7baa21007c4991e5f9be0dae6d4994ea1ce7d6c8b7feb55548d8f6"
+        },
+        {
+          "blob": "af416fe897365bb7fb0907245181bc986efa7f71",
+          "bytes": 3589,
+          "categories": ["ifc_data_and_materials"],
+          "path": "src/bonsai/docs/guides/authoring/understanding_ifc/geometry_and_representations.rst",
+          "roles": ["page"],
+          "sha256": "e015402a58598d99c271b8c24224d3125841c6c108e304c0f48e1f9d5929d816"
+        },
+        {
+          "blob": "f5cef70952c035d5831d5fae9d352e6688504fc8",
+          "bytes": 2488,
+          "categories": ["ifc_data_and_materials"],
+          "path": "src/bonsai/docs/guides/authoring/understanding_ifc/index.rst",
+          "roles": ["page"],
+          "sha256": "b6b748f4a3169154496510359acc44d38b02ff3e942918fa6b063683d261e54f"
+        },
+        {
+          "blob": "34cebca8399cac148ad7de52bd856db1b4e91005",
+          "bytes": 4283,
+          "categories": ["ifc_data_and_materials"],
+          "path": "src/bonsai/docs/guides/authoring/understanding_ifc/working_with_representations.rst",
+          "roles": ["page"],
+          "sha256": "907043f794167f4e45c2dbe28ddf48471201ea0006914b50dbe44b95937fa0dc"
+        },
+        {
+          "blob": "0e156ea9357a1930970151df7392ded92a443393",
+          "bytes": 8801,
+          "categories": ["files_versions_troubleshooting"],
+          "path": "src/bonsai/docs/guides/troubleshooting.rst",
+          "roles": ["page"],
+          "sha256": "ed136c794f31c2edbf0674291e6f161aebf8a9be70b5f5ef6248ce6f86bb22a3"
+        },
+        {
+          "blob": "d5a7a8cb425cd720a68fc1420c0b872f768c2c1a",
+          "bytes": 7696,
+          "categories": ["model_exploration"],
+          "path": "src/bonsai/docs/guides/viewing/dealing_with_large_models.rst",
+          "roles": ["page"],
+          "sha256": "aa3117192683bbf40cb559fed785263b56f895b03a254dfa304ba89d50cef357"
+        },
+        {
+          "blob": "5aa58d59abdda8d3fe1f3eef72724d621f6a7874",
+          "bytes": 3179,
+          "categories": ["bonsai_project_setup"],
+          "path": "src/bonsai/docs/quickstart/create_model.rst",
+          "roles": ["page"],
+          "sha256": "b487810830f3597bbdc799a7bac4e688e767312af45661084a2cb2a8f523a8b8"
+        },
+        {
+          "blob": "3ccc73830c4e37c5845e4e749dbfe3252def9408",
+          "bytes": 19077,
+          "categories": ["model_exploration"],
+          "path": "src/bonsai/docs/quickstart/explore_model.rst",
+          "roles": ["page"],
+          "sha256": "c5b9733fd84dd4e7f54e2dbcaab2398fe96d08e3d317215d0af27518b7baa693"
+        },
+        {
+          "blob": "58d3e7b9ecdaca7a3293c96973ebeb3a0078d401",
+          "bytes": 1322,
+          "categories": ["files_versions_troubleshooting"],
+          "path": "src/bonsai/docs/quickstart/installation.rst",
+          "roles": ["page"],
+          "sha256": "8ef03a0411ebac11c338068e4d59c2914dbe531bb832c8dd7530c4689db3c872"
+        },
+        {
+          "blob": "f17d2242ef2c64fc9fae97de0ce9fd369be86f5d",
+          "bytes": 1540,
+          "categories": ["ifc_data_and_materials"],
+          "path": "src/bonsai/docs/reference/general/properties.rst",
+          "roles": ["page"],
+          "sha256": "f2e0748ec2d173e121e3e5dee7c91337e32f8d7d7dcab3141595f9dbc87c3b7e"
+        },
+        {
+          "blob": "d2701b65ff049cdfe1a5870fb4fc1baec446fa25",
+          "bytes": 9812,
+          "categories": ["model_exploration"],
+          "path": "src/bonsai/docs/reference/general/scene.rst",
+          "roles": ["page"],
+          "sha256": "6140f02b74c50004b321b8276f649b78c0b346edb052d4de734919275744e5eb"
+        },
+        {
+          "blob": "b1714a23a3a37153339e6ebb382b2f560703acd2",
+          "bytes": 10754,
+          "categories": ["ifc_data_and_materials"],
+          "path": "src/bonsai/docs/reference/geometry_and_materials/index.rst",
+          "roles": ["page"],
+          "sha256": "dde7c0de65e254b12631b0b0ad324665bba8f2fa77d682b51d17c26e115169c4"
+        },
+        {
+          "blob": "ffe33427a68557f3f42d09a5032e010ecc51f23d",
+          "bytes": 16971,
+          "categories": ["bonsai_project_setup"],
+          "path": "src/bonsai/docs/reference/project_overview/project_info.rst",
+          "roles": ["page"],
+          "sha256": "bc661b7cc5ff9531aa7dc6cf4efd786e7b00ff246ce6ac68ba525a2d58259e77"
+        },
+        {
+          "blob": "5315445028d39cd251f49129bae6bca7cca87426",
+          "bytes": 2004,
+          "categories": ["model_exploration"],
+          "path": "src/bonsai/docs/reference/toolbar/explore.rst",
+          "roles": ["page"],
+          "sha256": "6e5763ef98032307adaff0f95876f6a634869ab831758ac22bbe3689ff96642a"
+        },
+        {
+          "blob": "ac4a477164cd3077436fc3cb7560a282e6179ff8",
+          "bytes": 4366,
+          "categories": ["bonsai_modeling"],
+          "path": "src/bonsai/docs/reference/toolbar/wall.rst",
+          "roles": ["page"],
+          "sha256": "3a8e021ac6638b387cf139daee7222deca9e4f735eb9fe9aba99b9ab1ad62f2b"
+        }
+      ],
+      "pin_id": "bonsai-docs-00e02b1ec8e4c266",
+      "source_digest": "b1f21856c3c106887c1abcafcfb4e0de6f6eb506a9b99c1745752ace5f52bdc9"
+    }
+  }
+}

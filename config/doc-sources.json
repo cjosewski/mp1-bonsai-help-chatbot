@@ -1,0 +1,458 @@
+{
+  "schema": "doc-sources-v1",
+  "pins_verified_on": "2026-11-22",
+  "repositories": {
+    "ifcopenshell": {
+      "url": "https://github.com/IfcOpenShell/IfcOpenShell.git",
+      "ref": {
+        "kind": "tag",
+        "name": "bonsai-0.9.0post1",
+        "tag_object": null
+      },
+      "commit": "2744f8426bdef98a486406628a121298a5479690"
+    },
+    "blender-manual": {
+      "url": "https://projects.blender.org/blender/blender-manual.git",
+      "ref": {
+        "kind": "branch",
+        "name": "blender-v5.3-release"
+      },
+      "commit": "3481be3f6163a7c34e317b685f09fe67ca1057f0"
+    }
+  },
+  "sources": [
+    {
+      "id": "bonsai-docs",
+      "repository": "ifcopenshell",
+      "root": "src/bonsai/docs",
+      "include": [
+        "src/bonsai/docs/**/*.rst"
+      ],
+      "exclude": [],
+      "deny": [
+        "**/*.png",
+        "**/*.jpg",
+        "**/*.jpeg",
+        "**/*.gif",
+        "**/*.webp",
+        "**/*.svg",
+        "**/*.ifc",
+        "**/*.py"
+      ],
+      "tags": [
+        {
+          "glob": "src/bonsai/docs/guides/development/**",
+          "tag": "developer"
+        },
+        {
+          "glob": "src/bonsai/docs/_*.rst",
+          "tag": "fragment"
+        }
+      ],
+      "default_tag": "user",
+      "license": "GPL-3.0-or-later",
+      "license_evidence": [
+        {
+          "path": "src/bonsai/COPYING",
+          "blob": "810fce6e9bf2aa10265b85614db5ac65941ecf81",
+          "commit_copy": true
+        },
+        {
+          "path": "src/bonsai/docs/conf.py",
+          "blob": "93bc3f0c7ea37d86143774bec35a347a8693da22",
+          "commit_copy": false,
+          "note": "Carries the GPL-3.0-or-later header. Kept out of Git because the header names a contributor's personal contact address."
+        }
+      ],
+      "attribution": "Bonsai documentation by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/docs at tag bonsai-0.9.0post1, commit 2744f8426bdef98a486406628a121298a5479690), licensed under the GNU General Public License v3.0 or later. Copied unmodified.",
+      "permitted_use": "Redistribution and modification under GPL-3.0-or-later. Used for question derivation, retrieval grounding, judging and offline test fixtures.",
+      "fixture_pages": [
+        {
+          "path": "src/bonsai/docs/guides/authoring/starting_new_project.rst",
+          "categories": [
+            "bonsai_project_setup"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/reference/project_overview/project_info.rst",
+          "categories": [
+            "bonsai_project_setup"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst",
+          "categories": [
+            "bonsai_project_setup"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/quickstart/create_model.rst",
+          "categories": [
+            "bonsai_project_setup"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/basic_modeling/creating_walls.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/basic_modeling/door.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/basic_modeling/window.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/basic_modeling/opening.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/reference/toolbar/wall.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/parametric_geometry.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/understanding_ifc/index.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/understanding_ifc/geometry_and_representations.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/understanding_ifc/working_with_representations.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/reference/geometry_and_materials/index.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/material_assignment.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/reference/general/properties.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/quickstart/explore_model.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/reference/general/scene.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/viewing/dealing_with_large_models.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/reference/toolbar/explore.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/git_support.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/troubleshooting.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/other_addons.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/quickstart/installation.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/_incomplete_message.rst",
+          "categories": []
+        }
+      ],
+      "fixture_min_per_category": 2,
+      "fixture_forbid_python": false
+    },
+    {
+      "id": "blender-manual",
+      "repository": "blender-manual",
+      "root": "manual",
+      "include": [
+        "manual/**/*.rst"
+      ],
+      "exclude": [],
+      "deny": [
+        "**/*.png",
+        "**/*.jpg",
+        "**/*.jpeg",
+        "**/*.gif",
+        "**/*.webp",
+        "**/*.svg",
+        "**/*.py",
+        "**/*.frag",
+        "manual/images/**"
+      ],
+      "tags": [
+        {
+          "glob": "manual/interface/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/editors/3dview/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/editors/outliner/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/editors/preferences/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/editors/properties_editor.rst",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/scene_layout/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/modeling/meshes/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/modeling/modifiers/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/files/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/getting_started/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/troubleshooting/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/glossary/**",
+          "tag": "core"
+        }
+      ],
+      "default_tag": "other",
+      "license": "CC-BY-SA-4.0",
+      "license_note": "\"or any later version\"; logos, trademarks, icons, source code and Python scripts are excluded from the grant (manual/copyright.rst).",
+      "license_evidence": [
+        {
+          "path": "LICENSE",
+          "blob": "bae2dce38a5b3d56c5138b277bd1ecf2687ce753",
+          "commit_copy": true
+        },
+        {
+          "path": "manual/copyright.rst",
+          "blob": "69d205968c099191805cdfec34f573c326282c25",
+          "commit_copy": true
+        }
+      ],
+      "attribution": "The Blender 5.3 Manual (https://docs.blender.org/manual/) by the Blender Documentation Team (https://projects.blender.org/blender/documentation), licensed under CC BY-SA 4.0 or any later version (https://creativecommons.org/licenses/by-sa/4.0/). Source: https://projects.blender.org/blender/blender-manual, branch blender-v5.3-release, commit 3481be3f6163a7c34e317b685f09fe67ca1057f0. Copied unmodified; logos, trademarks, icons, source code and Python scripts are not covered by that license and are not included.",
+      "permitted_use": "Redistribution and adaptation with attribution under CC BY-SA 4.0 (share-alike). Used for question derivation, retrieval grounding, judging and offline test fixtures.",
+      "fixture_pages": [
+        {
+          "path": "manual/scene_layout/scene/properties.rst",
+          "categories": [
+            "bonsai_project_setup"
+          ]
+        },
+        {
+          "path": "manual/editors/3dview/3d_cursor.rst",
+          "categories": [
+            "bonsai_project_setup"
+          ]
+        },
+        {
+          "path": "manual/editors/3dview/controls/snapping.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "manual/scene_layout/object/editing/transform/introduction.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "manual/scene_layout/object/editing/transform/move.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "manual/scene_layout/object/properties/transforms.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "manual/modeling/modifiers/introduction.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "manual/scene_layout/object/editing/apply.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "manual/scene_layout/object/editing/join.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "manual/scene_layout/collections/collections.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "manual/editors/outliner/introduction.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "manual/scene_layout/object/editing/delete.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "manual/editors/3dview/navigate/navigation.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/editors/3dview/navigate/local_view.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/interface/selecting.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/editors/3dview/selecting.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "manual/files/blend/open_save.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        },
+        {
+          "path": "manual/files/linked_libraries/link_append.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        },
+        {
+          "path": "manual/interface/undo_redo.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        },
+        {
+          "path": "manual/troubleshooting/recover.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        },
+        {
+          "path": "manual/editors/preferences/extensions.rst",
+          "categories": [
+            "files_versions_troubleshooting"
+          ]
+        }
+      ],
+      "fixture_min_per_category": 1,
+      "fixture_forbid_python": true
+    }
+  ],
+  "privacy_allowlist": [
+    {
+      "source": "bonsai-docs",
+      "path": "src/bonsai/docs/guides/troubleshooting.rst",
+      "sha256": "ed136c794f31c2edbf0674291e6f161aebf8a9be70b5f5ef6248ce6f86bb22a3",
+      "pattern": "home-path",
+      "count": 2,
+      "reason": "Upstream examples of Blender configuration folders on macOS and Linux, one naming a Bonsai maintainer's public handle. Public upstream text, not this repository's owner's details."
+    },
+    {
+      "source": "bonsai-docs",
+      "path": "src/bonsai/docs/reference/project_overview/project_info.rst",
+      "sha256": "bc661b7cc5ff9531aa7dc6cf4efd786e7b00ff246ce6ac68ba525a2d58259e77",
+      "pattern": "home-path",
+      "count": 1,
+      "reason": "Upstream example of a loaded IFC file location for a generic user. Public upstream text, not this repository's owner's details."
+    }
+  ]
+}
