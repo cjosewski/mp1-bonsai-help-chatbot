@@ -105,10 +105,9 @@ Recorded as owner-reported, in Chad's words where given. Details in `docs/DECISI
   ending in `/v1`, served model id, mode, timeout, max attempts). The client never
   discovers or starts a model and never changes local service settings. Never fall back
   to a hosted provider silently. A hosted path must be explicit, documented, authorized
-  by Chad and cost-capped. Never send human ratings to a hosted service. Whether a hosted
-  judge may receive the open-licensed doc excerpts it needs (plan §7 Step 4, §8) is an
-  open question raised by the assistant (`docs/DECISIONS.md`); it needs a dated decision
-  from Chad before any hosted run.
+  by Chad and cost-capped. Never send human ratings to a hosted service. A hosted judge may
+  receive the cited doc sections it needs (plan §7 Step 4; Chad, November 21, 2026, in
+  `docs/DECISIONS.md`).
 - **Credentials.** Exactly one source: an environment-variable name or a key-file path.
   No values in config, prompts, arguments or logs. Never log authorization headers or
   credential-file contents. `.env` is not auto-loaded. Local config files are git-ignored.

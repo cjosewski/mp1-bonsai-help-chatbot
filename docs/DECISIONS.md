@@ -56,6 +56,18 @@ assignment, and a portfolio piece. It will never be commercially distributed."
   contributors, Blender Documentation Team). Attribution is cheap and the plan already
   includes it; no further license analysis is required.
 
+### Hosted judge may receive doc excerpts
+
+Chad, on the earlier repository's rule against sending source excerpts to hosted services:
+"I think that rule was wrong from the beginning and changing the project takes care of the
+licensing issues entirely."
+
+- That rule is not carried into this repository. A hosted judge may receive the cited
+  Bonsai and Blender Manual sections (plan §7 Step 4).
+- Unchanged: a hosted path is explicit, documented, authorized by Chad and cost-capped
+  (plan §8); there is no silent hosted fallback; human ratings are never sent to a hosted
+  service.
+
 ### Repository name
 
 Chad chose `mp1-bonsai-help-chatbot`.
@@ -89,12 +101,6 @@ These were made by the assistant during B0 and are open to Chad's review.
 - **Python floor.** `pyproject.toml` requires Python 3.12 or newer, the version the
   earlier code was verified on. This is narrower than the plan's "Python 3.10+" (§1).
   The floor may be lowered only after the ported tests pass on 3.10.
-- **Hosted judge and doc excerpts (open question raised by the assistant).** The plan's
-  judge receives the cited doc sections (§7 Step 4), and §8 "Models" allows a documented
-  hosted path with Chad's authorization of any spend. Whether a hosted judge may receive
-  those open-licensed Bonsai and Blender Manual excerpts is not decided. It needs a dated
-  decision from Chad before any hosted run. Human ratings are never sent to a hosted
-  service.
 - **Human label notes stay out of `submission/`.** Labels in `submission/` carry the
   decisions and IDs only; free-text reviewer notes stay outside Git.
 
