@@ -27,10 +27,25 @@ files and the snapshots. The pins live in `config/doc-sources.json`, attribution
 files by hand (use `snapshot fixtures`). Section records (cutting pages at headings) are
 B2's `docs_index`, not part of the snapshot. No pipeline code exists yet.
 
-Next is **B2** (lexicons and cited setup facts; the operator lexicon reuses the
-`ifcopenshell` repository pin as a new source), then B3 (gold set), B4 (rubric, prompts,
-checks and the first ported modules), and B5–B10 as the plan's §9 describes. B3, B6 and
-B8 need Chad's review and labels.
+As of November 22, 2026, **B2 (lexicons and setup facts) is done** as assistant drafts:
+- Three more sources are pinned through the B1 machinery: the Bonsai 0.8.5-post1 docs
+  (the O-3 default, applied as a default) and the Bonsai add-on source at both tags, read
+  only by AST.
+- `docs index build` cuts docs pages into section records under `data/index/`; its digest
+  is `reference/docs-index.json`.
+- `lexicon build --write` writes `reference/lexicons/`.
+- `reference/setup-profiles.json` and `reference/setup-facts.json` hold two version lines,
+  18 profiles and 20 cited fact rows. Every row and profile is `assistant_drafted` until
+  Chad reviews it at B3. Never mark one reviewed without Chad's own words in `review`.
+- Regenerate the tool-written files only with their commands, never by hand. Edit the
+  setup files by hand, then run `setup format` and `setup check`.
+- A fact row may cite only fixture-slice pages. Every quote must be verbatim and occur
+  once in its section. A claim says no more than its quotes. A claim with no pinned
+  support goes to `not_citable`, never into `rows`.
+
+Next is B3 (gold set and Chad's review of the B2 drafts), then B4 (rubric, prompts, checks
+and the first ported modules), and B5–B10 as the plan's §9 describes. B3, B6 and B8 need
+Chad's review and labels.
 
 B0 scope is the assistant's call, not Chad's: earlier pipeline modules were not copied.
 B4 ports them module by module, each with its tests, following `docs/PORTING-MAP.md`. The
@@ -156,6 +171,10 @@ uv run --locked pytest -q
 uv run --locked ruff check .
 uv run --locked ruff format --check .
 ```
+
+After a pin change, run `snapshot build --write-manifest` on an empty data root, then
+`docs index build --write-digest`, `lexicon build --write` and `setup check`. A cited
+section whose bytes changed fails `setup check` until its row is redrafted.
 
 Tests exercise behaviour: invalid or malformed outputs, retry exhaustion, transport
 failure and unknown outcomes, trace lineage, duplicate and category gates, denominator

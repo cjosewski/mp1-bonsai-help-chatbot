@@ -16,16 +16,18 @@ edits Chad directed for this public copy are recorded in
 
 ## Status
 
-**Milestones B0 (repository readiness) and B1 (documentation snapshots) are done.**
-Install, the offline tests and the documentation corpus rebuild run today; every
+**Milestones B0 (repository readiness), B1 (documentation snapshots) and B2 (lexicons
+and setup facts) are done.** Install, the offline tests, the documentation corpus
+rebuild, the section index, the lexicons and the setup-fact checks run today; every
 pipeline step below is marked *not yet implemented* and will be filled in when its
-milestone lands.
+milestone lands. The B2 setup profiles and fact rows are drafts by the assistant,
+pending Chad's review at B3.
 
 | Milestone | What it delivers | Status |
 | --- | --- | --- |
 | B0 | Repository, licenses, decision log, porting map, packaging | Done |
 | B1 | Pinned, hashed documentation snapshots; fixture slice | Done |
-| B2 | Operator lexicons; setup profiles and cited fact table | Not yet implemented |
+| B2 | Operator lexicons; setup profiles and cited fact table | Done (rows await Chad's review at B3) |
 | B3 | Gold set and multi-part and injection requests | Not yet implemented |
 | B4 | Rubric, prompts, deterministic checks; generation, gate and collection modules ported | Not yet implemented |
 | B5 | Baseline run | Not yet implemented |
@@ -35,7 +37,8 @@ milestone lands.
 | B9 | Analysis, charts and security pass | Not yet implemented |
 | B10 | Submission set, replay demo, iteration log, demo video, coaching approval | Not yet implemented |
 
-No dataset, label, judge result or chart exists yet. No measurement is claimed.
+No dataset, label, judge result or chart exists yet. No model measurement is claimed;
+the counts below are counts of pinned files.
 
 Decisions and open items: [`docs/DECISIONS.md`](docs/DECISIONS.md). How earlier code
 will be ported: [`docs/PORTING-MAP.md`](docs/PORTING-MAP.md).
@@ -64,13 +67,17 @@ uv run --locked ruff format --check .
 ```
 
 The tests need no model, no network and no credentials. They check the package
-metadata and license, and the snapshot builder and checker: pin mismatches, moved
+metadata and license; the section splitter, the ported BM25 core, both lexicon
+extractors and the setup-fact citation checks (each failure mode on a changed copy of
+a real row); and the snapshot builder and checker: pin mismatches, moved
 tags and branches, network failure, missing pinned paths, a manifest that disagrees
 with upstream, images never downloaded, tampered snapshots and fixtures, no-overwrite
 rules, config validation and exit codes. Builder tests use small synthetic git
 repositories on local disk (`file://` URLs); an `https` URL fails in the tests instead
-of reaching the network. One test file checks the committed pin config, manifest,
-fixture slice and `NOTICE.md` (the same as `bonsai-help snapshot check --committed`).
+of reaching the network. Two test files check the committed pin config, manifest,
+fixture slice, `NOTICE.md` and the files under `reference/` (the same as the
+`--committed` checks below). The extractor tests use synthetic Python and RST; no
+Bonsai source file is in the repository.
 
 ## Rebuild the documentation corpus
 
@@ -93,13 +100,22 @@ left alone, and an invalid one is refused (exit 5) for inspection.
 | --- | --- | ---: | ---: |
 | Bonsai documentation, `src/bonsai/docs` in [IfcOpenShell](https://github.com/IfcOpenShell/IfcOpenShell) | tag `bonsai-0.9.0post1` (lightweight tag), commit `2744f8426bdef98a486406628a121298a5479690` | 95 | 363,783 |
 | [Blender Manual](https://projects.blender.org/blender/blender-manual) source, `manual/` | commit `3481be3f6163a7c34e317b685f09fe67ca1057f0` on branch `blender-v5.3-release` | 2,450 | 5,961,691 |
+| Bonsai documentation, older release (`bonsai-docs-0-8-5-post1`) | tag `bonsai-0.8.5-post1` (lightweight tag), commit `e6258ab4a8e8c76d18b743ea80a6f7699809319b` | 95 | 361,583 |
+| Bonsai add-on source (`bonsai-source`), every `.py` file under `src/bonsai/bonsai` | tag `bonsai-0.9.0post1`, commit `2744f842…` (as above) | 447 | 7,738,049 |
+| Bonsai add-on source, older release (`bonsai-source-0-8-5-post1`) | tag `bonsai-0.8.5-post1`, commit `e6258ab4…` (as above) | 425 | 6,593,423 |
+
+The older-release pins are the O-3 default (Blender 4.2 LTS with Bonsai 0.8.5-post1 as the
+older-release contrast). The two add-on sources are read only by the operator lexicon; no
+Bonsai source file is committed, because their headers carry contributors' contact
+addresses.
 
 Every reStructuredText page under each root is kept. Retrieval tags (Bonsai `user`,
 `developer`, `fragment`; Manual `core` for the areas plan §2 and §5 name, `other` for
 the rest) live in the config and are not part of a snapshot's identity. Images, the
 Manual's source code and other files that are not pages are never fetched, with one
 exception: the license evidence files (Bonsai's `src/bonsai/COPYING` and
-`src/bonsai/docs/conf.py`, the Manual's `LICENSE` and `manual/copyright.rst`) are
+`src/bonsai/docs/conf.py`, the Manual's `LICENSE` and `manual/copyright.rst`; the B2 sources cite the same
+`src/bonsai/COPYING` blob, committed once) are
 fetched, checked by blob id and stored in the snapshot even when they are not pages.
 The deny lists govern page selection only. Bonsai's `conf.py` stays out of Git. The
 manifest's `not_selected` counts, by file type, the files under each root that are not
@@ -110,11 +126,14 @@ record, and a build into an empty data root compares it with upstream.
 
 What a rebuild needs: Git 2.44 or newer (the build probes for `--no-lazy-fetch` and
 stops with exit 3 without it), network access to github.com and projects.blender.org
-over HTTPS, about 2.8 MiB of transfer, and about 10 MB of files under `data/`. Proxy and
-CA settings (`HTTPS_PROXY`, `NO_PROXY`, `SSL_CERT_FILE`, `GIT_SSL_CAINFO` and similar)
-are passed through to git; user and system git configuration is not used. Measured on
-November 22, 2026: both sources rebuilt from an empty `data/` in about 4 seconds, and
-the manifest written from that rebuild was byte-identical to the committed one. Do not
+over HTTPS, and about 37 MB under `data/` (30 MB of snapshots and a 7 MB git cache),
+plus 16 MB for the section index (`docs index build`). Proxy and CA settings
+(`HTTPS_PROXY`, `NO_PROXY`, `SSL_CERT_FILE`, `GIT_SSL_CAINFO` and similar) are passed
+through to git; user and system git configuration is not used. Measured on November
+22, 2026: all five sources rebuilt from an empty `data/` in about 8 seconds; a plain
+build into a second empty data root matched the manifest written from that rebuild,
+writing it again from a third empty root gave identical bytes, and the two B1 entries
+were unchanged by the B2 sources. Do not
 run two builds into the same data root at once. They share the git cache under
 `data/git/`, so the second usually stops with exit 3 (a git lock or setup conflict in
 that cache), or with exit 5 if it reaches the point of moving its snapshot into place;
@@ -124,7 +143,7 @@ the first build's snapshot is unaffected.
 | --- | --- | --- |
 | `snapshot build` | Verify present snapshots; fetch, check and write absent ones | Only for absent snapshots |
 | `snapshot build --write-manifest` | As above, but write `config/doc-manifest.json` (once per pin change). Absent snapshots are fetched and recorded from their bytes; snapshots already present are verified and their own records re-emitted, so run it on an empty data root after a pin change. A tag that no longer points at the pinned commit is exit 4 here and only a warning on a plain rebuild | Only for absent snapshots |
-| `snapshot check` | Committed files plus both snapshots (fails if a snapshot is not built; use `--committed` offline) | Never |
+| `snapshot check` | Committed files plus every snapshot (fails if a snapshot is not built; use `--committed` offline) | Never |
 | `snapshot check --committed` | Config, manifest, fixture slice, `NOTICE.md` and the privacy rules only | Never |
 | `snapshot fixtures` | Copy the fixture slice from verified snapshots into `tests/fixtures/docs/`; differing files need `--replace` | Never |
 
@@ -133,10 +152,69 @@ failure; 4 upstream differs from the pins; 5 refused to write. Errors are one li
 each on stderr, without tracebacks or absolute paths. A failed build leaves its
 staging directory for inspection; `snapshot check` lists it as a warning.
 
-The fixture slice in `tests/fixtures/docs/` (25 Bonsai pages, 21 Manual pages, the
-license texts and `fixtures.json`) covers every plan §5 category, so offline tests and
-the later replay demo need no network. Its pages link to pages outside the slice, so
-nothing offline may require those links to resolve.
+The fixture slice in `tests/fixtures/docs/` (27 Bonsai 0.9.0-post1 pages, 7 Bonsai
+0.8.5-post1 pages, 22 Manual pages, the license texts and `fixtures.json`) covers every
+plan §5 category and every page a setup fact cites, so offline tests and the later
+replay demo need no network. Its pages link to pages outside the slice, so nothing
+offline may require those links to resolve.
+
+## Section index, lexicons and setup facts (B2)
+
+Run after `snapshot build`, from the repository root:
+
+```bash
+uv run --locked bonsai-help docs index build
+uv run --locked bonsai-help lexicon check
+uv run --locked bonsai-help setup check
+```
+
+| Command | Does | Network |
+| --- | --- | --- |
+| `docs index build` | Cut every docs page at its headings into section records under `data/index/` (git-ignored, never overwritten; a present index is verified) and compare with `reference/docs-index.json`. `--write-digest` writes that file (once per pin change) | Never |
+| `docs index check [--committed]` | The committed digest agrees with the config and manifest; without `--committed`, a rebuild and the built index agree with it | Never |
+| `docs search QUERY [--source ID] [--tag T] [--top N]` | BM25 over passages of the built index (a precursor of B5's `search_docs`) | Never |
+| `docs section RECORD_ID` | Print one section record; an unknown id is exit 1 | Never |
+| `lexicon build [--write]` | Extract every lexicon from the verified snapshots and compare with `reference/lexicons/` (exit 1 on a difference); `--write` writes them | Never |
+| `lexicon check [--committed]` | Layout, digest, pins, ordering, counts, no privacy match, and the RST entries of fixture pages equal a re-extraction from the fixture slice; without `--committed`, also a full rebuild | Never |
+| `setup candidates [--source ID]` | Print candidate lines for fact rows (schema and version mentions, change words, differences between the two Bonsai docs pins) as JSON lines | Never |
+| `setup check [--committed]` | Profiles and every fact citation, against the fixture slice (`--committed`) or the snapshots and the built index | Never |
+| `setup format` | Validate the two hand-edited setup files and rewrite them in canonical layout with their digests | Never |
+
+A section record is one heading's span of a page: source, pin, path, heading path, line
+and byte span and the SHA-256 of its bytes. The records of a page concatenate to the page
+exactly; directives (`include`, `toctree`) are recorded, not expanded. Measured on the
+pins: 463 records for the Bonsai 0.9.0-post1 docs, 464 for 0.8.5-post1 and 9,367 for the
+Manual (199 Manual pages are include stubs with no heading). Building the index takes
+about a second.
+
+The lexicons in `reference/lexicons/` (measured on the pins; the scope is stated
+because the plan's 1,311 ids and 1,559 labels match no scope that could be reproduced):
+
+| Lexicon | Contents |
+| --- | --- |
+| `bonsai-source.json` | Operators, macros, workspace tools, panels and menus of the whole add-on, read by AST (never imported): 1,317 unique `bim.*` operator ids (1,305 `bl_idname` constants plus 12 built by `build_edit_lifecycle`; 1,086 of them in `bim/module/*/operator.py`), 1,280 distinct labels, 208 panels, 13 menus, 30 tools, 233 button texts that `layout.operator(..., text=...)` shows, 23 labels shared by several ids, and the values that could not be resolved (listed, never guessed) |
+| `bonsai-source-0-8-5-post1.json` | The same for 0.8.5-post1: 1,246 `bim.*` operator ids. 77 ids exist only at 0.9.0-post1 and 6 only at 0.8.5-post1 |
+| `blender-manual.json` | 1,443 Blender operator ids from `.. _bpy.ops.*:` targets at any indent (every `:ref:` to one resolves), 1,551 menu paths, 397 hotkeys, 214 `:guilabel:` texts and the fields of 1,548 `.. reference::` blocks, each with the section records that hold it |
+| `bonsai-docs.json`, `bonsai-docs-0-8-5-post1.json` | Menu paths, hotkeys (63 written as `:kbd:` roles joined by `+`) and UI paths written as `` `A > B` `` in the Bonsai docs |
+
+Not extracted in B2: Bonsai keymap hotkeys (only the docs' `:kbd:` roles), settings
+(`bpy.props` names) and `bpy.types` targets. The lexicons are deterministic heuristics
+for the B4 checks; they never decide a dimension.
+
+`reference/setup-profiles.json` holds two version lines and 18 setup profiles. `VL-current`
+is the plan's Blender 5.3 with Bonsai 0.9.0-post1; `VL-older` is the O-3 default, Blender
+4.2 LTS with Bonsai 0.8.5-post1. Neither pairing is stated in pinned text, so they carry
+`pairing_status` `uncited` and `conflict` and are not scored as facts. The profiles are a
+full IFC schema × model state factorial per line, with disciplines rotated as a Latin
+square; the 6 diagonal profiles are the assessed split and the other 12 the development
+split, and each split covers every schema, model state, discipline and version line.
+
+`reference/setup-facts.json` holds 20 fact rows and 10 claims left out because no pinned
+text supports them. Every row cites pinned sections with short verbatim quotes;
+`setup check` proves each quote occurs exactly once, outside RST comments, in the cited
+section, and that every key term is in a quote. Whether a claim says no more than its
+quotes is not machine-checked: every row and profile is `assistant_drafted` until Chad
+reviews it at B3, and uncited rows cannot exist.
 
 ## Run each step
 
@@ -171,11 +249,16 @@ no model and no credentials.
 ├── uv.lock
 ├── config/
 │   ├── doc-sources.json  pinned commits, page selection, licenses, attribution
-│   └── doc-manifest.json page hashes of both snapshots (written by the tool)
+│   └── doc-manifest.json page hashes of every snapshot (written by the tool)
+├── reference/
+│   ├── docs-index.json   digest of the section index (written by the tool)
+│   ├── lexicons/         operator, menu and hotkey lexicons (written by the tool)
+│   ├── setup-profiles.json  version lines and setup profiles (assistant-drafted)
+│   └── setup-facts.json  cited setup-fact rows (assistant-drafted)
 ├── docs/
 │   ├── DECISIONS.md     dated owner decisions and open items
 │   └── PORTING-MAP.md   what is ported from the earlier repository, and when
-├── src/bonsai_help/     the package: snapshot builder, checker and CLI (`bonsai-help`)
+├── src/bonsai_help/     the package: snapshots, section index, lexicons, setup checks, CLI
 ├── tests/               offline behaviour tests
 │   └── fixtures/docs/   unmodified, attributed documentation fixture slice
 └── submission/          curated course submission set (filled at B10; datasets CC BY-SA 4.0)
@@ -202,8 +285,8 @@ snapshots (`data/`) are git-ignored and stay outside Git. Only the curated set u
   inside the datasets. This is a course
   assignment and portfolio piece, not a product (see `docs/DECISIONS.md`).
 - **Documentation fixtures** keep their own licenses: Bonsai documentation and the
-  operator lexicon derived from Bonsai source are GPL-3.0-or-later; Blender Manual
-  fixtures are CC BY-SA 4.0.
+  lexicons derived from Bonsai source and docs are GPL-3.0-or-later; Blender Manual
+  fixtures and the Manual lexicon are CC BY-SA 4.0.
 
 Source attributions to the IfcOpenShell contributors (Bonsai) and the Blender
 Documentation Team (Blender Manual), the license texts and the list of fixture files

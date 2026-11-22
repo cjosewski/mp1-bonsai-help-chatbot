@@ -166,12 +166,115 @@ Chad's review.
   CC BY-SA 4.0 Manual pages next to the GPL package code (stated in `NOTICE.md`). This
   does not gate anything (see "Licensing stance").
 
+### O-3 default applied at B2
+
+O-3 is still open. Its plan default applies and is labelled as a default everywhere it
+is used: Blender 4.2 LTS with Bonsai 0.8.5-post1 is included as the older-release
+contrast (`VL-older` in `reference/setup-profiles.json`, origin "O-3 default"). To make
+that line checkable, B2 pins the Bonsai 0.8.5-post1 docs and add-on source through the
+B1 machinery (tag `bonsai-0.8.5-post1`, commit `e6258ab4`). The plan's Blender and Bonsai
+versions are unchanged. Neither plan pairing is stated in pinned text; see the open
+questions below.
+
+### Assistant's calls during B2 (not owner decisions)
+
+These were made by the assistant while building B2 and are open to Chad's review.
+
+- **Operator lexicon scope: the whole add-on.** Plan §2 and §6.4 name
+  `bonsai/bim/module/*/operator.py` and "1,311 unique `bim.*` operator ids, 1,559
+  labels". Measured at the pin, those files define 1,086 `bim.*` ids; the whole add-on
+  (`src/bonsai/bonsai/**/*.py`) defines 1,305 as `bl_idname` constants and 12 more through
+  `build_edit_lifecycle`, 1,317 in all, with 1,280 distinct labels. Neither plan figure
+  matches a scope that could be reproduced, so the lexicon records its own counts with
+  their scope. Core modelling operators such as `bim.enable_editing_wall`
+  (`bim/module/model/wall.py`) live outside `operator.py`, so the narrower scope would flag
+  real operators as invented. The plan text is unchanged.
+- **Derived lifecycle ids.** A `build_edit_lifecycle("<name>", ..., labels=(...))` call with
+  literal arguments yields `bim.{enable,finish,cancel}_editing_<name>`, citing the call and
+  the id template in `tool/parametric.py`; a non-literal call is listed as unresolved.
+- **Panels, menus, tools and button texts.** D3 names panels and settings, and the docs name
+  buttons by the text Bonsai shows (`layout.operator(..., text=...)`), which differs from
+  the operator's label in 214 of 233 constant texts. Both are recorded; 23 labels are
+  shared by several ids. How D3 matches them is B4's call. Settings (`bpy.props` names) and
+  Bonsai keymap hotkeys are not extracted in B2.
+- **A second IfcOpenShell repository key.** Each repository key pins one commit, so
+  `ifcopenshell-0-8-5-post1` repeats the URL. Two lightweight tags point at its commit,
+  `bonsai-0.8.5-post1` and `bonsai-0.8.5.post1`; the config uses the first, which matches
+  the plan's spelling.
+- **One committed copy of the Bonsai license.** The three B2 sources cite the same
+  `src/bonsai/COPYING` blob as `bonsai-docs` with `commit_copy: false`, so it is committed
+  once. No Bonsai `.py` file is committed: their headers carry contributors' contact
+  addresses. The extractor tests use synthetic Python.
+- **Not snapshotted.** Neither pin has a Bonsai changelog or release notes, and GitHub
+  release pages are not git content, so no fact row cites a release note (plan §4 allows
+  one). `blender_manifest.toml`, `VERSION` and the `Makefile` are not selected.
+- **Section records follow docutils' title rules.** A title is a column-0 line under (or
+  between) adornment lines of two or more of one punctuation character; explicit markup
+  (`..`) is never title text; an underline shorter than the title but at least 4
+  characters is still a title, with a diagnostic, and a shorter one is text, as in
+  docutils. All such diagnostics are 0 on the three docs pins. Records are not committed
+  (they are a pure function of the hash-pinned pages); `reference/docs-index.json` commits
+  their digest.
+- **BM25 port deviations** are listed in `docs/PORTING-MAP.md` §8 (no `n1`, `g5` and
+  n-grams deferred to B3, word-count passage sizes, no identifier bonus).
+- **Manual lexicon layout.** Locations index a table of record ids, and a `.. reference::`
+  Menu or Shortcut field that only holds `:menuselection:` or `:kbd:` roles is counted, not
+  repeated, because the roles are entries already. This keeps the committed file at
+  856 KB, under the 1 MB size gate.
+- **Hotkey normalization.** Adjacent `:kbd:` roles joined by `+` are one hotkey; inside a
+  role, `-` and `+` join keys of one chord and spaces separate a key sequence. The verbatim
+  text is kept beside the parsed form.
+- **Facts cite only the fixture slice**, so the offline tests prove every row. Ten pages
+  were added to the slice. The 0.8.5-post1 `project_info` and `troubleshooting` pages are
+  not cited, because their upstream home-path examples would need a new privacy allowance,
+  which Chad has not confirmed; those claims are listed as `not_citable`.
+- **Fact kinds and absences.** Rows are `schema_dependent`, `version_dependent`,
+  `version_claim`, `doc_conflict` or `doc_absence`. An absence is page-scoped: the text must
+  not occur on the named pinned page, and the claim must say "not documented in <tag>
+  <page>". No row says a feature is missing from a release; the operator differences
+  between the two source pins (77 and 6 ids) are lexicon evidence for D3, not fact rows.
+- **Version rows may cite another release's docs.** A `version_claim` or `doc_conflict`
+  row may cite any docs pin (the 0.9.0-post1 maintenance page gives the 0.8.5-post1
+  example). Every other row needs a citation from each version line it applies to.
+- **Quote rules.** A quote is compared after collapsing runs of ASCII space, tab and line
+  feed, with case and punctuation kept. It must have at least 20 characters, occur exactly
+  once in the cited section and lie outside RST comments. Collapsing can join two list
+  items into one line of text. Whether a claim says no more than its quotes, and whether
+  the key terms are the right ones, is not machine-checked: those are Chad's B3 review
+  items.
+- **Profile values and split.** `ifc_schema` values are cited (SF-007), `model_state`
+  values are the plan §4 wording, and `discipline` values (architecture, structure,
+  building services) are an assistant default: the plan names the field, not its values.
+  Each version line has the full schema × model-state factorial (9 profiles), with
+  disciplines rotated as a Latin square so discipline is not tied to model state. The 3
+  diagonal profiles per line are the assessed split; each split covers every schema, model
+  state, discipline and version line, and no profile is in both.
+- **Setup files are hand-reviewable.** `reference/setup-*.json` are edited by hand at B3
+  and rewritten with `setup format` (canonical layout and digest, after validation).
+
+### Open questions for Chad (B3)
+
+- **Version pairings.** No pinned text pairs Blender 5.3 with Bonsai 0.9.0-post1: its
+  developer installation page lists Blender 5.1 or 5.2 (SF-012), and its troubleshooting
+  page says Blender 4.5 (SF-015). No pinned doc pairs Blender 4.2 with 0.8.5-post1: its docs
+  list Blender 4.3, 4.4 or 4.5 (SF-013); only build metadata names 4.2. Keep the plan's
+  pairings (not scored as facts), or move to cited ones, for example Blender 5.2 with
+  0.9.0-post1 and Blender 4.5 with 0.8.5-post1?
+- **Observations.** The `VERSION` file at the `bonsai-0.8.5-post1` tag reads `0.8.6`. The
+  Manual's history ends at 4.3, so "5.2 LTS" cannot be cited.
+- **A Blender 4.2 Manual pin** (`blender-v4.2-release`) would make Blender-side facts for
+  `VL-older` citable. It is an option, not a default.
+- **Bonsai keymap hotkeys.** The docs' `:kbd:` roles cover some shortcuts only. Extract
+  the keymaps for D3?
+- **Review** every fact row and profile (all `assistant_drafted`) and the `not_citable`
+  list.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
 | --- | --- | --- |
 | O-2 | Confirm the five categories in plan §5 | Use them as proposed: `bonsai_project_setup`, `bonsai_modeling`, `ifc_data_and_materials`, `model_exploration`, `files_versions_troubleshooting` |
-| O-3 | Setup profiles: include Blender 4.2 LTS with Bonsai 0.8.5-post1, or only Blender 5.x with Bonsai 0.9.0 | Include it, as the older-release contrast |
+| O-3 | Setup profiles: include Blender 4.2 LTS with Bonsai 0.8.5-post1, or only Blender 5.x with Bonsai 0.9.0 | Include it, as the older-release contrast (applied as the default at B2, see above) |
 | O-6 | Recheck the Unit 5 Module 2 exercises and the Unit 7 and Unit 8 Module 1 notebooks when they are published | Recheck at B4 and before B10 |
 | O-7 | Distribution reference for category balance | Uniform 20% target |
 
