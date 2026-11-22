@@ -89,6 +89,16 @@ def fixture_paths(source_id: str) -> list[str]:
     return [page.path for page in CONFIG.source(source_id).fixture_pages]
 
 
+def duplicate_first_entry(document: dict) -> None:
+    """Repeat the first entry and count it, so only the uniqueness check can object."""
+    first = document["entries"][0]
+    document["entries"].insert(0, json.loads(json.dumps(first)))
+    if isinstance(document["summary"]["entries"], dict):
+        document["summary"]["entries"][first["kind"]] += 1
+    else:
+        document["summary"]["entries"] += 1
+
+
 def redigest(document: dict) -> bytes:
     body = {key: value for key, value in document.items() if key != "digest"}
     return dump_json({**body, "digest": sha256_hex(canonical(body))})
@@ -105,9 +115,19 @@ def redigest(document: dict) -> bytes:
         ),
         ("blender-manual", lambda d: d.update(pin_id="blender-manual-0"), "pin_id differs"),
         ("bonsai-source", lambda d: d["entries"].reverse(), "not sorted and unique"),
+        ("bonsai-source", duplicate_first_entry, "not sorted and unique"),
+        ("blender-manual", duplicate_first_entry, "not sorted and unique"),
         ("bonsai-docs", lambda d: d["records"].append("elsewhere:x#L1-L2"), "records are not"),
     ],
-    ids=["fixture-entries", "privacy", "stale-pin", "order", "records"],
+    ids=[
+        "fixture-entries",
+        "privacy",
+        "stale-pin",
+        "order",
+        "duplicate-operator",
+        "duplicate-manual",
+        "records",
+    ],
 )
 def test_changed_lexicons_fail_the_committed_check(tmp_path, name, change, message):
     copy = tmp_path / "lexicons"
