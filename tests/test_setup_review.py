@@ -145,6 +145,9 @@ def test_export_batches_every_pending_record_in_review_order(root):
     assert "## SF-012 · fact row · assistant_drafted" in text
     assert "- Blender 5.1 or 5.2 with Python 3.13\n" in text
     assert '- citation 1 (line 27): "Blender 5.1 or 5.2 with Python 3.13"' in text
+    # A docs-versus-code row shows each cited code span and its quote too.
+    assert "### Cited code (pinned add-on source)" in text
+    assert 'row.label(text="IFC2X3 Fallback In Use", icon="INFO")' in text
     # Nothing is exported twice while a packet waits for its import.
     assert export(root).lines[-1] == "no setup record is ready for review"
 
@@ -221,6 +224,33 @@ def test_an_edit_derives_its_citations_and_is_applied_as_amended(root):
     assert row.citations[0].quote_line == 27
     profiles, facts = paths(root)
     assert setup.check_setup(CONFIG, MANIFEST, profiles, facts, READ) == []
+
+
+def test_an_edit_of_a_code_citation_derives_its_fields(root):
+    export(root, records=["SF-021"])
+    fence = prefill(root, "SF-021")
+    first = fence["code_citations"][0]
+    assert set(first) == {"source", "path", "line_start", "line_end", "quote"}
+    first["quote"] = 'row.label(text="IFC2X3 Fallback In Use", icon="INFO")'
+    fence["code_citations"] = [first, *fence["code_citations"][2:]]
+    decide(root, "SF-021", "edit", fence=fence)
+    import_(root)
+    apply(root)
+    row = record(root, "SF-021")
+    assert row.status == "chad_amended" and row.code_citations[0].quote_line == 95
+    assert len(row.code_citations[0].span_sha256) == 64
+    bad = {**first, "line_start": 1, "line_end": 3}
+    export(root, records=["SF-021"])
+    decide(
+        root,
+        "SF-021",
+        "edit",
+        packet_id="SR-002",
+        fence={**prefill(root, "SF-021"), "code_citations": [bad]},
+    )
+    with pytest.raises(setup_review.ProblemsFound, match="problem") as caught:
+        import_(root, "SR-002")
+    assert any("code citation 1" in p for p in caught.value.problems), caught.value.problems
 
 
 @pytest.mark.parametrize(

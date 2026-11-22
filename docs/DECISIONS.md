@@ -841,6 +841,11 @@ publishes an item.
   version line's claim, and for every line it applies to cites that line's own Bonsai docs and
   add-on source. Setup review packets show the code spans, and an edit gives a code citation
   as source, path, line span and quote.
+- **SF-021 replaces SF-001** (rejected), `assistant_drafted` for Chad's review: the docs of
+  both releases say IFC2X3 models cannot be georeferenced; the code of both releases reads
+  IFC2X3 georeferencing from `ePSet_MapConversion` and `ePSet_ProjectedCRS` and shows "IFC2X3
+  Fallback In Use". SF-001 stays as Chad rejected it; GS-SD-001 and GS-SD-016 cite it and now
+  fail the check (both were rejected and will be redrafted).
 
 **Tests after Chad's SR-001 decisions.** The setup rule and review-flow tests build their
 fixtures from the committed files with every record reset to an unreviewed draft, so they test

@@ -245,12 +245,12 @@ full IFC schema × model state factorial per line, with disciplines rotated as a
 square; the 6 diagonal profiles are the assessed split and the other 12 the development
 split, and each split covers every schema, model state, discipline and version line.
 
-`reference/setup-facts.json` holds 19 fact rows and 10 claims left out because no pinned
+`reference/setup-facts.json` holds 20 fact rows and 10 claims left out because no pinned
 text supports them. Every row cites pinned sections with short verbatim quotes, and a row
 may also cite pinned add-on code spans (`code_citations`, one quote each). A `doc_conflict`
 row with code citations records a docs-versus-code conflict (the code wins, Chad, November
 22, 2026): it cites, for every line it applies to, that line's own Bonsai docs and add-on
-source, and it is never a line's pairing claim;
+source, and it is never a line's pairing claim (SF-021);
 `setup check` proves each quote occurs exactly once, on token boundaries and outside RST
 comments, in the cited section, and that every key term is in a quote, on token boundaries
 too. Whether a claim

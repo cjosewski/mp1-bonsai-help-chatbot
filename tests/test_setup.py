@@ -630,6 +630,71 @@ def test_a_draft_may_cite_a_snapshot_page_outside_the_slice_only_when_asked(tmp_
     assert "page missing" in str(found[0])
 
 
+# ------------------------------------------------------------------ docs versus code
+
+
+def code_row(facts: dict) -> dict:
+    return row(facts, "SF-021")
+
+
+@pytest.mark.parametrize(
+    "change, message",
+    [
+        (
+            lambda r: r["code_citations"][0].update(quote="if tool.Ifc.get_schema() == IFC4:"),
+            "quote not found",
+        ),
+        (lambda r: r["code_citations"][0].update(line_end=96), "outside the committed fixture"),
+        (lambda r: r["code_citations"][0].update(span_sha256="0" * 64), "span hash mismatch"),
+        (lambda r: r["code_citations"][0].update(file_sha256="0" * 64), "file hash differs"),
+        (lambda r: r["code_citations"][0].update(quote_line=94), "quote_line is 94"),
+        (
+            lambda r: r.update(
+                code_citations=[c for c in r["code_citations"] if c["source"] == "bonsai-source"]
+            ),
+            "no code citation from VL-older's add-on source",
+        ),
+        (
+            lambda r: r.update(
+                citations=[c for c in r["citations"] if c["source"] == "bonsai-docs"]
+            ),
+            "no citation from VL-older's Bonsai docs",
+        ),
+        (
+            lambda r: r["applies_to"].update(version_lines=["VL-current"]),
+            "code citation from bonsai-source-0-8-5-post1, not the add-on source of a line",
+        ),
+        (lambda r: r.update(key_terms=["IFC2X3 Fallback In Use"]), "is in no quote"),
+        (lambda r: r.update(code_citations=[]), "or code_citations, for a docs-versus-code"),
+    ],
+    ids=[
+        "quote",
+        "span-outside-slice",
+        "span-hash",
+        "file-hash",
+        "quote-line",
+        "older-code-missing",
+        "older-docs-missing",
+        "code-of-another-line",
+        "key-term-inside-a-token",
+        "no-evidence",
+    ],
+)
+def test_a_docs_versus_code_row_cites_both_for_every_line(tmp_path, change, message):
+    facts = draft_state(FACTS)
+    change(code_row(facts))
+    found = problems(tmp_path, facts=facts)
+    assert any(message in p for p in found), found
+
+
+def test_a_docs_versus_code_row_is_not_a_lines_pairing_claim(tmp_path):
+    assert problems(tmp_path) == []
+    profiles = draft_state(PROFILES)
+    profiles["version_lines"][0]["claims"].append("SF-021")
+    found = problems(tmp_path, profiles=profiles)
+    assert any("claim SF-021 is not a version row" in p for p in found), found
+
+
 def test_rows_without_code_keep_the_content_hash_chad_decided():
     for item in load(FACTS)["rows"]:
         if item["review"] is not None:
