@@ -1,5 +1,5 @@
 {
-  "digest": "10800559a713eb7af8eaa20f4b94b5341c7e2ba270820f60c52e3b408a936867",
+  "digest": "6fba61c5da8fac2692eb11f2686006ca2cca652c3046de962faf75a60781ca66",
   "not_citable": [
     {"claim": "Bonsai 0.9.0-post1 supports Blender 5.3.", "reason": "No pinned text names Blender 5.3 with Bonsai 0.9.0-post1; the 0.9.0-post1 developer installation page lists Blender 5.1 or 5.2 (SF-012).", "wanted": "VL-current pairing (plan §2)"},
     {"claim": "Bonsai 0.8.5-post1 serves Blender 4.2 LTS.", "reason": "Only build metadata pairs them (src/bonsai/bonsai/blender_manifest.toml, blender_version_min); no snapshot selects it (the operator sources take .py files only) and it carries a contact address. The 0.8.5-post1 docs list Blender 4.3, 4.4, or 4.5 (SF-013).", "wanted": "VL-older pairing (plan §2, O-3 default)"},
@@ -127,11 +127,37 @@
           "line_start": 10,
           "path": "src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst",
           "pin_id": "bonsai-docs-00e02b1ec8e4c266",
+          "quote": "The minimum requirement for a georeferenced model is to specify the coordinate reference system used.",
+          "quote_line": 13,
+          "record_id": "bonsai-docs:src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst#L10-L42",
+          "section_sha256": "84a60c1021e4ef6f84cda534314aef706cc996c6e29b603f07f43eb7673f45be",
+          "source": "bonsai-docs"
+        },
+        {
+          "commit": "2744f8426bdef98a486406628a121298a5479690",
+          "heading_path": ["Georeferencing", "Coordinate reference systems"],
+          "line_end": 42,
+          "line_start": 10,
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst",
+          "pin_id": "bonsai-docs-00e02b1ec8e4c266",
           "quote": "This is known as the **Projected CRS**, and is a feature available in IFC4 onwards.",
           "quote_line": 14,
           "record_id": "bonsai-docs:src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst#L10-L42",
           "section_sha256": "84a60c1021e4ef6f84cda534314aef706cc996c6e29b603f07f43eb7673f45be",
           "source": "bonsai-docs"
+        },
+        {
+          "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
+          "heading_path": ["Georeferencing", "Coordinate reference systems"],
+          "line_end": 42,
+          "line_start": 10,
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst",
+          "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
+          "quote": "The minimum requirement for a georeferenced model is to specify the coordinate reference system used.",
+          "quote_line": 13,
+          "record_id": "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst#L10-L42",
+          "section_sha256": "84a60c1021e4ef6f84cda534314aef706cc996c6e29b603f07f43eb7673f45be",
+          "source": "bonsai-docs-0-8-5-post1"
         },
         {
           "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
@@ -147,7 +173,7 @@
           "source": "bonsai-docs-0-8-5-post1"
         }
       ],
-      "claim": "The Projected CRS, the minimum requirement for a georeferenced model, is a feature available in IFC4 onwards.",
+      "claim": "The minimum requirement for a georeferenced model is to specify the coordinate reference system used; this is known as the Projected CRS, a feature available in IFC4 onwards.",
       "conflicts_with": [],
       "drafted_on": "2026-11-22",
       "id": "SF-002",
@@ -363,6 +389,19 @@
           "line_start": 59,
           "path": "src/bonsai/docs/guides/authoring/advanced_modeling/material_assignment.rst",
           "pin_id": "bonsai-docs-00e02b1ec8e4c266",
+          "quote": "For structural models, especially steel structures:",
+          "quote_line": 62,
+          "record_id": "bonsai-docs:src/bonsai/docs/guides/authoring/advanced_modeling/material_assignment.rst#L59-L72",
+          "section_sha256": "7524b1a33d2272d22ea9cd915df1266e0f4d2c121eca4f06091b16a11bf01222",
+          "source": "bonsai-docs"
+        },
+        {
+          "commit": "2744f8426bdef98a486406628a121298a5479690",
+          "heading_path": ["Material Assignment", "Profiles for Structural Elements"],
+          "line_end": 72,
+          "line_start": 59,
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/material_assignment.rst",
+          "pin_id": "bonsai-docs-00e02b1ec8e4c266",
           "quote": "Use Material Profile Sets for elements like beams and columns.",
           "quote_line": 64,
           "record_id": "bonsai-docs:src/bonsai/docs/guides/authoring/advanced_modeling/material_assignment.rst#L59-L72",
@@ -381,6 +420,19 @@
           "record_id": "bonsai-docs:src/bonsai/docs/guides/authoring/advanced_modeling/material_assignment.rst#L59-L72",
           "section_sha256": "7524b1a33d2272d22ea9cd915df1266e0f4d2c121eca4f06091b16a11bf01222",
           "source": "bonsai-docs"
+        },
+        {
+          "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
+          "heading_path": ["Material Assignment", "Profiles for Structural Elements"],
+          "line_end": 72,
+          "line_start": 59,
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/material_assignment.rst",
+          "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
+          "quote": "For structural models, especially steel structures:",
+          "quote_line": 62,
+          "record_id": "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/advanced_modeling/material_assignment.rst#L59-L72",
+          "section_sha256": "7524b1a33d2272d22ea9cd915df1266e0f4d2c121eca4f06091b16a11bf01222",
+          "source": "bonsai-docs-0-8-5-post1"
         },
         {
           "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
@@ -409,7 +461,7 @@
           "source": "bonsai-docs-0-8-5-post1"
         }
       ],
-      "claim": "In IFC4 models, profiles (used through Material Profile Sets for structural elements) can have associated structural properties.",
+      "claim": "For structural models, the docs say to use Material Profile Sets for elements like beams and columns; in IFC4 models, profiles can have associated structural properties.",
       "conflicts_with": [],
       "drafted_on": "2026-11-22",
       "id": "SF-006",
@@ -435,8 +487,21 @@
           "line_start": 39,
           "path": "src/bonsai/docs/guides/authoring/starting_new_project.rst",
           "pin_id": "bonsai-docs-00e02b1ec8e4c266",
-          "quote": "Choose the IFC Schema (IFC2X3, IFC4, or IFC4X3).",
-          "quote_line": 55,
+          "quote": "In the Project Info panel: - Choose the IFC Schema (IFC2X3, IFC4, or IFC4X3).",
+          "quote_line": 53,
+          "record_id": "bonsai-docs:src/bonsai/docs/guides/authoring/starting_new_project.rst#L39-L61",
+          "section_sha256": "88ebd18ef5daa5dc485d7d0300cf935cf013297e0c56d8925da84579c68218c4",
+          "source": "bonsai-docs"
+        },
+        {
+          "commit": "2744f8426bdef98a486406628a121298a5479690",
+          "heading_path": ["Starting a New IFC Project", "Create a New IFC Project", "Using New Project Wizard / Scene Properties"],
+          "line_end": 61,
+          "line_start": 39,
+          "path": "src/bonsai/docs/guides/authoring/starting_new_project.rst",
+          "pin_id": "bonsai-docs-00e02b1ec8e4c266",
+          "quote": "Click the \"Create Project\" button.",
+          "quote_line": 60,
           "record_id": "bonsai-docs:src/bonsai/docs/guides/authoring/starting_new_project.rst#L39-L61",
           "section_sha256": "88ebd18ef5daa5dc485d7d0300cf935cf013297e0c56d8925da84579c68218c4",
           "source": "bonsai-docs"
@@ -448,14 +513,27 @@
           "line_start": 39,
           "path": "src/bonsai/docs/guides/authoring/starting_new_project.rst",
           "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
-          "quote": "Choose the IFC Schema (IFC2X3, IFC4, or IFC4X3).",
-          "quote_line": 55,
+          "quote": "In the Project Info panel: - Choose the IFC Schema (IFC2X3, IFC4, or IFC4X3).",
+          "quote_line": 53,
+          "record_id": "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/starting_new_project.rst#L39-L61",
+          "section_sha256": "88ebd18ef5daa5dc485d7d0300cf935cf013297e0c56d8925da84579c68218c4",
+          "source": "bonsai-docs-0-8-5-post1"
+        },
+        {
+          "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
+          "heading_path": ["Starting a New IFC Project", "Create a New IFC Project", "Using New Project Wizard / Scene Properties"],
+          "line_end": 61,
+          "line_start": 39,
+          "path": "src/bonsai/docs/guides/authoring/starting_new_project.rst",
+          "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
+          "quote": "Click the \"Create Project\" button.",
+          "quote_line": 60,
           "record_id": "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/authoring/starting_new_project.rst#L39-L61",
           "section_sha256": "88ebd18ef5daa5dc485d7d0300cf935cf013297e0c56d8925da84579c68218c4",
           "source": "bonsai-docs-0-8-5-post1"
         }
       ],
-      "claim": "When a new project is created through the Project Info panel, the IFC schema is chosen from IFC2X3, IFC4 and IFC4X3.",
+      "claim": "When creating a project in the Project Info panel, the IFC Schema is chosen from IFC2X3, IFC4 and IFC4X3 before clicking the \"Create Project\" button.",
       "conflicts_with": [],
       "drafted_on": "2026-11-22",
       "id": "SF-007",
@@ -514,6 +592,19 @@
           "line_start": 21,
           "path": "src/bonsai/docs/quickstart/explore_model.rst",
           "pin_id": "bonsai-docs-00e02b1ec8e4c266",
+          "quote": "Take a look at the :menuselection:`Properties --> Project Overview --> Project Info` panel.",
+          "quote_line": 45,
+          "record_id": "bonsai-docs:src/bonsai/docs/quickstart/explore_model.rst#L21-L57",
+          "section_sha256": "867f1f547c2f32f412875c46fe3029582d71012fa3f377e8d53ad77a55bccd78",
+          "source": "bonsai-docs"
+        },
+        {
+          "commit": "2744f8426bdef98a486406628a121298a5479690",
+          "heading_path": ["Exploring an IFC model", "Loading a model"],
+          "line_end": 57,
+          "line_start": 21,
+          "path": "src/bonsai/docs/quickstart/explore_model.rst",
+          "pin_id": "bonsai-docs-00e02b1ec8e4c266",
           "quote": "It shows the loaded filename, as well as the **IFC Schema**.",
           "quote_line": 46,
           "record_id": "bonsai-docs:src/bonsai/docs/quickstart/explore_model.rst#L21-L57",
@@ -545,6 +636,19 @@
           "record_id": "bonsai-docs:src/bonsai/docs/quickstart/explore_model.rst#L21-L57",
           "section_sha256": "867f1f547c2f32f412875c46fe3029582d71012fa3f377e8d53ad77a55bccd78",
           "source": "bonsai-docs"
+        },
+        {
+          "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
+          "heading_path": ["Exploring an IFC model", "Loading a model"],
+          "line_end": 57,
+          "line_start": 21,
+          "path": "src/bonsai/docs/quickstart/explore_model.rst",
+          "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
+          "quote": "Take a look at the :menuselection:`Properties --> Project Overview --> Project Info` panel.",
+          "quote_line": 45,
+          "record_id": "bonsai-docs-0-8-5-post1:src/bonsai/docs/quickstart/explore_model.rst#L21-L57",
+          "section_sha256": "867f1f547c2f32f412875c46fe3029582d71012fa3f377e8d53ad77a55bccd78",
+          "source": "bonsai-docs-0-8-5-post1"
         },
         {
           "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
@@ -586,7 +690,7 @@
           "source": "bonsai-docs-0-8-5-post1"
         }
       ],
-      "claim": "The Project Info panel shows the loaded file's IFC schema; IFC2X3 and IFC4 are the two commonly seen versions, and IFC4 models are recommended because IFC4 has significantly more BIM capabilities than IFC2X3.",
+      "claim": "The Properties --> Project Overview --> Project Info panel shows the loaded filename and the IFC Schema; IFC2X3 and IFC4 are the two commonly seen IFC Schema versions, and IFC4 models are recommended because IFC4 has significantly more BIM capabilities than IFC2X3.",
       "conflicts_with": [],
       "drafted_on": "2026-11-22",
       "id": "SF-009",
@@ -612,11 +716,37 @@
           "line_start": 45,
           "path": "src/bonsai/docs/guides/viewing/dealing_with_large_models.rst",
           "pin_id": "bonsai-docs-00e02b1ec8e4c266",
+          "quote": "The first priority is to ensure you do not have a prohibitively large filesize.",
+          "quote_line": 48,
+          "record_id": "bonsai-docs:src/bonsai/docs/guides/viewing/dealing_with_large_models.rst#L45-L60",
+          "section_sha256": "73a91f7880aeefd5acb620252a9a7e89b2dc657799dfd5ea891e29278d1b0fe5",
+          "source": "bonsai-docs"
+        },
+        {
+          "commit": "2744f8426bdef98a486406628a121298a5479690",
+          "heading_path": ["Dealing with large models", "Large filesizes"],
+          "line_end": 60,
+          "line_start": 45,
+          "path": "src/bonsai/docs/guides/viewing/dealing_with_large_models.rst",
+          "pin_id": "bonsai-docs-00e02b1ec8e4c266",
           "quote": "Use IFC4. It can handle geometry much more efficiently and expect your filesize to drop significantly.",
           "quote_line": 50,
           "record_id": "bonsai-docs:src/bonsai/docs/guides/viewing/dealing_with_large_models.rst#L45-L60",
           "section_sha256": "73a91f7880aeefd5acb620252a9a7e89b2dc657799dfd5ea891e29278d1b0fe5",
           "source": "bonsai-docs"
+        },
+        {
+          "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
+          "heading_path": ["Dealing with large models", "Large filesizes"],
+          "line_end": 60,
+          "line_start": 45,
+          "path": "src/bonsai/docs/guides/viewing/dealing_with_large_models.rst",
+          "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
+          "quote": "The first priority is to ensure you do not have a prohibitively large filesize.",
+          "quote_line": 48,
+          "record_id": "bonsai-docs-0-8-5-post1:src/bonsai/docs/guides/viewing/dealing_with_large_models.rst#L45-L60",
+          "section_sha256": "73a91f7880aeefd5acb620252a9a7e89b2dc657799dfd5ea891e29278d1b0fe5",
+          "source": "bonsai-docs-0-8-5-post1"
         },
         {
           "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b",
@@ -632,7 +762,7 @@
           "source": "bonsai-docs-0-8-5-post1"
         }
       ],
-      "claim": "To keep a large model's file size down, the docs advise using IFC4, which handles geometry much more efficiently.",
+      "claim": "To avoid a prohibitively large filesize, the docs say: use IFC4, which can handle geometry much more efficiently, and expect the filesize to drop significantly.",
       "conflicts_with": [],
       "drafted_on": "2026-11-22",
       "id": "SF-010",
@@ -678,7 +808,7 @@
           "source": "bonsai-docs-0-8-5-post1"
         }
       ],
-      "claim": "The docs state that Blender 3.3 and above load large models faster (about 50%) than older Blender versions.",
+      "claim": "The docs state that using Blender 3.3 and above results in a faster load time (~50%) compared to older Blender versions.",
       "conflicts_with": [],
       "drafted_on": "2026-11-22",
       "id": "SF-011",

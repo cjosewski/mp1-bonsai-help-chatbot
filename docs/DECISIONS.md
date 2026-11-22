@@ -266,6 +266,12 @@ These were made by the assistant while building B2 and are open to Chad's review
   no more than its quotes, and whether
   the key terms are the right ones, is not machine-checked: those are Chad's B3 review
   items.
+- **Claims stay within their quotes.** Where a claim relied on a heading, a referent or a
+  neighbouring sentence that no quote covered, the row now quotes that text (SF-002 the
+  minimum-requirement sentence, SF-006 "For structural models", SF-007 the Project Info
+  panel and "Create Project" button, SF-009 the panel's menu path, SF-010 the "prohibitively
+  large filesize" sentence), or the claim was reworded to its quote (SF-011). This is still
+  an assistant reading, checked by Chad at B3, not by a machine.
 - **Profile values and split.** `ifc_schema` values are cited (SF-007) for a new project
   only; for opened and federated models IFC4X3 is an assistant default (the quickstart
   names IFC2X3 and IFC4 as the commonly seen schemas, SF-009). `model_state` values are
