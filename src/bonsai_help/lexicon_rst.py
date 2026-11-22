@@ -9,7 +9,8 @@ Kinds:
 
 - `blender_operator`: a `.. _bpy.ops.<module>.<op>:` target at any indent. The label is
   the section title it is attached to, or the definition-list term that follows it at the
-  target's own indent, with roles reduced to their text, otherwise null.
+  target's own indent, with roles reduced to their text (a lone field marker such as
+  `:Material:` gives its name), otherwise null.
 - `operator_ref`: a `:ref:` to a `bpy.ops.*` target, with its alias label if written.
 - `menu_path`: a `:menuselection:` role, segments split on `-->` and collapsed.
 - `hotkey`: a `:kbd:` role, or adjacent roles joined by `+`, as one entry. `value` is the
@@ -23,7 +24,9 @@ Kinds:
 
 Not extracted (counted in the summary or out of scope): `bpy.types` targets, which name
 properties, not operators; settings (`bpy.props` names); inline `bpy.ops` prose outside
-roles and targets.
+roles and targets; anything inside an inline literal or a literal block (a `::` paragraph's
+indented body, or a `code-block`, `code`, `sourcecode` or `literalinclude` body), where
+RST markup is shown as an example rather than rendered.
 """
 
 from __future__ import annotations
@@ -35,7 +38,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from bonsai_help.docs_index import split_lines
 
 SCHEMA = "rst-lexicon-v1"
-EXTRACTOR = "rst-roles-v1"
+EXTRACTOR = "rst-roles-v2"
 REFERENCE_FIELDS = ("Mode", "Menu", "Shortcut", "Panel", "Editor", "Tool", "Header", "Context")
 TARGET = re.compile(r"(?P<indent>[ \t]*)\.\. _(?P<label>`[^`]+`|[^`:\s][^:]*):[ \t]*")
 OPS_PREFIX = "bpy.ops."
@@ -48,6 +51,9 @@ DEFAULT_ROLE = re.compile(r"(?<![\w\\])`(?P<text>[^`]+)`(?![`_\w])")
 REFERENCE = re.compile(r"(?P<indent>[ \t]*)\.\. reference::[ \t]*")
 FIELD = re.compile(r"(?P<indent>[ \t]*):(?P<name>[A-Za-z][A-Za-z ]*):(?:[ \t]+(?P<value>.*))?")
 KEY_SPLIT = re.compile(r"(?<=.)[-+](?=.)")
+LITERAL_DIRECTIVE = re.compile(r"[ \t]*\.\. (?:code-block|code|sourcecode|literalinclude)::")
+LIST_MARKER = re.compile(r"(?:[-*+]|#\.|\d+\.|\(?[a-zA-Z0-9]+\))[ \t]+")
+FIELD_MARKER = re.compile(r":(?P<name>[^:`]+):")
 
 
 def collapse(text: str) -> str:
@@ -83,17 +89,48 @@ def _line_of(record: Mapping, position: int) -> int:
     return record["line_start"] + record["text"].count("\n", 0, position)
 
 
-def _masked(text: str) -> str:
-    """Text with roles and inline literals blanked (same length), for default-role matching."""
-
-    def blank(match: re.Match) -> str:
-        return re.sub(r"[^\n]", " ", match.group())
-
-    return LITERAL.sub(blank, ROLE.sub(blank, text))
-
-
 def _indent(line: str) -> int:
     return len(line) - len(line.lstrip(" \t"))
+
+
+def _blank(match: re.Match) -> str:
+    return re.sub(r"[^\n]", " ", match.group())
+
+
+def literal_lines(lines: Sequence[str]) -> set[int]:
+    """0-based lines of literal blocks: a `::` paragraph's indented body or a code directive's."""
+    found: set[int] = set()
+    k = 0
+    while k < len(lines):
+        line = lines[k]
+        stripped = line.strip()
+        directive = LITERAL_DIRECTIVE.match(line)
+        if not directive and not (stripped.endswith("::") and not stripped.startswith("..")):
+            k += 1
+            continue
+        base = _indent(line)
+        marker = None if directive else LIST_MARKER.match(line, base)
+        if marker:
+            base = marker.end()
+        j = k + 1
+        while j < len(lines) and (not lines[j].strip() or _indent(lines[j]) > base):
+            if lines[j].strip():
+                found.add(j)
+            j += 1
+        k = j if j > k + 1 else k + 1
+    return found
+
+
+def _unliteral(text: str, literal: set[int]) -> str:
+    """Text with literal-block lines and inline literals blanked (same length)."""
+    lines = text.split("\n")
+    kept = "\n".join(" " * len(line) if k in literal else line for k, line in enumerate(lines))
+    return LITERAL.sub(_blank, kept)
+
+
+def _masked(text: str) -> str:
+    """Text with roles also blanked (same length), for default-role matching."""
+    return ROLE.sub(_blank, text)
 
 
 def _term_after(lines: Sequence[str], k: int, indent: int) -> str | None:
@@ -108,7 +145,8 @@ def _term_after(lines: Sequence[str], k: int, indent: int) -> str | None:
         return None
     if not body.strip() or _indent(body) <= indent:
         return None
-    return reduce_roles(term) or None
+    field = FIELD_MARKER.fullmatch(term.strip())
+    return collapse(field["name"]) if field else reduce_roles(term) or None
 
 
 def _reference_fields(lines: Sequence[str], k: int) -> list[tuple[str, str, int]]:
@@ -136,8 +174,12 @@ def extract_record(record: Mapping) -> tuple[list[tuple[str, str, str | None, in
     counts: Counter[str] = Counter()
     text = record["text"]
     lines = split_lines(text)
+    literal = literal_lines(lines)
+    text = _unliteral(text, literal)
     anchored = set(record["anchors"])
     for k, line in enumerate(lines):
+        if k in literal:
+            continue
         number = record["line_start"] + k
         target = TARGET.fullmatch(line)
         if target:

@@ -213,3 +213,54 @@ def test_entries_aggregate_with_record_locations_and_restrict_exactly():
     assert [lexicon["records"][i] for i in hotkey["locations"]] == sorted(ids)
     second = {found_records[1]["id"]}
     assert lr.restrict(lexicon, second) == lr.resolved(lr.extract(found_records[1:]))
+
+
+def test_a_field_marker_term_gives_its_name_as_the_label():
+    text = """
+    Page
+    ====
+
+    .. _bpy.ops.ui.eyedropper_color:
+
+    :Material:
+       Picks a material color.
+    """
+    assert found(text, "blender_operator") == [
+        ("blender_operator", "ui.eyedropper_color", "Material")
+    ]
+
+
+def test_markup_shown_as_an_example_is_not_extracted():
+    text = """
+    Page
+    ====
+
+    Write ``:menuselection:`Add --> Mesh` `` or ``:kbd:`LMB` `` inline.
+
+    .. code-block:: rst
+
+       .. _bpy.ops.curve.subdivide:
+
+       :kbd:`Shift-S` and :menuselection:`Curve --> Snap`
+
+    A literal paragraph::
+
+       .. reference::
+
+          :Mode: Edit Mode
+
+    1. In a list item::
+
+          :guilabel:`Shown`
+
+    Back in prose, :kbd:`Ctrl-Z` and :menuselection:`Edit --> Undo` are real.
+    """
+    assert found(text) == [
+        ("menu_path", "Edit --> Undo", None),
+        ("hotkey", "Ctrl-Z", ":kbd:`Ctrl-Z`"),
+    ]
+
+
+def test_literal_lines_cover_paragraph_and_directive_bodies():
+    lines = ["Text::", "", "   body", "", "Next", ".. code-block:: python", "   x = 1", "After"]
+    assert lr.literal_lines(lines) == {2, 6}
