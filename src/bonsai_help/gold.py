@@ -305,6 +305,7 @@ class GoldReview(_Model):
     packet_id: str = Field(pattern=r"^GP-\d{3}$")
     decision_id: str = Field(pattern=r"^GP-\d{3}\.\d{2}$")
     reviewed_draft_sha256: str = Field(pattern=SHA)
+    setup_sha256: str = Field(pattern=SHA)
 
 
 class PublishedItem(GoldContent):
@@ -693,6 +694,25 @@ def pseudo_payload(item: GoldContent, ctx: Context) -> dict[str, str | list[str]
         "safety_info": ref.hazard.text if ref.hazard is not None else "",
         "tips": "",
     }
+
+
+def setup_sha(item: LaneItem, ctx: Context) -> str:
+    """What an item renders from the setup files and a review binds to: its profile, its
+    line's releases and the claims of its cited fact rows. A fact row's status is left out:
+    a rejected row already fails the item check, and accepting one changes nothing shown."""
+    profile, line = ctx.profile(item.profile), ctx.line(item.version_line)
+    rows = {row.id: row for row in ctx.facts.rows}
+    return sha256_hex(
+        canonical(
+            {
+                "profile": None
+                if profile is None
+                else [profile.id, profile.ifc_schema, profile.model_state, profile.discipline],
+                "line": None if line is None else [line.id, line.blender, line.bonsai],
+                "facts": [[f, rows[f].claim if f in rows else None] for f in item.setup_facts],
+            }
+        )
+    )
 
 
 def pattern_tools(item: LaneItem, ctx: Context, line: VersionLine | None) -> dict:
@@ -1322,7 +1342,9 @@ def check_set(
         tools = pattern_tools(item, ctx, line)
         others = [o for o in order if items[o].category != item.category]
         for pattern in item.patterns:
-            if pattern.polarity != "required" or pattern.kind in ("regex", "planted"):
+            if pattern.polarity != "required" or pattern.kind == "planted":
+                continue
+            if pattern.kind == "regex" and _bad_regex(pattern.value):
                 continue
             if len(others) < NEGATIVE_CONTROL_MIN:
                 skipped += 1
@@ -1444,6 +1466,11 @@ def check_published_item(item: PublishedItem, ctx: Context) -> list[str]:
         found.append("an accepted item is the draft Chad reviewed")
     if review.status == "chad_amended" and (same or item.draft.lane != "chad-edit"):
         found.append("an amended item is Chad's edit of the draft he reviewed")
+    if review.setup_sha256 != setup_sha(item, ctx):
+        found.append(
+            "its profile, version line or cited fact claims changed since Chad's review; "
+            "export it with --items for a re-decision (G22)"
+        )
     return found
 
 

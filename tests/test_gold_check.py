@@ -463,6 +463,31 @@ def test_a_pattern_matching_most_other_categories_is_not_discriminating():
     assert any("negative control not applied" in w for w in warnings)
 
 
+def test_a_generic_required_regex_gets_the_negative_control_too():
+    slots = dict(SLOTS)
+    others = []
+    for n in range(10):
+        identifier = f"GS-SD-{920 + n}"
+        slots[identifier] = slot(identifier, "single", "development", "model_exploration", "SP-02")
+        question = " ".join(f"q{n}w{k}" for k in range(9)) + "?"
+        others.append(other(identifier, question))
+    generic = {
+        **single()["patterns"][1],
+        "id": "P4",
+        "kind": "regex",
+        "value": r"\b(click|select|drag)\b",
+        "field": "steps",
+        "reason": "any click",
+        "support": [],
+    }
+    item = change(single(), "patterns", [*single()["patterns"], generic])
+    assert problems_of(item) == []
+    found, _ = set_of(item, *others, slots=slots)
+    assert any(
+        "GS-SD-901: pattern P4 matches 10 of 10 other-category references" in p for p in found
+    ), found
+
+
 def test_held_out_items_load_only_through_load_held_out():
     with pytest.raises(ValueError, match="load_held_out"):
         gold.load_items(ROOT / "reference/gold", "held_out")

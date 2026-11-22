@@ -509,6 +509,8 @@ def _gold(args, config, manifest, data_root, base) -> doc_snapshot.Report:
             _resolve(args.profiles, PROFILES, base), setup.PROFILES_SCHEMA, setup.SetupProfiles
         )
         return gold.write_slots(gold_dir, profiles, write=args.write)
+    if args.action == "check" and args.drafts and data_root is None:
+        raise ConfigError("--drafts reads the draft heads in the data root; drop --committed")
     confirm = None
     if args.action == "packet" and args.step == "import":
         confirm = _interactive_confirm(Path(args.packet).name.removesuffix(".md"))

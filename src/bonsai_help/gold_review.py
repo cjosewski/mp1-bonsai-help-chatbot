@@ -574,19 +574,27 @@ def export_packets(
                     raise ConfigError(f"{item_id} has no draft")
                 if ctx.slots.get(item_id, {}).get("split") != split:
                     raise ConfigError(f"{item_id} is not a {split} item")
+                waiting = outstanding.get((item_id, heads[item_id]["sha256"]))
+                if waiting is not None:
+                    # Two unimported packets with one draft would strand the older one.
+                    raise ConfigError(
+                        f"{item_id} is in {waiting}, not yet imported; import {waiting} first "
+                        "(a blank DECISION leaves it pending)"
+                    )
             chosen = sorted(set(items))
         else:
             for item_id in sorted(heads):
                 sha = heads[item_id]["sha256"]
                 if ctx.slots.get(item_id, {}).get("split") != split:
                     continue
+                if store.state_of(sha, store.effective(sha, decisions)) != "pending":
+                    continue
                 if (item_id, sha) in outstanding:
                     report.lines.append(
                         f"{item_id}: in {outstanding[(item_id, sha)]}, not yet imported"
                     )
                     continue
-                if store.state_of(sha, store.effective(sha, decisions)) == "pending":
-                    chosen.append(item_id)
+                chosen.append(item_id)
         current = store.head_items(heads)
         grouped = by_item(check_heads({i: current[i] for i in chosen}, current, ctx), chosen)
         ready = []
@@ -638,6 +646,7 @@ def _write_packet(
                 "item": item_id,
                 "draft_sha256": sha,
                 "redecision": redecision,
+                "setup_sha256": gold.setup_sha(item, ctx),
                 "fixed_sha256": sha256_hex(fixed.encode()),
                 "fixed_text": fixed,
             }
@@ -819,20 +828,30 @@ def import_packet(
         stale_digests = manifest["digests"] != _staleness_digests(ctx)
         reviewed = [b["item"] for b in blocks if b["item"] in current]
         grouped = by_item(check_heads({i: current[i] for i in reviewed}, current, ctx), reviewed)
-        stale, errors, accepted = [], [], []
+        stale, errors, accepted, decided = [], [], [], []
         edited: dict[str, GoldContent] = {}
         for block in blocks:
             item_id, entry = block["item"], block["entry"]
             head = heads.get(item_id)
-            if stale_digests or head is None or head["sha256"] != entry["draft_sha256"]:
+            if (
+                stale_digests
+                or head is None
+                or head["sha256"] != entry["draft_sha256"]
+                or gold.setup_sha(current[item_id], ctx) != entry["setup_sha256"]
+            ):
                 stale.append(item_id)
                 continue
             draft = current[item_id]
             prior = store.effective(head["sha256"], decisions)
             if prior is not None and not entry["redecision"]:
-                errors.append(
-                    f"{item_id}: already decided by {prior['id']}; export it with --items"
-                )
+                untouched = block["fence"] in (None, {}) or block["fence"] == edit_prefill(draft)
+                if block["word"] or block["note"] or not untouched:
+                    errors.append(
+                        f"{item_id}: already decided by {prior['id']}; leave its DECISION blank "
+                        "to import this packet's other items, then export it with --items"
+                    )
+                else:
+                    decided.append(item_id)
                 continue
             if grouped[item_id]:
                 stale.append(item_id)
@@ -844,13 +863,19 @@ def import_packet(
             if outcome is not None:
                 edited[item_id] = outcome
             accepted.append(block)
+        if len(edited) > 1 and not errors:
+            # Each edit was checked against the old heads; together they must pass as well.
+            errors += [
+                f"edits fail the check together: {p}" for p in check_heads(edited, current, ctx)
+            ]
         if errors:
             raise ProblemsFound(f"{len(errors)} problem(s); nothing written", errors)
         if stale and not skip_stale:
             raise ProblemsFound(
                 f"{len(stale)} stale block(s); nothing written (--skip-stale imports the rest)",
                 [
-                    f"{item}: stale: the draft, its check or the lexicons, index or slots changed"
+                    f"{item}: stale: the draft, its setup, its check or the lexicons, index or "
+                    "slots changed"
                     for item in stale
                 ],
             )
@@ -869,8 +894,10 @@ def import_packet(
             head = heads[item_id]["sha256"]
             prior = store.effective(head, decisions)
             result = None
+            setup_of = current[item_id]
             if block["word"] == "edit":
                 result = store.write_draft(edited[item_id])
+                setup_of = edited[item_id]
                 drafts.append(
                     {"item": item_id, "sha256": result, "supersedes": head, "decision": decision_id}
                 )
@@ -883,6 +910,7 @@ def import_packet(
                     "result_draft_sha256": result,
                     "supersedes": prior["id"] if prior else None,
                     "redecision": block["entry"]["redecision"],
+                    "setup_sha256": gold.setup_sha(setup_of, ctx),
                 }
             )
             if block["note"]:
@@ -900,11 +928,13 @@ def import_packet(
                 "notes": notes,
                 "pending": pending,
                 "skipped_stale": stale,
+                "already_decided": decided,
             },
         )
     report.lines.append(
         f"{packet_id}: {len(records)} decision(s) recorded, {len(pending)} left pending, "
         f"{len(stale)} stale block(s) skipped"
+        + (f", {len(decided)} blank block(s) of already decided drafts ignored" if decided else "")
     )
     return report
 
@@ -972,6 +1002,7 @@ def accepted_items(store: Store) -> list[gold.PublishedItem]:
                         "packet_id": decision["packet_id"],
                         "decision_id": decision["id"],
                         "reviewed_draft_sha256": decision["draft_sha256"],
+                        "setup_sha256": decision["setup_sha256"],
                     },
                 }
             )

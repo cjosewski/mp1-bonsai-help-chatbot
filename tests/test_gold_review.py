@@ -322,6 +322,40 @@ def test_bad_decisions_and_failing_edits_write_nothing(tmp_path, word, fence_cha
     assert files(tmp_path) == before
 
 
+def test_a_note_on_a_blank_decision_is_refused(tmp_path):
+    ingest(tmp_path, single())
+    export(tmp_path)
+    decide(tmp_path, "GS-SD-901", "", note="decide this later")
+    before = files(tmp_path)
+    with pytest.raises(gold_review.ProblemsFound) as caught:
+        import_(tmp_path)
+    assert caught.value.problems == ["GS-SD-901: a NOTE needs a decision"]
+    assert files(tmp_path) == before
+
+
+def test_edits_in_one_packet_are_checked_together(tmp_path):
+    second = single(
+        id="GS-SD-902",
+        category="model_exploration",
+        profile="SP-02",
+        question="How do I shorten a wall that I placed too long, inside the 3D view?",
+    )
+    ingest(tmp_path, single(), second)
+    export(tmp_path)
+    question = "How can I change the length of a wall after I have placed it in the model?"
+    for item_id in ("GS-SD-901", "GS-SD-902"):
+        fence = prefill(tmp_path, item_id)
+        fence["question"] = question
+        decide(tmp_path, item_id, "edit", fence=fence)
+    before = files(tmp_path)
+    with pytest.raises(gold_review.ProblemsFound) as caught:
+        import_(tmp_path)
+    assert caught.value.problems == [
+        "edits fail the check together: gold: GS-SD-901 GS-SD-902: the same question twice"
+    ]
+    assert files(tmp_path) == before
+
+
 def test_an_edit_cannot_change_the_unusual_note(tmp_path):
     item = single()
     item["citations"].append(
@@ -384,6 +418,29 @@ def test_a_tampered_packet_is_refused_and_names_the_place(tmp_path, tamper, mess
     assert store(tmp_path).imports() == []
 
 
+@pytest.mark.parametrize(
+    "field, value",
+    [
+        ("redecision", True),
+        ("fixed_text", "<!-- gold:item GS-SD-901 -->\n"),
+        ("draft_sha256", "0" * 64),
+    ],
+)
+def test_an_edited_manifest_is_refused_and_nothing_is_written(tmp_path, field, value):
+    ingest(tmp_path, single())
+    export(tmp_path)
+    decide(tmp_path, "GS-SD-901", "approve")
+    path = store(tmp_path).folder("packets") / "GP-001.json"
+    manifest = json.loads(path.read_bytes())
+    manifest["items"][0][field] = value
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    before = files(tmp_path)
+    with pytest.raises(gold_review.ProblemsFound, match="packet tampered") as caught:
+        import_(tmp_path)
+    assert caught.value.problems == ["GP-001: tampered header or manifest"]
+    assert files(tmp_path) == before
+
+
 def test_reordered_blocks_are_refused(tmp_path):
     second = single(
         id="GS-SD-902",
@@ -415,7 +472,7 @@ def test_a_stale_head_is_refused_and_skip_stale_imports_the_rest(tmp_path):
     with pytest.raises(gold_review.ProblemsFound) as caught:
         import_(tmp_path)
     assert caught.value.problems == [
-        "GS-MD-901: stale: the draft, its check or the lexicons, index or slots changed"
+        "GS-MD-901: stale: the draft, its setup, its check or the lexicons, index or slots changed"
     ]
     report = import_(tmp_path, skip_stale=True)
     assert report.lines == [
@@ -433,16 +490,79 @@ def test_a_lexicon_or_slot_change_since_export_makes_every_block_stale(tmp_path)
         import_(tmp_path, ctx=ctx)
 
 
-def test_a_redecision_supersedes_and_an_old_packet_cannot_override_silently(tmp_path):
+def changed_profile(**changes) -> gold.Context:
+    """A context whose SP-04 (single()'s profile) renders differently."""
+    ctx = context()
+    profiles = ctx.profiles.model_dump(mode="json", by_alias=True)
+    next(p for p in profiles["profiles"] if p["id"] == "SP-04").update(changes)
+    ctx.profiles = setup.SetupProfiles.model_validate(profiles)
+    return ctx
+
+
+def test_a_profile_change_since_export_makes_its_blocks_stale(tmp_path):
     ingest(tmp_path, single())
     export(tmp_path)
-    export(tmp_path, items=["GS-SD-901"])
+    decide(tmp_path, "GS-SD-901", "approve")
+    ctx = changed_profile(ifc_schema="IFC2X3", discipline="architecture")
+    with pytest.raises(gold_review.ProblemsFound) as caught:
+        import_(tmp_path, ctx=ctx)
+    assert caught.value.problems == [
+        "GS-SD-901: stale: the draft, its setup, its check or the lexicons, index or slots changed"
+    ]
+    assert import_(tmp_path, ctx=context()).lines[0].startswith("GP-001: 1 decision(s) recorded")
+
+
+def test_a_profile_change_after_review_blocks_publish_and_stales_the_published_item(tmp_path):
+    accept(tmp_path, single())
+    publish_tmp(tmp_path)
+    ctx = changed_profile(discipline="architecture")
+    message = (
+        "its profile, version line or cited fact claims changed since Chad's review; "
+        "export it with --items for a re-decision (G22)"
+    )
+    problems, _ = gold.check_committed_set(tmp_path / "gold", ctx, complete=False)
+    assert [str(p) for p in problems] == [f"gold: GS-SD-901: {message}"], problems
+    with pytest.raises(gold_review.ProblemsFound) as caught:
+        publish_tmp(tmp_path, ctx=ctx)
+    assert caught.value.problems == [f"gold: GS-SD-901: {message}"]
+    export(tmp_path, items=["GS-SD-901"], ctx=ctx)
+    decide(tmp_path, "GS-SD-901", "approve", packet_id="GP-002")
+    import_(tmp_path, "GP-002", ctx=ctx)
+    assert publish_tmp(tmp_path, ctx=ctx).lines[0] == "development.json: written (1 items)"
+
+
+def test_a_redecision_supersedes_and_an_old_packet_cannot_override_silently(tmp_path, monkeypatch):
+    ingest(tmp_path, single(), multi())
+    export(tmp_path)
+    with pytest.raises(
+        ConfigError, match="GS-SD-901 is in GP-001, not yet imported; import GP-001"
+    ):
+        export(tmp_path, items=["GS-SD-901"])
+    # A draft in two unimported packets (possible before that refusal): the older packet's
+    # other decisions can still be imported, and it never overrides the newer decision.
+    with monkeypatch.context() as patched:
+        patched.setattr(gold_review.Store, "outstanding", lambda self: {})
+        export(tmp_path, items=["GS-SD-901"])
     decide(tmp_path, "GS-SD-901", "approve", packet_id="GP-002")
     import_(tmp_path, "GP-002")
+    untouched = packet_path(tmp_path, "GP-001").read_text(encoding="utf-8")
     decide(tmp_path, "GS-SD-901", "reject", packet_id="GP-001")
+    decide(tmp_path, "GS-MD-901", "approve", packet_id="GP-001")
     with pytest.raises(gold_review.ProblemsFound) as caught:
         import_(tmp_path, "GP-001")
-    assert any("already decided by GP-002.01" in p for p in caught.value.problems)
+    assert caught.value.problems == [
+        "GS-SD-901: already decided by GP-002.01; leave its DECISION blank to import this "
+        "packet's other items, then export it with --items"
+    ]
+    packet_path(tmp_path, "GP-001").write_text(untouched, encoding="utf-8")
+    decide(tmp_path, "GS-MD-901", "approve", packet_id="GP-001")
+    assert import_(tmp_path, "GP-001").lines == [
+        "GP-001: 1 decision(s) recorded, 0 left pending, 0 stale block(s) skipped, "
+        "1 blank block(s) of already decided drafts ignored"
+    ]
+    s = store(tmp_path)
+    assert [d["item"] for d in s.decisions()] == ["GS-SD-901", "GS-MD-901"]
+    assert s.decisions()[0]["word"] == "approve"
     export(tmp_path, items=["GS-SD-901"])
     text = packet_path(tmp_path, "GP-003").read_text(encoding="utf-8")
     assert "Re-decision: the effective decision is GP-002.01 (approve, 2026-11-23)" in text
@@ -560,6 +680,14 @@ def test_packet_import_needs_an_interactive_terminal(tmp_path, monkeypatch, caps
     code = cli.main(["gold", "packet", "import", "GP-001", "--data-root", str(tmp_path / "data")])
     assert code == 2
     assert "needs an interactive terminal" in capsys.readouterr().err
+
+
+def test_gold_check_drafts_needs_the_data_root(monkeypatch, capsys):
+    monkeypatch.chdir(ROOT / "tests")
+    assert cli.main(["gold", "check", "--committed", "--drafts"]) == 2
+    assert "error: --drafts reads the draft heads in the data root; drop --committed" in (
+        capsys.readouterr().err
+    )
 
 
 def test_gold_score_scores_development_items_only(tmp_path, monkeypatch, capsys):
