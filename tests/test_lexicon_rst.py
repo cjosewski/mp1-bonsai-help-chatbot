@@ -61,6 +61,25 @@ def test_operator_target_on_a_definition_term_strips_roles():
     assert ("hotkey", "Alt-P", ":kbd:`Alt-P`") in found(text)
 
 
+@pytest.mark.parametrize(
+    "term, label",
+    [
+        (":bl-icon:`x` Delete :kbd:`X`, :kbd:`Delete`", "Delete"),
+        ("Next Folder :kbd:`Shift-Backspace`, :kbd:`Alt-Right`, :kbd:`Mouse5`", "Next Folder"),
+        ("Show/Hide One Level :kbd:`NumpadPlus`/ :kbd:`NumpadMinus`", "Show/Hide One Level"),
+        (
+            "Location, Rotation, Scale :kbd:`Alt-G`, :kbd:`Alt-R`, :kbd:`Alt-S`",
+            "Location, Rotation, Scale",
+        ),
+        ("Grab :kbd:`G`,", "Grab"),
+        ("Grab :kbd:`G` or Move", "Grab or Move"),
+    ],
+)
+def test_operator_labels_drop_the_separators_of_removed_hotkeys(term, label):
+    text = f"Page\n====\n\n.. _bpy.ops.object.op:\n\n{term}\n   Does it.\n"
+    assert found(text, "blender_operator") == [("blender_operator", "object.op", label)]
+
+
 def test_indented_targets_are_found_at_their_own_indent():
     text = """
     Page
@@ -176,6 +195,22 @@ def test_wrapped_menuselection_and_guilabel_are_collapsed():
         ("menu_path", "Properties --> Project Overview --> Project Info", None)
     ]
     assert found(text, "guilabel") == [("guilabel", "Create Project", None)]
+
+
+def test_a_menu_path_that_continues_a_popup_keeps_its_leading_arrow():
+    text = """
+    Menus
+    =====
+
+    (also :kbd:`Shift-W` :menuselection:`--> (Deform, ...)`) and
+    :menuselection:`Bone --> Deform`.
+    """
+    assert found(text, "menu_path") == [
+        ("menu_path", "--> (Deform, ...)", None),
+        ("menu_path", "Bone --> Deform", None),
+    ]
+    (record,) = [r for r in records(text) if r["title"] == "Menus"]
+    assert lr.extract_record(record)[1]["menu_paths_continued"] == 1
 
 
 def test_default_role_ui_paths_skip_links_literals_and_roles():

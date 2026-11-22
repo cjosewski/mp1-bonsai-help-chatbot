@@ -11,9 +11,13 @@ Kinds:
   the section title it is attached to, or the definition-list term that follows it at the
   target's own indent, with roles reduced to their text (a lone field marker such as
   `:Material:` gives its name; a `:ref:` or `:doc:` gives its title if written as
-  `Title <target>` and nothing if its target is bare), otherwise null.
+  `Title <target>` and nothing if its target is bare; a list of `:kbd:` roles goes with
+  the `,`, `/` or `+` between them and one that ends the term), otherwise null.
 - `operator_ref`: a `:ref:` to a `bpy.ops.*` target, with its alias label if written.
-- `menu_path`: a `:menuselection:` role, segments split on `-->` and collapsed.
+- `menu_path`: a `:menuselection:` role, segments split on `-->` and collapsed; empty
+  segments are dropped. A role that begins with `-->` continues a menu opened another way
+  (often by a hotkey); its value keeps that leading `--> ` and is counted as
+  `menu_paths_continued`.
 - `hotkey`: a `:kbd:` role, or adjacent roles joined by `+`, as one entry. `value` is the
   parsed form: chords separated by a space, keys of a chord by `-`; `label` keeps the
   verbatim text (collapsed).
@@ -39,7 +43,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from bonsai_help.docs_index import split_lines
 
 SCHEMA = "rst-lexicon-v1"
-EXTRACTOR = "rst-roles-v3"
+EXTRACTOR = "rst-roles-v4"
 REFERENCE_FIELDS = ("Mode", "Menu", "Shortcut", "Panel", "Editor", "Tool", "Header", "Context")
 TARGET = re.compile(r"(?P<indent>[ \t]*)\.\. _(?P<label>`[^`]+`|[^`:\s][^:]*):[ \t]*")
 OPS_PREFIX = "bpy.ops."
@@ -48,6 +52,7 @@ ROLE = re.compile(r":(?P<role>[\w-]+):`(?P<text>[^`]*)`")
 LITERAL = re.compile(r"``.+?``", re.DOTALL)
 KBD_RUN = re.compile(r":kbd:`[^`]+`(?:\s*\+\s*:kbd:`[^`]+`)*")
 KBD = re.compile(r":kbd:`(?P<text>[^`]+)`")
+KBD_LIST = re.compile(r":kbd:`[^`]+`(?:\s*[,/+]\s*:kbd:`[^`]+`)*(?:\s*[,/+]\s*$)?")
 DEFAULT_ROLE = re.compile(r"(?<![\w\\])`(?P<text>[^`]+)`(?![`_\w])")
 REFERENCE = re.compile(r"(?P<indent>[ \t]*)\.\. reference::[ \t]*")
 FIELD = re.compile(r"(?P<indent>[ \t]*):(?P<name>[A-Za-z][A-Za-z ]*):(?:[ \t]+(?P<value>.*))?")
@@ -81,7 +86,9 @@ def hotkey_value(span: str) -> str:
 def reduce_roles(text: str, counts: Counter | None = None) -> str:
     """A term's text with `:bl-icon:` and `:kbd:` roles removed and other roles unwrapped.
 
-    A `:ref:` or `:doc:` written `Title <target>` gives its title. One with a bare target
+    A list of `:kbd:` roles goes with the separators (`,`, `/`, `+`) between its roles and
+    one left at the end of the term: `Next Folder` followed by `:kbd:` roles separated by
+    commas gives `Next Folder`, not `Next Folder , ,`. A `:ref:` or `:doc:` written `Title <target>` gives its title. One with a bare target
     renders a title RST looks up elsewhere, so it is removed (and counted in `counts`)
     rather than shown as a target or path.
     """
@@ -99,7 +106,7 @@ def reduce_roles(text: str, counts: Counter | None = None) -> str:
             return ""
         return body
 
-    return collapse(ROLE.sub(replace, text))
+    return collapse(ROLE.sub(replace, KBD_LIST.sub("", text)))
 
 
 def _line_of(record: Mapping, position: int) -> int:
@@ -228,7 +235,10 @@ def extract_record(record: Mapping) -> tuple[list[tuple[str, str, str | None, in
         role, body, line = match["role"], match["text"], _line_of(record, match.start())
         if role == "menuselection":
             segments = [collapse(part) for part in body.split("-->")]
-            found.append(("menu_path", " --> ".join(segments), None, line))
+            continued = not segments[0]
+            counts["menu_paths_continued"] += continued
+            value = " --> ".join(segment for segment in segments if segment)
+            found.append(("menu_path", f"--> {value}" if continued else value, None, line))
         elif role == "guilabel":
             found.append(("guilabel", collapse(body), None, line))
         elif role == "ref":

@@ -233,6 +233,14 @@ These were made by the assistant while building B2 and are open to Chad's review
   changed 5 labels: 2 aliases (`graph.select_box`, `object.armature_add`) now give their
   titles, and 3 bare targets (`sculpt.project_line_gesture`, `sculpt.trim_box_gesture`,
   `sculpt.trim_lasso_gesture`) now give no label.
+- **Hotkey separators and continued menu paths** (extractor `rst-roles-v4`). An operator
+  term's list of `:kbd:` roles is removed together with the `,`, `/` or `+` between the
+  roles and one left at the end of the term, so 17 Manual labels lost trailing separators
+  (`file.next` was "Next Folder , , ," and is "Next Folder"). A `:menuselection:` that
+  begins with `-->` continues a menu opened another way, usually by a hotkey
+  (`:kbd:`Shift-W` :menuselection:`--> (Deform, ...)``); its value keeps the leading
+  `--> ` instead of an empty first segment and is counted as `menu_paths_continued` (3 on
+  the Manual pin, 0 in the Bonsai docs). Empty segments are dropped.
 - **Hotkey normalization.** Adjacent `:kbd:` roles joined by `+` are one hotkey; inside a
   role, `-` and `+` join keys of one chord and spaces separate a key sequence. The verbatim
   text is kept beside the parsed form.
