@@ -1,5 +1,5 @@
 {
-  "digest": "0651c772b639d66807416e8efca8ff8130cbe60193da52c2a848fd4653d7711d",
+  "digest": "a41dc26c84b5e2a15e4e356e0a008841f6366ab834c31e642731fe5112c6b40b",
   "schema": "doc-fixtures-v1",
   "sources": {
     "blender-manual": {
@@ -439,6 +439,54 @@
           "path": "src/bonsai/docs/reference/toolbar/wall.rst",
           "roles": ["page"],
           "sha256": "3a8e021ac6638b387cf139daee7222deca9e4f735eb9fe9aba99b9ab1ad62f2b"
+        },
+        {
+          "blob": "ca4acd4de066c8894dba44c296f3daba6ca7afca",
+          "bytes": 4963,
+          "categories": [],
+          "path": "src/bonsai/docs/tutorials/project0.rst",
+          "roles": ["page"],
+          "sha256": "e71fd7d55d80514bf1eae5678d0d2d32bed2aa7eba7842efef1fe94b263a164c"
+        },
+        {
+          "blob": "73de0311280fddd8716f7d941040a815cbcd0b43",
+          "bytes": 3759,
+          "categories": [],
+          "path": "src/bonsai/docs/tutorials/project1.rst",
+          "roles": ["page"],
+          "sha256": "09b7390fc97f17b2b025ddbf6354e9f0659a837d79b20178b3037d92d7f9c039"
+        },
+        {
+          "blob": "75b61bf6cb3270c5a121c95c7063675382e5ce76",
+          "bytes": 4264,
+          "categories": [],
+          "path": "src/bonsai/docs/tutorials/project2.rst",
+          "roles": ["page"],
+          "sha256": "f290755abcef7d1063a0b5569c4ab39e5e0272f5390caa2a9bda282ea0b927e4"
+        },
+        {
+          "blob": "f76b9d3cdb75796eb0d74b0b6f9acc8c8a0fa011",
+          "bytes": 4931,
+          "categories": [],
+          "path": "src/bonsai/docs/tutorials/project3.rst",
+          "roles": ["page"],
+          "sha256": "7f8150d69104b31dd4dbe7bcc0c5f647ca68fdfa7ad54cbf315e2202c1c7f647"
+        },
+        {
+          "blob": "addb1933a7346294a99b6cd8e1b4aaf72ed74011",
+          "bytes": 5038,
+          "categories": [],
+          "path": "src/bonsai/docs/tutorials/project4.rst",
+          "roles": ["page"],
+          "sha256": "8dcc13f37e67f922a6eeff57e1ecd33157e1a369cd2ed26c9794aab3720defee"
+        },
+        {
+          "blob": "368d5bfe3efe7c420bcc9865a891ae99b4ce6dba",
+          "bytes": 6569,
+          "categories": [],
+          "path": "src/bonsai/docs/tutorials/project5.rst",
+          "roles": ["page"],
+          "sha256": "48d6d1790486df6c442489f9aca404922af06e853bab297fcc27df957fd3a270"
         }
       ],
       "pin_id": "bonsai-docs-00e02b1ec8e4c266",
@@ -509,6 +557,54 @@
           "path": "src/bonsai/docs/quickstart/explore_model.rst",
           "roles": ["page"],
           "sha256": "c5b9733fd84dd4e7f54e2dbcaab2398fe96d08e3d317215d0af27518b7baa693"
+        },
+        {
+          "blob": "ca4acd4de066c8894dba44c296f3daba6ca7afca",
+          "bytes": 4963,
+          "categories": [],
+          "path": "src/bonsai/docs/tutorials/project0.rst",
+          "roles": ["page"],
+          "sha256": "e71fd7d55d80514bf1eae5678d0d2d32bed2aa7eba7842efef1fe94b263a164c"
+        },
+        {
+          "blob": "73de0311280fddd8716f7d941040a815cbcd0b43",
+          "bytes": 3759,
+          "categories": [],
+          "path": "src/bonsai/docs/tutorials/project1.rst",
+          "roles": ["page"],
+          "sha256": "09b7390fc97f17b2b025ddbf6354e9f0659a837d79b20178b3037d92d7f9c039"
+        },
+        {
+          "blob": "75b61bf6cb3270c5a121c95c7063675382e5ce76",
+          "bytes": 4264,
+          "categories": [],
+          "path": "src/bonsai/docs/tutorials/project2.rst",
+          "roles": ["page"],
+          "sha256": "f290755abcef7d1063a0b5569c4ab39e5e0272f5390caa2a9bda282ea0b927e4"
+        },
+        {
+          "blob": "f76b9d3cdb75796eb0d74b0b6f9acc8c8a0fa011",
+          "bytes": 4931,
+          "categories": [],
+          "path": "src/bonsai/docs/tutorials/project3.rst",
+          "roles": ["page"],
+          "sha256": "7f8150d69104b31dd4dbe7bcc0c5f647ca68fdfa7ad54cbf315e2202c1c7f647"
+        },
+        {
+          "blob": "addb1933a7346294a99b6cd8e1b4aaf72ed74011",
+          "bytes": 5038,
+          "categories": [],
+          "path": "src/bonsai/docs/tutorials/project4.rst",
+          "roles": ["page"],
+          "sha256": "8dcc13f37e67f922a6eeff57e1ecd33157e1a369cd2ed26c9794aab3720defee"
+        },
+        {
+          "blob": "368d5bfe3efe7c420bcc9865a891ae99b4ce6dba",
+          "bytes": 6569,
+          "categories": [],
+          "path": "src/bonsai/docs/tutorials/project5.rst",
+          "roles": ["page"],
+          "sha256": "48d6d1790486df6c442489f9aca404922af06e853bab297fcc27df957fd3a270"
         }
       ],
       "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",

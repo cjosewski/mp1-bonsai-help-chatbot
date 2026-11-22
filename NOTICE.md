@@ -11,7 +11,7 @@ the pins in `config/doc-sources.json` and checks them against the page hashes in
 
 Bonsai documentation by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/docs at tag bonsai-0.9.0post1, commit 2744f8426bdef98a486406628a121298a5479690), licensed under the GNU General Public License v3.0 or later. Copied unmodified.
 
-- Files: `tests/fixtures/docs/bonsai-docs/src/bonsai/docs/` (27 pages).
+- Files: `tests/fixtures/docs/bonsai-docs/src/bonsai/docs/` (33 pages).
 - License text: [`tests/fixtures/docs/bonsai-docs/src/bonsai/COPYING`](tests/fixtures/docs/bonsai-docs/src/bonsai/COPYING)
   (GNU GPL v3; the upstream `src/bonsai/docs/conf.py` header states "version 3 of the
   License, or (at your option) any later version"). That `conf.py` is recorded in the
@@ -24,8 +24,8 @@ Bonsai documentation by the IfcOpenShell contributors (https://github.com/IfcOpe
 
 - Pinned for the older version line (Blender 4.5 with Bonsai 0.8.5-post1, Chad's decision of
   November 22, 2026, which settles open item O-3).
-- Files: `tests/fixtures/docs/bonsai-docs-0-8-5-post1/src/bonsai/docs/` (8 pages, the ones
-  setup-fact rows cite).
+- Files: `tests/fixtures/docs/bonsai-docs-0-8-5-post1/src/bonsai/docs/` (14 pages: the ones
+  setup-fact rows cite and the six tutorials that gold multi-part requests cite).
 - License text: the same `src/bonsai/COPYING` blob as above, committed once under
   `tests/fixtures/docs/bonsai-docs/`. This release's `src/bonsai/docs/conf.py` is recorded by
   its blob id and kept out of Git for the same reason as above.

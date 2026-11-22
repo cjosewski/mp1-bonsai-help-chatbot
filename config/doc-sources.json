@@ -243,6 +243,30 @@
         {
           "path": "src/bonsai/docs/guides/development/maintenance.rst",
           "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/tutorials/project0.rst",
+          "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/tutorials/project1.rst",
+          "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/tutorials/project2.rst",
+          "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/tutorials/project3.rst",
+          "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/tutorials/project4.rst",
+          "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/tutorials/project5.rst",
+          "categories": []
         }
       ],
       "fixture_min_per_category": 2,
@@ -564,6 +588,30 @@
         },
         {
           "path": "src/bonsai/docs/guides/development/installation.rst",
+          "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/tutorials/project0.rst",
+          "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/tutorials/project1.rst",
+          "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/tutorials/project2.rst",
+          "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/tutorials/project3.rst",
+          "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/tutorials/project4.rst",
+          "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/tutorials/project5.rst",
           "categories": []
         }
       ],
