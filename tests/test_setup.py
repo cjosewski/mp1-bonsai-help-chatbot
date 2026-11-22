@@ -54,15 +54,25 @@ def test_every_row_profile_and_version_line_is_an_assistant_draft_pending_review
         assert item["status"] == "assistant_drafted" and item["review"] is None
 
 
-def test_version_lines_carry_their_defaults_and_pairing_status():
+def test_version_lines_carry_chads_cited_pairings_and_matching_manuals():
     lines = {line["id"]: line for line in load(PROFILES)["version_lines"]}
-    assert lines["VL-current"]["origin"] == "plan §2"
-    assert lines["VL-older"]["origin"] == "O-3 default"
-    assert lines["VL-older"]["sources"]["bonsai_docs"] == "bonsai-docs-0-8-5-post1"
-    assert lines["VL-older"]["sources"]["blender_manual"] is None  # no 4.2 Manual pinned
-    # Each pin's docs list supported Blender versions that leave the line's Blender out.
-    assert lines["VL-current"]["pairing_status"] == "conflict"
-    assert lines["VL-older"]["pairing_status"] == "conflict"
+    for line_id, blender, sources, pairing in (
+        ("VL-current", "5.2", ("bonsai-docs", "bonsai-source", "blender-manual"), "SF-012"),
+        (
+            "VL-older",
+            "4.5",
+            ("bonsai-docs-0-8-5-post1", "bonsai-source-0-8-5-post1", "blender-manual-4-5"),
+            "SF-013",
+        ),
+    ):
+        line = lines[line_id]
+        assert line["origin"] == "Chad, 2026-11-22" and line["blender"] == blender
+        assert (
+            line["sources"]["bonsai_docs"],
+            line["sources"]["bonsai_source"],
+            line["sources"]["blender_manual"],
+        ) == sources
+        assert line["pairing_status"] == "cited" and pairing in line["claims"]
 
 
 @pytest.mark.parametrize("status, valid", [("partly cited", True), ("partly_cited", False)])
@@ -111,6 +121,11 @@ def test_profiles_split_without_leakage():
         ),
         (lambda p: p["version_lines"][0]["claims"].append("SF-013"), "does not apply to it"),
         (lambda p: p["version_lines"][0]["claims"].remove("SF-015"), "not in VL-current's claims"),
+        (lambda p: p["version_lines"][1]["sources"].update(blender_manual=None), "invalid"),
+        (
+            lambda p: p["version_lines"][1]["sources"].update(blender_manual="bonsai-source"),
+            "blender_manual bonsai-source is not a docs",
+        ),
         (lambda p: p["version_lines"][0].update(status="chad_accepted"), "needs a review"),
         (lambda p: p["enums"]["ifc_schema"].update(cited_for=[]), "cited_for is required"),
         (
@@ -133,6 +148,8 @@ def test_profiles_split_without_leakage():
         "source-role",
         "claim-line",
         "unlisted-version-row",
+        "line-without-manual",
+        "manual-role",
         "line-status",
         "partly-cited-without-states",
         "partly-cited-all-states",
@@ -243,15 +260,20 @@ def test_a_version_line_needs_a_citation_from_its_own_sources(tmp_path):
     assert any("no citation from VL-older's sources" in p for p in problems(tmp_path, facts=facts))
 
 
-def test_a_blender_manual_citation_does_not_cover_the_older_line(tmp_path):
-    # VL-older has no pinned Blender 4.2 Manual, so the 5.3 Manual cannot stand in for it.
+@pytest.mark.parametrize(
+    "manual, valid",
+    [("blender-manual-4-5", True), ("blender-manual", False)],
+    ids=["matching-4.5-manual", "5.2-manual-stands-in"],
+)
+def test_only_the_lines_own_manual_covers_the_older_line(tmp_path, manual, valid):
+    # Each line's Blender steps come from its matching Manual: the 5.2 Manual does not
+    # stand in for VL-older's Blender 4.5.
     facts = load(FACTS)
-    target = row(facts, "SF-001")
+    target = row(facts, "SF-016")
     target["applies_to"]["version_lines"] = ["VL-older"]
-    target["citations"] = row(facts, "SF-016")["citations"][:1]
-    target["key_terms"] = ["4.2 LTS"]
+    target["citations"] = [c for c in target["citations"] if c["source"] == manual]
     found = problems(tmp_path, facts=facts)
-    assert found == ["setup: SF-001: no citation from VL-older's sources"], found
+    assert found == ([] if valid else ["setup: SF-016: no citation from VL-older's sources"]), found
 
 
 def test_fact_row_ids_must_be_unique(tmp_path):

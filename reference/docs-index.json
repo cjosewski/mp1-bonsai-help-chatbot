@@ -1,18 +1,29 @@
 {
-  "digest": "ba7c328a2b91316196b7fbe54f076e2ebf30a45b9e1b4ba198eb875a542ed39e",
+  "digest": "5dc286fdb8c2cadf2ab90af85a4e4b637ebd8826e0bbb931ab4638ab683b252d",
   "parser": "rst-sections-v2",
   "schema": "docs-index-digest-v1",
   "sources": {
     "blender-manual": {
       "diagnostics": {"auto_label_markup": 0, "level_jump": 0, "overline_mismatch": 0, "short_underline": 0, "short_underline_text": 0},
-      "headless_pages": 199,
-      "index_id": "blender-manual-e37dab4800b51229",
-      "pages": 2450,
+      "headless_pages": 159,
+      "index_id": "blender-manual-835da6ac9080a31c",
+      "pages": 2358,
       "parser": "rst-sections-v2",
-      "pin_id": "blender-manual-dc59b772db8f70f7",
-      "records": 9367,
-      "records_sha256": "9b9cd82321ea8f547a1de6ed6782106556b19394d23a6c4104382eea46c2068b",
-      "source_digest": "285b9e1905ac1291eeaa502e7d2699d536e9598becba3b45ca1ca56a13cec7f0"
+      "pin_id": "blender-manual-fea32ead8c72f97e",
+      "records": 8997,
+      "records_sha256": "1900a2674afaf834f102a5a15017f67d4a4477cd4d1af768da629dc60967f7b4",
+      "source_digest": "73bc6c9133c42abb732b0835639d3871a60ee8d2e6088ad18ed693067642303a"
+    },
+    "blender-manual-4-5": {
+      "diagnostics": {"auto_label_markup": 0, "level_jump": 0, "overline_mismatch": 0, "short_underline": 0, "short_underline_text": 0},
+      "headless_pages": 72,
+      "index_id": "blender-manual-4-5-a753ce78db893992",
+      "pages": 2072,
+      "parser": "rst-sections-v2",
+      "pin_id": "blender-manual-4-5-ec0c621a112c20c9",
+      "records": 8245,
+      "records_sha256": "4ce159507bd7320d6521b7c52ff9d1140972178e0846f8b77a3b9d132e2a9f94",
+      "source_digest": "a063e216b06479ce518bbfc3977c7e26de9c36ed9ebe3f1e042880cd9fda7085"
     },
     "bonsai-docs": {
       "diagnostics": {"auto_label_markup": 0, "level_jump": 0, "overline_mismatch": 0, "short_underline": 0, "short_underline_text": 0},

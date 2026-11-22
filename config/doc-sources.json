@@ -15,9 +15,9 @@
       "url": "https://projects.blender.org/blender/blender-manual.git",
       "ref": {
         "kind": "branch",
-        "name": "blender-v5.3-release"
+        "name": "blender-v5.2-release"
       },
-      "commit": "3481be3f6163a7c34e317b685f09fe67ca1057f0"
+      "commit": "4a3be8f9ed3b66b24913e0a0d491d3429a70ea08"
     },
     "ifcopenshell-0-8-5-post1": {
       "url": "https://github.com/IfcOpenShell/IfcOpenShell.git",
@@ -27,6 +27,14 @@
         "tag_object": null
       },
       "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b"
+    },
+    "blender-manual-4-5": {
+      "url": "https://projects.blender.org/blender/blender-manual.git",
+      "ref": {
+        "kind": "branch",
+        "name": "blender-v4.5-release"
+      },
+      "commit": "c2b171709bbca119846f1cd8cda70ad719cf6296"
     }
   },
   "sources": [
@@ -324,7 +332,7 @@
           "commit_copy": true
         }
       ],
-      "attribution": "The Blender 5.3 Manual (https://docs.blender.org/manual/) by the Blender Documentation Team (https://projects.blender.org/blender/documentation), licensed under CC BY-SA 4.0 or any later version (https://creativecommons.org/licenses/by-sa/4.0/). Source: https://projects.blender.org/blender/blender-manual, branch blender-v5.3-release, commit 3481be3f6163a7c34e317b685f09fe67ca1057f0. Copied unmodified; logos, trademarks, icons, source code and Python scripts are not covered by that license and are not included.",
+      "attribution": "The Blender 5.2 Manual (https://docs.blender.org/manual/) by the Blender Documentation Team (https://projects.blender.org/blender/documentation), licensed under CC BY-SA 4.0 or any later version (https://creativecommons.org/licenses/by-sa/4.0/). Source: https://projects.blender.org/blender/blender-manual, branch blender-v5.2-release, commit 4a3be8f9ed3b66b24913e0a0d491d3429a70ea08. Copied unmodified; logos, trademarks, icons, source code and Python scripts are not covered by that license and are not included.",
       "permitted_use": "Redistribution and adaptation with attribution under CC BY-SA 4.0 (share-alike). Used for question derivation, retrieval grounding, judging and offline test fixtures.",
       "fixture_pages": [
         {
@@ -510,7 +518,7 @@
         }
       ],
       "attribution": "Bonsai documentation by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/docs at tag bonsai-0.8.5-post1, commit e6258ab4a8e8c76d18b743ea80a6f7699809319b), licensed under the GNU General Public License v3.0 or later. Copied unmodified.",
-      "permitted_use": "Redistribution and modification under GPL-3.0-or-later. Used as the older-release contrast for setup facts (O-3 default), retrieval grounding, judging and offline test fixtures.",
+      "permitted_use": "Redistribution and modification under GPL-3.0-or-later. Used for the older version line (VL-older), setup facts, retrieval grounding, judging and offline test fixtures.",
       "fixture_pages": [
         {
           "path": "src/bonsai/docs/guides/authoring/starting_new_project.rst",
@@ -561,6 +569,103 @@
       ],
       "fixture_min_per_category": 0,
       "fixture_forbid_python": false
+    },
+    {
+      "id": "blender-manual-4-5",
+      "repository": "blender-manual-4-5",
+      "root": "manual",
+      "include": [
+        "manual/**/*.rst"
+      ],
+      "exclude": [],
+      "deny": [
+        "**/*.png",
+        "**/*.jpg",
+        "**/*.jpeg",
+        "**/*.gif",
+        "**/*.webp",
+        "**/*.svg",
+        "**/*.py",
+        "**/*.frag",
+        "manual/images/**"
+      ],
+      "tags": [
+        {
+          "glob": "manual/interface/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/editors/3dview/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/editors/outliner/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/editors/preferences/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/editors/properties_editor.rst",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/scene_layout/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/modeling/meshes/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/modeling/modifiers/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/files/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/getting_started/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/troubleshooting/**",
+          "tag": "core"
+        },
+        {
+          "glob": "manual/glossary/**",
+          "tag": "core"
+        }
+      ],
+      "default_tag": "other",
+      "license": "CC-BY-SA-4.0",
+      "license_note": "\"or any later version\"; logos, trademarks, icons, source code and Python scripts are excluded from the grant (manual/copyright.rst).",
+      "license_evidence": [
+        {
+          "path": "LICENSE",
+          "blob": "bae2dce38a5b3d56c5138b277bd1ecf2687ce753",
+          "commit_copy": false,
+          "note": "The same blob as blender-manual's committed copy, tests/fixtures/docs/blender-manual/LICENSE."
+        },
+        {
+          "path": "manual/copyright.rst",
+          "blob": "69d205968c099191805cdfec34f573c326282c25",
+          "commit_copy": false,
+          "note": "The same blob as blender-manual's committed copy, tests/fixtures/docs/blender-manual/manual/copyright.rst."
+        }
+      ],
+      "attribution": "The Blender 4.5 Manual (https://docs.blender.org/manual/) by the Blender Documentation Team (https://projects.blender.org/blender/documentation), licensed under CC BY-SA 4.0 or any later version (https://creativecommons.org/licenses/by-sa/4.0/). Source: https://projects.blender.org/blender/blender-manual, branch blender-v4.5-release, commit c2b171709bbca119846f1cd8cda70ad719cf6296. Copied unmodified; logos, trademarks, icons, source code and Python scripts are not covered by that license and are not included.",
+      "permitted_use": "Redistribution and adaptation with attribution under CC BY-SA 4.0 (share-alike). Used for the Blender steps of the older version line (VL-older), question derivation, retrieval grounding, judging and offline test fixtures.",
+      "fixture_pages": [
+        {
+          "path": "manual/getting_started/about/history.rst",
+          "categories": []
+        }
+      ],
+      "fixture_min_per_category": 0,
+      "fixture_forbid_python": true
     },
     {
       "id": "bonsai-source",

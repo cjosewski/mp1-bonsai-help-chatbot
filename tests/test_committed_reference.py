@@ -65,10 +65,11 @@ def test_operator_lexicons_record_the_measured_counts():
 
 
 def test_manual_lexicon_resolves_every_operator_ref_and_fits_the_size_gate():
-    manual = lexicon("blender-manual")
-    assert manual["summary"]["operator_ids"] == 1443
-    assert manual["summary"]["dangling_refs"] == []
-    assert (LEXICONS / "blender-manual.json").stat().st_size <= 1_000_000
+    for name, operators in (("blender-manual", 1410), ("blender-manual-4-5", 1311)):
+        manual = lexicon(name)
+        assert manual["summary"]["operator_ids"] == operators
+        assert manual["summary"]["dangling_refs"] == []
+        assert (LEXICONS / f"{name}.json").stat().st_size <= 1_000_000
     bonsai = lexicon("bonsai-docs")
     assert bonsai["summary"]["counts"]["kbd_merged_runs"] > 0
     assert any(e["kind"] == "ui_path" for e in bonsai["entries"])
@@ -154,8 +155,14 @@ def test_docs_index_digest_agrees_with_the_manifest(tmp_path):
     _, found = check_digest_committed(CONFIG, MANIFEST, path)
     assert found == []
     document = json.loads(path.read_bytes())
-    assert set(document["sources"]) == {"bonsai-docs", "bonsai-docs-0-8-5-post1", "blender-manual"}
-    assert document["sources"]["blender-manual"]["records"] == 9367
+    assert set(document["sources"]) == {
+        "bonsai-docs",
+        "bonsai-docs-0-8-5-post1",
+        "blender-manual",
+        "blender-manual-4-5",
+    }
+    assert document["sources"]["blender-manual"]["records"] == 8997
+    assert document["sources"]["blender-manual-4-5"]["records"] == 8245
     document["sources"]["bonsai-docs"]["pin_id"] = "bonsai-docs-0"
     stale = tmp_path / "docs-index.json"
     stale.write_bytes(redigest(document))

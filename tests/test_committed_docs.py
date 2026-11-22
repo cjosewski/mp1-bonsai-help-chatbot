@@ -39,6 +39,7 @@ def test_manifest_pins_every_source():
         "bonsai-docs": "docs",
         "blender-manual": "docs",
         "bonsai-docs-0-8-5-post1": "docs",
+        "blender-manual-4-5": "docs",
         "bonsai-source": "operator-source",
         "bonsai-source-0-8-5-post1": "operator-source",
     }
@@ -47,10 +48,12 @@ def test_manifest_pins_every_source():
         assert refs[sid] == {"kind": "tag", "name": "bonsai-0.9.0post1", "tag_object": None}
     for sid in ("bonsai-docs-0-8-5-post1", "bonsai-source-0-8-5-post1"):
         assert refs[sid] == {"kind": "tag", "name": "bonsai-0.8.5-post1", "tag_object": None}
-    assert refs["blender-manual"]["kind"] == "branch"
-    # The B1 pins are unchanged by the B2 sources.
+    # Each version line's Blender steps come from its matching Manual release branch.
+    assert refs["blender-manual"] == {"kind": "branch", "name": "blender-v5.2-release"}
+    assert refs["blender-manual-4-5"] == {"kind": "branch", "name": "blender-v4.5-release"}
+    # The B1 Bonsai pin is unchanged by the later sources; the 5.3 Manual pin was replaced.
     assert manifest["sources"]["bonsai-docs"]["pin_id"] == "bonsai-docs-00e02b1ec8e4c266"
-    assert manifest["sources"]["blender-manual"]["pin_id"] == "blender-manual-dc59b772db8f70f7"
+    assert manifest["sources"]["blender-manual"]["pin_id"] == "blender-manual-fea32ead8c72f97e"
     assert manifest["totals"]["pages"] == sum(
         e["totals"]["pages"] for e in manifest["sources"].values()
     )
@@ -89,9 +92,11 @@ def test_every_category_is_covered_and_manual_fixtures_carry_no_python():
             assert count >= source.fixture_min_per_category
         if source.role == "operator-source":
             assert not (FIXTURES / source.id).exists()
-    for path in (FIXTURES / "blender-manual").rglob("*"):
-        if path.is_file():
-            assert not PYTHON_CODE.search(path.read_bytes()), path
+    for source_id in ("blender-manual", "blender-manual-4-5"):
+        assert config.source(source_id).fixture_forbid_python
+        for path in (FIXTURES / source_id).rglob("*"):
+            if path.is_file():
+                assert not PYTHON_CODE.search(path.read_bytes()), path
 
 
 def test_python_code_rule_catches_its_forms():

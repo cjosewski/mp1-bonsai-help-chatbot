@@ -90,8 +90,7 @@ class EnumBasis(_Model):
 class VersionSources(_Model):
     bonsai_docs: str
     bonsai_source: str
-    # None when no Blender Manual for the line's Blender release is pinned.
-    blender_manual: str | None
+    blender_manual: str
 
 
 class VersionLine(_Model):
@@ -100,7 +99,7 @@ class VersionLine(_Model):
     bonsai: str = Field(min_length=1)
     bonsai_tag: str = Field(min_length=1)
     sources: VersionSources
-    origin: Literal["plan §2", "O-3 default"]
+    origin: Literal["plan §2", "O-3 default", "Chad, 2026-11-22"]
     pairing_status: Literal["cited", "partly cited", "uncited", "conflict"]
     pairing_note: str = Field(min_length=1)
     claims: list[str] = Field(min_length=1)
@@ -397,7 +396,7 @@ def verify_fact(
             if row.id not in line.claims:
                 problems.append(Problem("setup", row.id, f"version row not in {name}'s claims"))
             continue
-        allowed = {line.sources.bonsai_docs, line.sources.blender_manual} - {None}
+        allowed = {line.sources.bonsai_docs, line.sources.blender_manual}
         if not any(c.source in allowed for c in row.citations):
             problems.append(Problem("setup", row.id, f"no citation from {name}'s sources"))
     ids = {source.id for source in config.sources}
@@ -448,8 +447,6 @@ def check_profiles(profiles: SetupProfiles, facts: SetupFacts, config: DocSource
         problems.append(Problem("setup", label, "version line ids are not unique"))
     for line in profiles.version_lines:
         for role, sid in line.sources.model_dump().items():
-            if sid is None:  # no Manual pinned for this line's Blender release
-                continue
             want = "operator-source" if role == "bonsai_source" else "docs"
             if sid not in {s.id for s in config.sources} or config.source(sid).role != want:
                 problems.append(Problem("setup", label, f"{line.id}: {role} {sid} is not a {want}"))

@@ -1,5 +1,5 @@
 {
-  "digest": "0bb13e3f962c321dabbb42e5ac88494d9e68e084dcd711b0e886a3e276272c2a",
+  "digest": "abae81ca0c7a7ffe3381f86cba89be77552dcc76a5df006ec78934c5a83821e0",
   "drafted_on": "2026-11-22",
   "enums": {
     "discipline": {
@@ -12,7 +12,7 @@
       "basis": "partly cited",
       "cited_for": ["new_project"],
       "facts": ["SF-007"],
-      "note": "SF-007 cites the schema choice when creating a new project only. For opened_ifc and large_federated_model profiles all three values are an assistant default: SF-009 (not one of this enum's facts) names IFC2X3 and IFC4 as the two commonly seen schemas of a loaded model, no fact row cites IFC4X3 for an opened model, and none cites any schema for a federated model.",
+      "note": "SF-007 cites the schema choice when creating a new project only. For opened_ifc and large_federated_model profiles all three values are a stated default, kept by Chad on 2026-11-22 (\"All three\"): SF-009 (not one of this enum's facts) names IFC2X3 and IFC4 as the two commonly seen schemas of a loaded model, no fact row cites IFC4X3 for an opened model, and none cites any schema for a federated model. Schema facts are scored only where a row cites them.",
       "values": ["IFC2X3", "IFC4", "IFC4X3"]
     },
     "model_state": {
@@ -45,29 +45,29 @@
   "schema": "setup-profiles-v1",
   "version_lines": [
     {
-      "blender": "5.3",
+      "blender": "5.2",
       "bonsai": "0.9.0-post1",
       "bonsai_tag": "bonsai-0.9.0post1",
       "claims": ["SF-012", "SF-015"],
       "id": "VL-current",
-      "origin": "plan §2",
-      "pairing_note": "Blender 5.3 is not in the 0.9.0-post1 docs' supported list (Blender 5.1 or 5.2, SF-012), and the troubleshooting page says Blender 4.5 (SF-015, a conflict within the pin). No pinned text pairs Blender 5.3 with Bonsai 0.9.0-post1. Kept as the plan's pairing; not scored as a fact.",
-      "pairing_status": "conflict",
+      "origin": "Chad, 2026-11-22",
+      "pairing_note": "Cited by SF-012: the 0.9.0-post1 developer installation page lists Blender 5.1 or 5.2. The same pin's troubleshooting page says Blender 4.5 (SF-015, a conflict within the pin, listed among the claims and disclosed here). Chad chose this pairing on 2026-11-22 (\"Cited pairings + matching Manuals\"); Blender steps come from the Blender 5.2 Manual. The pairing is evidence, not a scored fact.",
+      "pairing_status": "cited",
       "review": null,
       "sources": {"blender_manual": "blender-manual", "bonsai_docs": "bonsai-docs", "bonsai_source": "bonsai-source"},
       "status": "assistant_drafted"
     },
     {
-      "blender": "4.2 LTS",
+      "blender": "4.5",
       "bonsai": "0.8.5-post1",
       "bonsai_tag": "bonsai-0.8.5-post1",
-      "claims": ["SF-013", "SF-016"],
+      "claims": ["SF-013"],
       "id": "VL-older",
-      "origin": "O-3 default",
-      "pairing_note": "Blender 4.2 is not in the 0.8.5-post1 docs' supported list (Blender 4.3, 4.4, or 4.5, SF-013). No Blender 4.2 Manual is pinned (blender_manual is null), so this line's version_claim and doc_conflict rows are pairing evidence and may cite any docs pin, and every other row (schema_dependent, version_dependent, doc_absence) needs a 0.8.5-post1 docs citation (SF-016 cites the Blender 5.3 Manual's history of 4.2 LTS). The 0.9.0-post1 maintenance page's 0.8.5-post1 values are only an example (not_citable). Kept as the O-3 default; not scored as a fact.",
-      "pairing_status": "conflict",
+      "origin": "Chad, 2026-11-22",
+      "pairing_note": "Cited by SF-013: the 0.8.5-post1 developer installation page lists Blender 4.3, 4.4, or 4.5. Chad chose this pairing on 2026-11-22 (\"Cited pairings + matching Manuals\"); Blender steps come from the Blender 4.5 Manual. The 0.9.0-post1 maintenance page's 0.8.5-post1 values are only an example (not_citable). The pairing is evidence, not a scored fact.",
+      "pairing_status": "cited",
       "review": null,
-      "sources": {"blender_manual": null, "bonsai_docs": "bonsai-docs-0-8-5-post1", "bonsai_source": "bonsai-source-0-8-5-post1"},
+      "sources": {"blender_manual": "blender-manual-4-5", "bonsai_docs": "bonsai-docs-0-8-5-post1", "bonsai_source": "bonsai-source-0-8-5-post1"},
       "status": "assistant_drafted"
     }
   ]

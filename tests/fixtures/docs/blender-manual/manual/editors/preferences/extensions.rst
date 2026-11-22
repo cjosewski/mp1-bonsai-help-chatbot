@@ -109,11 +109,8 @@ Or show only extensions of a single type:
 
 :All: Show all extensions.
 :Add-ons: Only show add-ons.
-:Asset Libraries: Only show asset libraries.
 :Themes: Only show themes.
 
-
-.. _prefs-extensions-repositories:
 
 Repositories
 ============

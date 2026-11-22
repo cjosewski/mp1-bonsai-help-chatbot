@@ -49,69 +49,17 @@ Roll
 
 .. reference::
 
-   :Mode:      All Modes
-   :Menu:      :menuselection:`View --> Navigation --> Roll Left/Right`
+   :Mode:      All modes
+   :Menu:      :menuselection:`View --> Navigation --> Roll`
    :Shortcut:  :kbd:`Shift-Numpad4`, :kbd:`Shift-Numpad6`
 
-Rotates the 3D Viewport around its viewing direction, tilting the view
-clockwise or counterclockwise without changing the direction it faces.
+Rotate the viewport camera around its viewing direction in 15° discrete steps by default.
+See the :ref:`rotation angle <bpy.types.PreferencesView.rotation_angle>` preference to configure.
 
-Unlike :ref:`Orbit <bpy.ops.view3d.view_orbit>`, which changes the viewing direction,
-rolling rotates the view around its viewing axis.
+To reset the roll, you can first align the view to the global X axis
+using :kbd:`Numpad3`, then orbit to get back to the regular perspective view.
 
-Use :kbd:`Shift-Numpad4` and :kbd:`Shift-Numpad6` to roll the view in opposite directions.
-Each key press rotates the view by a discrete angle, configured by the
-:ref:`Rotation Angle <bpy.types.PreferencesView.rotation_angle>` preference.
-
-The regular viewport and :ref:`Camera View <3dview-camera-navigate>` maintain
-separate roll values. Rolling the view in one mode does not change the stored
-roll of the other. Switching between these views restores their respective orientations.
-
-.. note::
-
-   In Camera View, rolling changes the displayed orientation of the camera frame
-   without changing the camera object's rotation. This is different from rotating
-   the camera around its local Z axis, which changes the camera's orientation
-   and affects the rendered image.
-
-
-.. _bpy.ops.view3d.view_roll_set:
-
-Reset Roll
-==========
-
-.. reference::
-
-   :Mode:      All Modes
-   :Menu:      :menuselection:`View --> Navigation --> Reset Roll`
-
-Resets the roll of the 3D Viewport, removing any tilt around the viewing direction
-without changing the direction the view faces.
-
-When in :ref:`Camera View <3dview-camera-navigate>`, this operator resets
-the camera view's roll instead of the regular viewport's roll.
-These roll values are stored separately, so resetting one does not affect the other.
-
-
-.. _bpy.ops.view3d.view_flip:
-
-Flip View
-=========
-
-.. reference::
-
-   :Mode:      Camera View
-   :Menu:      :menuselection:`View --> Navigation --> Flip View`
-
-Flips the Camera View horizontally, displaying a mirrored view of the scene.
-
-This is useful for evaluating a composition from a different perspective,
-making it easier to identify asymmetry or visual imbalances.
-
-The flip only affects the viewport display. It does not change the camera
-object's transform or the rendered image.
-
-Use the operator again to restore the original orientation.
+:kbd:`RMB` cancels the roll operation.
 
 
 .. _bpy.ops.view3d.view_pan:

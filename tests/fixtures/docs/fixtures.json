@@ -1,5 +1,5 @@
 {
-  "digest": "7a996baf7f590eba7a588f0737555350065ba782443819f4c7465cf298f50c93",
+  "digest": "0651c772b639d66807416e8efca8ff8130cbe60193da52c2a848fd4653d7711d",
   "schema": "doc-fixtures-v1",
   "sources": {
     "blender-manual": {
@@ -29,12 +29,12 @@
           "sha256": "cc058a8785236dadffb690018c750cd86d444df5cac40f707c60629b78be8cf1"
         },
         {
-          "blob": "9f1ddd4a5fa91a9abddce3f3616db1225dc6272b",
-          "bytes": 7860,
+          "blob": "df78e424768183fd03d5a83572343cf747e4afed",
+          "bytes": 7781,
           "categories": ["bonsai_modeling"],
           "path": "manual/editors/3dview/controls/snapping.rst",
           "roles": ["page"],
-          "sha256": "ff815357c23146d2183bcfb4b7208a39e7ab8da9918a63cbbefe72ff017c8116"
+          "sha256": "fa4e1c93a92c4089811974e65fdb9b5b259eb524e9ccb15939e840dc417063fa"
         },
         {
           "blob": "cf4032df2825b6208c297a30394bdcfdda753693",
@@ -45,12 +45,12 @@
           "sha256": "2df7edf71566f5ecd2f951096008d80396399866f21f197ba8a470de099a3f77"
         },
         {
-          "blob": "f96253a596bf63cab5ddd94e2957366c5eac16cf",
-          "bytes": 7596,
+          "blob": "6b61f05baa4032ca26dc58c5bc2bb5d125480c0e",
+          "bytes": 5832,
           "categories": ["model_exploration"],
           "path": "manual/editors/3dview/navigate/navigation.rst",
           "roles": ["page"],
-          "sha256": "e34f0dc0ca9592adefbac1d565ea43b66db1d1f1c099029e155d2b8ffc568bd6"
+          "sha256": "a9fabb612afc2625d30f17c3f06b39738aa18f24de974673de1253362e1d685e"
         },
         {
           "blob": "f509717601cdb869c92daa17d4c62921ad678f25",
@@ -69,12 +69,12 @@
           "sha256": "3b36c52bc30554e56f5303e99d7ba2430ed2b449cdbd3f65e235808ba31cf199"
         },
         {
-          "blob": "83497e64e33e0e76c6348db0fe7de993348c28e4",
-          "bytes": 4966,
+          "blob": "23be48c52a2c4851cd828e27d9d2635369f5fe22",
+          "bytes": 4885,
           "categories": ["files_versions_troubleshooting"],
           "path": "manual/editors/preferences/extensions.rst",
           "roles": ["page"],
-          "sha256": "85f2c44bc06e2ed99e64299b263eb96d75b35dc4f4f3bc09e5e772c195b8c53b"
+          "sha256": "ec97c09c4cd7b5ff7223972e53a17444b648f607c0f9e7df4fb893aa389a0368"
         },
         {
           "blob": "f5b60f189a6de211cabcdfbf387032228934b1e5",
@@ -85,20 +85,20 @@
           "sha256": "f3242502661f60c429d60423048ba6f77833ab7d42bca1e046ffcdff87942813"
         },
         {
-          "blob": "05d89f6477b42b825d7f1dcf5e4d9e6d55d892a4",
-          "bytes": 9777,
+          "blob": "6110b869b79a997a0529f859c3567648aa100ace",
+          "bytes": 9768,
           "categories": ["files_versions_troubleshooting"],
           "path": "manual/files/linked_libraries/link_append.rst",
           "roles": ["page"],
-          "sha256": "15e0c75cfff7770c45319593c0f3164702db58585eb2fa5b2c39e3aaa4859c28"
+          "sha256": "79651d43245aa913929d10cd2f15656b139fab0905deb3a9d46385a596757240"
         },
         {
-          "blob": "07d0b9a4ce596bec0040818514224fabc6ae9ea9",
-          "bytes": 28153,
+          "blob": "82086a240f144c71070891835b191f56ef494151",
+          "bytes": 28148,
           "categories": [],
           "path": "manual/getting_started/about/history.rst",
           "roles": ["page"],
-          "sha256": "c49ca577880fab112d5a0037724da694bc0e4eb631896f23f5fa8f8cead98687"
+          "sha256": "087560c42ccf7cba7ba5232cd65335a433a02f10060c935405be67303471c3b8"
         },
         {
           "blob": "3a9c1f9e7a42b6bdf6bd4d349a75399a45a2e3ec",
@@ -125,28 +125,28 @@
           "sha256": "0e84ce80dbf96dd3e62ab7275885f54eec4998511c264360e7540281b9afc9aa"
         },
         {
-          "blob": "18b9a2f284f10306d4889ddea07b4429fd867899",
-          "bytes": 11916,
+          "blob": "f813f6a0ab319645230859102c837652f3388028",
+          "bytes": 10167,
           "categories": ["ifc_data_and_materials"],
           "path": "manual/scene_layout/collections/collections.rst",
           "roles": ["page"],
-          "sha256": "c23431dba6528ea890114ddfb2d5f28eec4f130d970071ba0b3c08d56e385af2"
+          "sha256": "df950fd2b59dc30955fbecde217fa5e4c00c62bf2a0d9a497f246b300e598906"
         },
         {
-          "blob": "a4af07782c1fa976970663bcccfadc3ed4bfbcdb",
-          "bytes": 9335,
+          "blob": "bba26a6319d379c167ad3992f58908155853c3c5",
+          "bytes": 9109,
           "categories": ["bonsai_modeling"],
           "path": "manual/scene_layout/object/editing/apply.rst",
           "roles": ["page"],
-          "sha256": "e618085a7f909135c527c5edc99ad7e824224298ef912a80df1b9aac66920d18"
+          "sha256": "5065e09ec8627f3df7f1597c35f1d0246684bc032a53c798e6a70f20fb3ac587"
         },
         {
-          "blob": "2dcefa0e8c3da6866b63b6ca2a82f6979443cdd3",
-          "bytes": 599,
+          "blob": "991799b0ceab64ece2743e0ad12aa4e8a16f7691",
+          "bytes": 536,
           "categories": ["ifc_data_and_materials"],
           "path": "manual/scene_layout/object/editing/delete.rst",
           "roles": ["page"],
-          "sha256": "2994768da5f586cff3cb7bf527af43d4cf661503f712fca53e1cdfc682e939c5"
+          "sha256": "19940c5f4d5c96cd63d2b480d5ea875d97a0e20cb8d1cee856ebf63eae8024fa"
         },
         {
           "blob": "f57956c4de64b9e379062f7d385cdd92cfc4b15f",
@@ -165,20 +165,20 @@
           "sha256": "d0555c73fba45fb969e6a47c289ca3520aa36b65361ee9efa2f259bd82960ae2"
         },
         {
-          "blob": "42795bd8c4918a5df2d612e540eaf8e75164a280",
-          "bytes": 1693,
+          "blob": "ac4a809c6f514449d1e1a80d074435a523295cdd",
+          "bytes": 1668,
           "categories": ["bonsai_modeling"],
           "path": "manual/scene_layout/object/editing/transform/move.rst",
           "roles": ["page"],
-          "sha256": "dd97b03008d03449b996076548a27828409c6a585c33124d39680e32d78ab604"
+          "sha256": "7f61235e3b932abf57fb9f6ff4ecf4cc750fd2245ffbff409c7ddbb7161428a6"
         },
         {
-          "blob": "0ec67157c22e1298c7a85c02f81396f48b72af48",
-          "bytes": 5732,
+          "blob": "5aa2d5949facee9997ceb50b73fc25e8a052efa6",
+          "bytes": 5454,
           "categories": ["bonsai_modeling"],
           "path": "manual/scene_layout/object/properties/transforms.rst",
           "roles": ["page"],
-          "sha256": "b2629164549f001d566099d17772b30168be8d1c8930fce4f2d4b6b8bc0d28f5"
+          "sha256": "046d0cf587f8022a7ca5e3594a85cd550b04942a6d5539c174c3e1363fc97038"
         },
         {
           "blob": "73952caf3611ff67a7e92399f3cf7b2f618304ce",
@@ -197,8 +197,22 @@
           "sha256": "4e0c9e70f138baa6fe0e9caa81740d5df5bf3d9360162fedfdb60943e589569e"
         }
       ],
-      "pin_id": "blender-manual-dc59b772db8f70f7",
-      "source_digest": "285b9e1905ac1291eeaa502e7d2699d536e9598becba3b45ca1ca56a13cec7f0"
+      "pin_id": "blender-manual-fea32ead8c72f97e",
+      "source_digest": "73bc6c9133c42abb732b0835639d3871a60ee8d2e6088ad18ed693067642303a"
+    },
+    "blender-manual-4-5": {
+      "files": [
+        {
+          "blob": "e5a2f1e09794847034ac8cd4e5872407603b54de",
+          "bytes": 28125,
+          "categories": [],
+          "path": "manual/getting_started/about/history.rst",
+          "roles": ["page"],
+          "sha256": "53bd0c2f3518fc70e110d759691dd2ffbcc6c0a4fdcd873380ddc24424bb96f4"
+        }
+      ],
+      "pin_id": "blender-manual-4-5-ec0c621a112c20c9",
+      "source_digest": "a063e216b06479ce518bbfc3977c7e26de9c36ed9ebe3f1e042880cd9fda7085"
     },
     "bonsai-docs": {
       "files": [
