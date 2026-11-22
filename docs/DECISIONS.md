@@ -135,12 +135,20 @@ Chad's review.
   the one-command rebuild should keep working. Chad may prefer a hard failure.
 - **Bonsai `conf.py` stays out of Git.** It carries the GPL-3.0-or-later header and is
   recorded in the manifest by its blob id, but its header also names a contributor's
-  personal contact address. `src/bonsai/COPYING` is committed as the license text.
+  personal contact address. Like every license evidence file it is fetched and stored
+  in the git-ignored snapshot; `src/bonsai/COPYING` is committed as the license text.
+- **Deny lists govern page selection only.** A deny glob guards `include`: a build whose
+  include selects a denied file as a page stops with a config error. License evidence
+  is declared by path and blob id and is not subject to it, so `conf.py` is fetched
+  although `**/*.py` is denied. `not_selected` counts the files
+  under the root that are not pages, license evidence included.
 - **Upstream example paths in two fixture pages.** `guides/troubleshooting.rst` and
   `reference/project_overview/project_info.rst` contain example home-folder paths (one
   names a Bonsai maintainer's public handle). They are public upstream text, not the
   owner's details, and stay unmodified. The privacy check allows them only by file
   hash and match count; every file this repository writes must have no match at all.
+  `AGENTS.md` states this as an exception to the public-repository rule, pending Chad's
+  confirmation; if he declines, the slice needs other pages.
 - **Git 2.44 or newer.** The builder relies on `--no-lazy-fetch` so that a missing file
   is an error, never a silent download. It probes for that option instead of checking
   a version number.

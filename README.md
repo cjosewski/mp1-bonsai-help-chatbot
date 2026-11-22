@@ -96,9 +96,14 @@ left alone, and an invalid one is refused (exit 5) for inspection.
 
 Every reStructuredText page under each root is kept. Retrieval tags (Bonsai `user`,
 `developer`, `fragment`; Manual `core` for the areas plan §2 and §5 name, `other` for
-the rest) live in the config and are not part of a snapshot's identity. Images, Sphinx
-build files and the Manual's source code are never fetched; they are counted in the
-manifest's `not_selected`.
+the rest) live in the config and are not part of a snapshot's identity. Images, the
+Manual's source code and other files that are not pages are never fetched, with one
+exception: the license evidence files (Bonsai's `src/bonsai/COPYING` and
+`src/bonsai/docs/conf.py`, the Manual's `LICENSE` and `manual/copyright.rst`) are
+fetched, checked by blob id and stored in the snapshot even when they are not pages.
+The deny lists govern page selection only. Bonsai's `conf.py` stays out of Git. The
+manifest's `not_selected` counts, by file type, the files under each root that are not
+pages, so it still counts `conf.py` (`py`).
 
 What a rebuild needs: Git 2.44 or newer (the build probes for `--no-lazy-fetch` and
 stops with exit 3 without it), network access to github.com and projects.blender.org
@@ -113,7 +118,7 @@ run two builds into the same data root at once; the second stops with exit 5.
 | --- | --- | --- |
 | `snapshot build` | Verify present snapshots; fetch, check and write absent ones | Only for absent snapshots |
 | `snapshot build --write-manifest` | As above, but write `config/doc-manifest.json` from the fetched bytes (once per pin change). A tag that no longer points at the pinned commit is exit 4 here and only a warning on a plain rebuild | Yes |
-| `snapshot check` | Committed files plus every built snapshot | Never |
+| `snapshot check` | Committed files plus both snapshots (fails if a snapshot is not built; use `--committed` offline) | Never |
 | `snapshot check --committed` | Config, manifest, fixture slice, `NOTICE.md` and the privacy rules only | Never |
 | `snapshot fixtures` | Copy the fixture slice from verified snapshots into `tests/fixtures/docs/`; differing files need `--replace` | Never |
 
