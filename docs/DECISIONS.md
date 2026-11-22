@@ -226,6 +226,13 @@ These were made by the assistant while building B2 and are open to Chad's review
   `sourcecode` or `literalinclude` body) are markup shown as an example, as on the Manual's
   contribute pages, and are skipped (extractor `rst-roles-v2`). A definition term that is a
   lone field marker (`:Material:`) gives its name as the operator label.
+- **Cross-reference terms give their title** (extractor `rst-roles-v3`). In an operator's
+  definition term, a `:ref:` or `:doc:` written `Title <target>` gives `Title`; one with a
+  bare target renders a title looked up elsewhere, so it is dropped rather than shown as a
+  label id or path, and counted as `operator_terms_bare_xref`. On the Manual pin this
+  changed 5 labels: 2 aliases (`graph.select_box`, `object.armature_add`) now give their
+  titles, and 3 bare targets (`sculpt.project_line_gesture`, `sculpt.trim_box_gesture`,
+  `sculpt.trim_lasso_gesture`) now give no label.
 - **Hotkey normalization.** Adjacent `:kbd:` roles joined by `+` are one hotkey; inside a
   role, `-` and `+` join keys of one chord and spaces separate a key sequence. The verbatim
   text is kept beside the parsed form.

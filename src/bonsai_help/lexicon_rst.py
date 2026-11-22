@@ -10,7 +10,8 @@ Kinds:
 - `blender_operator`: a `.. _bpy.ops.<module>.<op>:` target at any indent. The label is
   the section title it is attached to, or the definition-list term that follows it at the
   target's own indent, with roles reduced to their text (a lone field marker such as
-  `:Material:` gives its name), otherwise null.
+  `:Material:` gives its name; a `:ref:` or `:doc:` gives its title if written as
+  `Title <target>` and nothing if its target is bare), otherwise null.
 - `operator_ref`: a `:ref:` to a `bpy.ops.*` target, with its alias label if written.
 - `menu_path`: a `:menuselection:` role, segments split on `-->` and collapsed.
 - `hotkey`: a `:kbd:` role, or adjacent roles joined by `+`, as one entry. `value` is the
@@ -38,7 +39,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from bonsai_help.docs_index import split_lines
 
 SCHEMA = "rst-lexicon-v1"
-EXTRACTOR = "rst-roles-v2"
+EXTRACTOR = "rst-roles-v3"
 REFERENCE_FIELDS = ("Mode", "Menu", "Shortcut", "Panel", "Editor", "Tool", "Header", "Context")
 TARGET = re.compile(r"(?P<indent>[ \t]*)\.\. _(?P<label>`[^`]+`|[^`:\s][^:]*):[ \t]*")
 OPS_PREFIX = "bpy.ops."
@@ -54,6 +55,7 @@ KEY_SPLIT = re.compile(r"(?<=.)[-+](?=.)")
 LITERAL_DIRECTIVE = re.compile(r"[ \t]*\.\. (?:code-block|code|sourcecode|literalinclude)::")
 LIST_MARKER = re.compile(r"(?:[-*+]|#\.|\d+\.|\(?[a-zA-Z0-9]+\))[ \t]+")
 FIELD_MARKER = re.compile(r":(?P<name>[^:`]+):")
+XREF_ALIAS = re.compile(r"(?P<label>.*?)\s*<(?P<target>[^<>]+)>", re.DOTALL)
 
 
 def collapse(text: str) -> str:
@@ -76,11 +78,26 @@ def hotkey_value(span: str) -> str:
     return " ".join("-".join(chord) for chord in chords)
 
 
-def reduce_roles(text: str) -> str:
-    """A term's text with `:bl-icon:` and `:kbd:` roles removed and other roles unwrapped."""
+def reduce_roles(text: str, counts: Counter | None = None) -> str:
+    """A term's text with `:bl-icon:` and `:kbd:` roles removed and other roles unwrapped.
+
+    A `:ref:` or `:doc:` written `Title <target>` gives its title. One with a bare target
+    renders a title RST looks up elsewhere, so it is removed (and counted in `counts`)
+    rather than shown as a target or path.
+    """
 
     def replace(match: re.Match) -> str:
-        return "" if match["role"] in ("bl-icon", "kbd") else match["text"]
+        role, body = match["role"], match["text"]
+        if role in ("bl-icon", "kbd"):
+            return ""
+        if role in ("ref", "doc"):
+            alias = XREF_ALIAS.fullmatch(body)
+            if alias and collapse(alias["label"]):
+                return alias["label"]
+            if counts is not None:
+                counts["operator_terms_bare_xref"] += 1
+            return ""
+        return body
 
     return collapse(ROLE.sub(replace, text))
 
@@ -133,7 +150,7 @@ def _masked(text: str) -> str:
     return ROLE.sub(_blank, text)
 
 
-def _term_after(lines: Sequence[str], k: int, indent: int) -> str | None:
+def _term_after(lines: Sequence[str], k: int, indent: int, counts: Counter) -> str | None:
     """The definition-list term after a target at line k, at the target's own indent."""
     j = k + 1
     while j < len(lines) and (not lines[j].strip() or TARGET.fullmatch(lines[j])):
@@ -146,7 +163,7 @@ def _term_after(lines: Sequence[str], k: int, indent: int) -> str | None:
     if not body.strip() or _indent(body) <= indent:
         return None
     field = FIELD_MARKER.fullmatch(term.strip())
-    return collapse(field["name"]) if field else reduce_roles(term) or None
+    return collapse(field["name"]) if field else reduce_roles(term, counts) or None
 
 
 def _reference_fields(lines: Sequence[str], k: int) -> list[tuple[str, str, int]]:
@@ -193,7 +210,7 @@ def extract_record(record: Mapping) -> tuple[list[tuple[str, str, str | None, in
                     counts["operator_targets_on_title"] += 1
                     found.append(("blender_operator", name, record["title"], number))
                 else:
-                    term = _term_after(lines, k, len(target["indent"]))
+                    term = _term_after(lines, k, len(target["indent"]), counts)
                     counts["operator_targets_on_term" if term else "operator_targets_other"] += 1
                     counts["operator_targets_indented"] += bool(target["indent"])
                     found.append(("blender_operator", name, term, number))
@@ -215,7 +232,7 @@ def extract_record(record: Mapping) -> tuple[list[tuple[str, str, str | None, in
         elif role == "guilabel":
             found.append(("guilabel", collapse(body), None, line))
         elif role == "ref":
-            alias = re.fullmatch(r"(?P<label>.*?)\s*<(?P<target>[^<>]+)>", body, re.DOTALL)
+            alias = XREF_ALIAS.fullmatch(body)
             target, label = (
                 (alias["target"], collapse(alias["label"]) or None) if alias else (body, None)
             )

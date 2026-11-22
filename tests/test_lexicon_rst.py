@@ -230,6 +230,35 @@ def test_a_field_marker_term_gives_its_name_as_the_label():
     ]
 
 
+def test_cross_reference_terms_give_their_title_never_a_target_or_path():
+    text = """
+    Page
+    ====
+
+    .. _bpy.ops.graph.select_box:
+
+    :ref:`Box Select <bpy.ops.*.select_box>` :kbd:`B`
+       Selects in a box.
+
+    .. _bpy.ops.object.armature_add:
+
+    :doc:`Armature </animation/armatures/index>`
+       Adds an armature.
+
+    .. _bpy.ops.sculpt.project_line_gesture:
+
+    :doc:`/sculpt_paint/sculpting/tools/line_project`
+       Projects along a line.
+    """
+    assert found(text, "blender_operator") == [
+        ("blender_operator", "graph.select_box", "Box Select"),
+        ("blender_operator", "object.armature_add", "Armature"),
+        ("blender_operator", "sculpt.project_line_gesture", None),
+    ]
+    (record,) = [r for r in records(text) if r["title"] == "Page"]
+    assert lr.extract_record(record)[1]["operator_terms_bare_xref"] == 1
+
+
 def test_markup_shown_as_an_example_is_not_extracted():
     text = """
     Page
