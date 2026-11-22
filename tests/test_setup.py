@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import copy
 import json
+import re
 from pathlib import Path
 
 import pytest
+from gold_support import drafted
 
 from bonsai_help import setup
 from bonsai_help.doc_snapshot import dump_json
@@ -34,6 +35,12 @@ def load(path: Path) -> dict:
     return json.loads(path.read_bytes())
 
 
+def draft_state(path: Path) -> dict:
+    """The committed file with every record reset to an unreviewed draft, so a test that
+    changes a record exercises the rule it names, not the binding of Chad's decision."""
+    return drafted(load(path))
+
+
 def write(path: Path, document: dict) -> Path:
     body = {key: value for key, value in document.items() if key != "digest"}
     path.write_bytes(dump_json({**body, "digest": sha256_hex(canonical(body))}))
@@ -41,8 +48,8 @@ def write(path: Path, document: dict) -> Path:
 
 
 def problems(tmp_path: Path, facts: dict | None = None, profiles: dict | None = None, read=READ):
-    facts_path = write(tmp_path / "setup-facts.json", facts or load(FACTS))
-    profiles_path = write(tmp_path / "setup-profiles.json", profiles or load(PROFILES))
+    facts_path = write(tmp_path / "setup-facts.json", facts or draft_state(FACTS))
+    profiles_path = write(tmp_path / "setup-profiles.json", profiles or draft_state(PROFILES))
     found = setup.check_setup(CONFIG, MANIFEST, profiles_path, facts_path, read)
     return [str(problem) for problem in found]
 
@@ -55,11 +62,22 @@ def test_committed_profiles_and_facts_verify_offline():
     assert setup.check_setup(CONFIG, MANIFEST, PROFILES, FACTS, READ) == []
 
 
-def test_every_row_profile_and_version_line_is_an_assistant_draft_pending_review():
+def test_every_record_is_a_draft_or_carries_a_decision_bound_to_its_content():
     facts, profiles = load(FACTS), load(PROFILES)
     assert len(facts["rows"]) >= 12 and facts["not_citable"]
-    for item in [*facts["rows"], *profiles["profiles"], *profiles["version_lines"]]:
-        assert item["status"] == "assistant_drafted" and item["review"] is None
+    models = [
+        *((r, setup.FactRow) for r in facts["rows"]),
+        *((p, setup.Profile) for p in profiles["profiles"]),
+        *((v, setup.VersionLine) for v in profiles["version_lines"]),
+    ]
+    for item, model in models:
+        if item["status"] == "assistant_drafted":
+            assert item["review"] is None, item["id"]
+            continue
+        review = item["review"]
+        assert review["words"] == setup.REVIEW_WORDS[item["status"]], item["id"]
+        assert re.fullmatch(r"SR-\d{3}\.\d{2}", review["decision_id"]), item["id"]
+        assert review["content_sha256"] == setup.record_sha(model.model_validate(item))
 
 
 def test_version_lines_carry_chads_cited_pairings_and_matching_manuals():
@@ -96,7 +114,7 @@ def test_version_lines_carry_chads_cited_pairings_and_matching_manuals():
 def test_a_cited_pairing_needs_a_version_claim_naming_the_release(
     tmp_path, line, blender, status, message
 ):
-    profiles = load(PROFILES)
+    profiles = draft_state(PROFILES)
     profiles["version_lines"][line].update(blender=blender, pairing_status=status)
     found = problems(tmp_path, profiles=profiles)
     # The line's Manual no longer matches its release either; that check is tested below.
@@ -138,7 +156,7 @@ def test_a_cited_pairing_needs_a_version_claim_naming_the_release(
     ids=["swapped", "both-5.2", "both-4.5"],
 )
 def test_each_line_names_the_manual_of_its_own_blender_release(tmp_path, manuals, message):
-    profiles = load(PROFILES)
+    profiles = draft_state(PROFILES)
     for line, manual in zip(profiles["version_lines"], manuals, strict=True):
         line["sources"]["blender_manual"] = manual
     found = [p for p in problems(tmp_path, profiles=profiles) if "Manual branch" in p]
@@ -179,7 +197,7 @@ NOT_NEW, NOT_OLD = (
     ids=["source-swapped", "source-both-0.9", "source-both-0.8.5", "docs-swapped", "docs-both-0.9"],
 )
 def test_each_line_names_the_bonsai_pins_of_its_own_release(tmp_path, role, pins, message):
-    profiles = load(PROFILES)
+    profiles = draft_state(PROFILES)
     for line, pin in zip(profiles["version_lines"], pins, strict=True):
         line["sources"][role] = pin
     # A moved docs pin also leaves some rows and the cited pairing without their own docs.
@@ -209,14 +227,14 @@ def test_each_line_names_the_bonsai_pins_of_its_own_release(tmp_path, role, pins
     ids=["tag-of-another-release", "release-of-another-tag", "same-release-spelled-apart"],
 )
 def test_a_lines_bonsai_tag_is_its_release_and_its_pins_tag(tmp_path, change, message):
-    profiles = load(PROFILES)
+    profiles = draft_state(PROFILES)
     profiles["version_lines"][1].update(change)
     found = problems(tmp_path, profiles=profiles)
     assert found == [f"setup: setup-profiles.json: {m}" for m in message], found
 
 
 def test_a_cited_pairing_counts_only_its_own_bonsai_docs_pin(tmp_path):
-    facts = load(FACTS)
+    facts = draft_state(FACTS)
     # SF-012 moved onto the older docs pin no longer cites VL-current's own docs.
     citation = row(facts, "SF-012")["citations"][0]
     citation["source"] = "bonsai-docs-0-8-5-post1"
@@ -226,7 +244,7 @@ def test_a_cited_pairing_counts_only_its_own_bonsai_docs_pin(tmp_path):
 
 @pytest.mark.parametrize("status, valid", [("partly cited", True), ("partly_cited", False)])
 def test_pairing_status_spells_partly_cited_as_the_enum_basis_does(tmp_path, status, valid):
-    profiles = load(PROFILES)
+    profiles = draft_state(PROFILES)
     profiles["version_lines"][0]["pairing_status"] = status
     found = problems(tmp_path, profiles=profiles)
     assert (found == []) is valid, found
@@ -307,7 +325,7 @@ def test_profiles_split_without_leakage():
     ],
 )
 def test_profile_rules(tmp_path, change, message):
-    profiles = load(PROFILES)
+    profiles = draft_state(PROFILES)
     change(profiles)
     assert any(message in p for p in problems(tmp_path, profiles=profiles))
 
@@ -338,19 +356,19 @@ def first_citation(facts: dict) -> dict:
     ],
 )
 def test_each_citation_check_names_its_problem(tmp_path, change, message):
-    facts = load(FACTS)
+    facts = draft_state(FACTS)
     change(first_citation(facts))
     assert any(message in p for p in problems(tmp_path, facts=facts)), problems(tmp_path, facts)
 
 
 def test_quote_case_and_punctuation_must_match(tmp_path):
-    facts = load(FACTS)
+    facts = draft_state(FACTS)
     first_citation(facts)["quote"] = "ifc2x3 models cannot be georeferenced."
     assert any("quote not found" in p for p in problems(tmp_path, facts=facts))
 
 
 def test_a_quote_inside_an_rst_comment_is_refused(tmp_path):
-    facts = load(FACTS)
+    facts = draft_state(FACTS)
     citation = first_citation(facts)
     path = "manual/editors/3dview/3d_cursor.rst"
     data = (FIXTURES / "blender-manual" / path).read_bytes()
@@ -385,7 +403,7 @@ def test_a_tampered_fixture_page_is_a_page_hash_problem(tmp_path):
 
 
 def test_key_terms_must_occur_in_a_quote(tmp_path):
-    facts = load(FACTS)
+    facts = draft_state(FACTS)
     facts["rows"][0]["key_terms"].append("IFC4X3")
     assert any("key term 'IFC4X3' is in no quote" in p for p in problems(tmp_path, facts=facts))
 
@@ -396,14 +414,14 @@ def test_key_terms_must_occur_in_a_quote(tmp_path):
     ids=["IFC-inside-IFC4", "3.1-inside-3.13", "5-inside-5.1"],
 )
 def test_a_key_term_inside_a_longer_token_is_in_no_quote(tmp_path, identifier, term):
-    facts = load(FACTS)
+    facts = draft_state(FACTS)
     row(facts, identifier)["key_terms"].append(term)
     found = problems(tmp_path, facts=facts)
     assert found == [f"setup: {identifier}: key term {term!r} is in no quote on token boundaries"]
 
 
 def test_a_version_line_needs_a_citation_from_its_own_sources(tmp_path):
-    facts = load(FACTS)
+    facts = draft_state(FACTS)
     first = facts["rows"][0]
     first["citations"] = [c for c in first["citations"] if c["source"] == "bonsai-docs"]
     assert any("no citation from VL-older's sources" in p for p in problems(tmp_path, facts=facts))
@@ -417,7 +435,7 @@ def test_a_version_line_needs_a_citation_from_its_own_sources(tmp_path):
 def test_only_the_lines_own_manual_covers_the_older_line(tmp_path, manual, valid):
     # Each line's Blender steps come from its matching Manual: the 5.2 Manual does not
     # stand in for VL-older's Blender 4.5.
-    facts = load(FACTS)
+    facts = draft_state(FACTS)
     target = row(facts, "SF-016")
     target["applies_to"]["version_lines"] = ["VL-older"]
     target["citations"] = [c for c in target["citations"] if c["source"] == manual]
@@ -426,7 +444,7 @@ def test_only_the_lines_own_manual_covers_the_older_line(tmp_path, manual, valid
 
 
 def test_fact_row_ids_must_be_unique(tmp_path):
-    facts = load(FACTS)
+    facts = draft_state(FACTS)
     facts["rows"][1]["id"] = facts["rows"][0]["id"]
     assert any("fact row ids are not unique" in p for p in problems(tmp_path, facts=facts))
 
@@ -436,13 +454,13 @@ def absence_row(facts: dict) -> dict:
 
 
 def test_absence_must_hold_on_the_named_page(tmp_path):
-    facts = load(FACTS)
+    facts = draft_state(FACTS)
     absence_row(facts)["absent_in"][0]["text"] = "Creating Walls"
     assert any("absence violated" in p for p in problems(tmp_path, facts=facts))
 
 
 def test_absence_claim_must_say_not_documented_on_that_page(tmp_path):
-    facts = load(FACTS)
+    facts = draft_state(FACTS)
     target = absence_row(facts)
     target["claim"] = "The interactive wall editing feature is absent in 0.8.5-post1."
     found = problems(tmp_path, facts=facts)
@@ -485,14 +503,14 @@ def test_absence_claim_must_say_not_documented_on_that_page(tmp_path):
     ],
 )
 def test_rows_that_cannot_exist(tmp_path, change, message):
-    facts = copy.deepcopy(load(FACTS))
+    facts = draft_state(FACTS)
     change(facts["rows"][0])
     found = problems(tmp_path, facts=facts)
     assert any("invalid" in p and message in p for p in found), found
 
 
 def test_a_review_binds_to_the_records_content(tmp_path):
-    facts, profiles = copy.deepcopy(load(FACTS)), copy.deepcopy(load(PROFILES))
+    facts, profiles = draft_state(FACTS), draft_state(PROFILES)
     for record, model in (
         (row(facts, "SF-001"), setup.FactRow),
         (profiles["profiles"][0], setup.Profile),
@@ -517,10 +535,11 @@ def test_non_canonical_or_redigested_files_are_detected(tmp_path):
 
 
 def test_format_rewrites_a_hand_edited_file_canonically(tmp_path):
-    facts = load(FACTS)
+    facts = draft_state(FACTS)
     path = tmp_path / "setup-facts.json"
     path.write_text(json.dumps(facts, indent=4))
-    assert setup.format_document(path, setup.FACTS_SCHEMA, setup.SetupFacts) == FACTS.read_bytes()
+    expected = write(tmp_path / "expected.json", facts).read_bytes()
+    assert setup.format_document(path, setup.FACTS_SCHEMA, setup.SetupFacts) == expected
     row(facts, "SF-001")["status"] = "chad_accepted"
     path.write_text(json.dumps(facts))
     with pytest.raises(ValueError, match="needs a review"):

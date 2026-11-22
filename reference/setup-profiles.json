@@ -1,5 +1,5 @@
 {
-  "digest": "abae81ca0c7a7ffe3381f86cba89be77552dcc76a5df006ec78934c5a83821e0",
+  "digest": "5515fb9378f911d85071c9e435c1ca13b9f0e713f65c6cf2d9b395b5a24d611b",
   "drafted_on": "2026-11-22",
   "enums": {
     "discipline": {
@@ -23,24 +23,186 @@
     }
   },
   "profiles": [
-    {"discipline": "architecture", "id": "SP-01", "ifc_schema": "IFC2X3", "model_state": "new_project", "review": null, "split": "assessed", "status": "assistant_drafted", "version_line": "VL-current"},
-    {"discipline": "structure", "id": "SP-02", "ifc_schema": "IFC2X3", "model_state": "opened_ifc", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-current"},
-    {"discipline": "building_services", "id": "SP-03", "ifc_schema": "IFC2X3", "model_state": "large_federated_model", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-current"},
-    {"discipline": "structure", "id": "SP-04", "ifc_schema": "IFC4", "model_state": "new_project", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-current"},
-    {"discipline": "building_services", "id": "SP-05", "ifc_schema": "IFC4", "model_state": "opened_ifc", "review": null, "split": "assessed", "status": "assistant_drafted", "version_line": "VL-current"},
-    {"discipline": "architecture", "id": "SP-06", "ifc_schema": "IFC4", "model_state": "large_federated_model", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-current"},
-    {"discipline": "building_services", "id": "SP-07", "ifc_schema": "IFC4X3", "model_state": "new_project", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-current"},
-    {"discipline": "architecture", "id": "SP-08", "ifc_schema": "IFC4X3", "model_state": "opened_ifc", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-current"},
-    {"discipline": "structure", "id": "SP-09", "ifc_schema": "IFC4X3", "model_state": "large_federated_model", "review": null, "split": "assessed", "status": "assistant_drafted", "version_line": "VL-current"},
-    {"discipline": "architecture", "id": "SP-10", "ifc_schema": "IFC2X3", "model_state": "new_project", "review": null, "split": "assessed", "status": "assistant_drafted", "version_line": "VL-older"},
-    {"discipline": "structure", "id": "SP-11", "ifc_schema": "IFC2X3", "model_state": "opened_ifc", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-older"},
-    {"discipline": "building_services", "id": "SP-12", "ifc_schema": "IFC2X3", "model_state": "large_federated_model", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-older"},
-    {"discipline": "structure", "id": "SP-13", "ifc_schema": "IFC4", "model_state": "new_project", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-older"},
-    {"discipline": "building_services", "id": "SP-14", "ifc_schema": "IFC4", "model_state": "opened_ifc", "review": null, "split": "assessed", "status": "assistant_drafted", "version_line": "VL-older"},
-    {"discipline": "architecture", "id": "SP-15", "ifc_schema": "IFC4", "model_state": "large_federated_model", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-older"},
-    {"discipline": "building_services", "id": "SP-16", "ifc_schema": "IFC4X3", "model_state": "new_project", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-older"},
-    {"discipline": "architecture", "id": "SP-17", "ifc_schema": "IFC4X3", "model_state": "opened_ifc", "review": null, "split": "development", "status": "assistant_drafted", "version_line": "VL-older"},
-    {"discipline": "structure", "id": "SP-18", "ifc_schema": "IFC4X3", "model_state": "large_federated_model", "review": null, "split": "assessed", "status": "assistant_drafted", "version_line": "VL-older"}
+    {
+      "discipline": "architecture",
+      "id": "SP-01",
+      "ifc_schema": "IFC2X3",
+      "model_state": "new_project",
+      "review": {"content_sha256": "f8b62646809e893d6bb1c468dbc67b2ee0dbaf490a366f24f10644250b79f83d", "decided_on": "2026-11-22", "decision_id": "SR-001.03", "words": "approve"},
+      "split": "assessed",
+      "status": "chad_accepted",
+      "version_line": "VL-current"
+    },
+    {
+      "discipline": "structure",
+      "id": "SP-02",
+      "ifc_schema": "IFC2X3",
+      "model_state": "opened_ifc",
+      "review": {"content_sha256": "c8269c708d67acdf5a14eda2797b317c39bb118f3900ba3d4f5215e087cb71a8", "decided_on": "2026-11-22", "decision_id": "SR-001.04", "words": "approve"},
+      "split": "development",
+      "status": "chad_accepted",
+      "version_line": "VL-current"
+    },
+    {
+      "discipline": "building_services",
+      "id": "SP-03",
+      "ifc_schema": "IFC2X3",
+      "model_state": "large_federated_model",
+      "review": {"content_sha256": "ae0b100de3fa09ba90fac440bf6fb5f3de6667d35b2a18092f8661ae7a2a9aee", "decided_on": "2026-11-22", "decision_id": "SR-001.05", "words": "approve"},
+      "split": "development",
+      "status": "chad_accepted",
+      "version_line": "VL-current"
+    },
+    {
+      "discipline": "structure",
+      "id": "SP-04",
+      "ifc_schema": "IFC4",
+      "model_state": "new_project",
+      "review": {"content_sha256": "1a175d22a1669e72d441854e923e7395d381d02ebe35c2f5eb973fe57269584c", "decided_on": "2026-11-22", "decision_id": "SR-001.06", "words": "approve"},
+      "split": "development",
+      "status": "chad_accepted",
+      "version_line": "VL-current"
+    },
+    {
+      "discipline": "building_services",
+      "id": "SP-05",
+      "ifc_schema": "IFC4",
+      "model_state": "opened_ifc",
+      "review": {"content_sha256": "f6e47443ea64cde2ff750e985d252e9ac05076a8a8501d9959fbd6601a1b5c0d", "decided_on": "2026-11-22", "decision_id": "SR-001.07", "words": "approve"},
+      "split": "assessed",
+      "status": "chad_accepted",
+      "version_line": "VL-current"
+    },
+    {
+      "discipline": "architecture",
+      "id": "SP-06",
+      "ifc_schema": "IFC4",
+      "model_state": "large_federated_model",
+      "review": {"content_sha256": "e0a472d90d080ec62472c99a7ac6fc73d60c32591a476c3f101fd1ec5a20a32f", "decided_on": "2026-11-22", "decision_id": "SR-001.08", "words": "approve"},
+      "split": "development",
+      "status": "chad_accepted",
+      "version_line": "VL-current"
+    },
+    {
+      "discipline": "building_services",
+      "id": "SP-07",
+      "ifc_schema": "IFC4X3",
+      "model_state": "new_project",
+      "review": {"content_sha256": "f93d4f85908867d57ba6d7067db3be0b8544810ed7658a09699726d7c76273aa", "decided_on": "2026-11-22", "decision_id": "SR-001.09", "words": "approve"},
+      "split": "development",
+      "status": "chad_accepted",
+      "version_line": "VL-current"
+    },
+    {
+      "discipline": "architecture",
+      "id": "SP-08",
+      "ifc_schema": "IFC4X3",
+      "model_state": "opened_ifc",
+      "review": {"content_sha256": "c43a46b241560564f0b6b3252174123ea58887d24ec5bf3a4c73edf7ee42a169", "decided_on": "2026-11-22", "decision_id": "SR-001.10", "words": "approve"},
+      "split": "development",
+      "status": "chad_accepted",
+      "version_line": "VL-current"
+    },
+    {
+      "discipline": "structure",
+      "id": "SP-09",
+      "ifc_schema": "IFC4X3",
+      "model_state": "large_federated_model",
+      "review": {"content_sha256": "332a4b8e53c40bc64ffbd5120ecb315cab03cbf36540263f30d249bfb5acdef1", "decided_on": "2026-11-22", "decision_id": "SR-001.11", "words": "approve"},
+      "split": "assessed",
+      "status": "chad_accepted",
+      "version_line": "VL-current"
+    },
+    {
+      "discipline": "architecture",
+      "id": "SP-10",
+      "ifc_schema": "IFC2X3",
+      "model_state": "new_project",
+      "review": {"content_sha256": "07f29f49ed5e1ce04443ecfeb75792fc5f796e3b0950f4611932841a475afd03", "decided_on": "2026-11-22", "decision_id": "SR-001.12", "words": "approve"},
+      "split": "assessed",
+      "status": "chad_accepted",
+      "version_line": "VL-older"
+    },
+    {
+      "discipline": "structure",
+      "id": "SP-11",
+      "ifc_schema": "IFC2X3",
+      "model_state": "opened_ifc",
+      "review": {"content_sha256": "53359df08e50526ddd0343377a987b09f6f0a698cfa0e92165544184bb951bc7", "decided_on": "2026-11-22", "decision_id": "SR-001.13", "words": "approve"},
+      "split": "development",
+      "status": "chad_accepted",
+      "version_line": "VL-older"
+    },
+    {
+      "discipline": "building_services",
+      "id": "SP-12",
+      "ifc_schema": "IFC2X3",
+      "model_state": "large_federated_model",
+      "review": {"content_sha256": "4f333a791b4dd37e32c50ff4b0a09c34cb286d6f40676abc2c17912bc4116bc6", "decided_on": "2026-11-22", "decision_id": "SR-001.14", "words": "approve"},
+      "split": "development",
+      "status": "chad_accepted",
+      "version_line": "VL-older"
+    },
+    {
+      "discipline": "structure",
+      "id": "SP-13",
+      "ifc_schema": "IFC4",
+      "model_state": "new_project",
+      "review": {"content_sha256": "fb60ec7b20b3c0882f3048bde7eb39661f0dc96ce1b6bbacdd872cadb4d075bb", "decided_on": "2026-11-22", "decision_id": "SR-001.15", "words": "approve"},
+      "split": "development",
+      "status": "chad_accepted",
+      "version_line": "VL-older"
+    },
+    {
+      "discipline": "building_services",
+      "id": "SP-14",
+      "ifc_schema": "IFC4",
+      "model_state": "opened_ifc",
+      "review": {"content_sha256": "ab6f935744b8cae16eb7ebd0553f3c564112094a9cb4b941997800946b9c1ee8", "decided_on": "2026-11-22", "decision_id": "SR-001.16", "words": "approve"},
+      "split": "assessed",
+      "status": "chad_accepted",
+      "version_line": "VL-older"
+    },
+    {
+      "discipline": "architecture",
+      "id": "SP-15",
+      "ifc_schema": "IFC4",
+      "model_state": "large_federated_model",
+      "review": {"content_sha256": "b3ce0959e4067698ed602c34512a3decaaf5d296e3f5c48393b52c787c6860ac", "decided_on": "2026-11-22", "decision_id": "SR-001.17", "words": "approve"},
+      "split": "development",
+      "status": "chad_accepted",
+      "version_line": "VL-older"
+    },
+    {
+      "discipline": "building_services",
+      "id": "SP-16",
+      "ifc_schema": "IFC4X3",
+      "model_state": "new_project",
+      "review": {"content_sha256": "b4550e56b6c16cebbe571814756e7f64db0c42d03ab23165ce891cb48d8bef2a", "decided_on": "2026-11-22", "decision_id": "SR-001.18", "words": "approve"},
+      "split": "development",
+      "status": "chad_accepted",
+      "version_line": "VL-older"
+    },
+    {
+      "discipline": "architecture",
+      "id": "SP-17",
+      "ifc_schema": "IFC4X3",
+      "model_state": "opened_ifc",
+      "review": {"content_sha256": "f553cc8a88009c981592fc23c11d80f0d0fc505bdd09625c18d59877d0e25920", "decided_on": "2026-11-22", "decision_id": "SR-001.19", "words": "approve"},
+      "split": "development",
+      "status": "chad_accepted",
+      "version_line": "VL-older"
+    },
+    {
+      "discipline": "structure",
+      "id": "SP-18",
+      "ifc_schema": "IFC4X3",
+      "model_state": "large_federated_model",
+      "review": {"content_sha256": "4e3da345527c9cee5f732a097458624cd568541c90bc41a2c6701fd57515ff3c", "decided_on": "2026-11-22", "decision_id": "SR-001.20", "words": "approve"},
+      "split": "assessed",
+      "status": "chad_accepted",
+      "version_line": "VL-older"
+    }
   ],
   "schema": "setup-profiles-v1",
   "version_lines": [
@@ -53,9 +215,9 @@
       "origin": "Chad, 2026-11-22",
       "pairing_note": "Cited by SF-012: the 0.9.0-post1 developer installation page lists Blender 5.1 or 5.2. The same pin's troubleshooting page says Blender 4.5 (SF-015, a conflict within the pin, listed among the claims and disclosed here). Chad chose this pairing on 2026-11-22 (\"Cited pairings + matching Manuals\"); Blender steps come from the Blender 5.2 Manual. The pairing is evidence, not a scored fact.",
       "pairing_status": "cited",
-      "review": null,
+      "review": {"content_sha256": "e9641d00c0a91f6148f58ce8622e55ff0cbf679568fe22ffd394d76e61c6be5b", "decided_on": "2026-11-22", "decision_id": "SR-001.01", "words": "approve"},
       "sources": {"blender_manual": "blender-manual", "bonsai_docs": "bonsai-docs", "bonsai_source": "bonsai-source"},
-      "status": "assistant_drafted"
+      "status": "chad_accepted"
     },
     {
       "blender": "4.5",
@@ -66,9 +228,9 @@
       "origin": "Chad, 2026-11-22",
       "pairing_note": "Cited by SF-013: the 0.8.5-post1 developer installation page lists Blender 4.3, 4.4, or 4.5. Chad chose this pairing on 2026-11-22 (\"Cited pairings + matching Manuals\"); Blender steps come from the Blender 4.5 Manual. The 0.9.0-post1 maintenance page's 0.8.5-post1 values are only an example (not_citable). The pairing is evidence, not a scored fact.",
       "pairing_status": "cited",
-      "review": null,
+      "review": {"content_sha256": "02814e4bc892cd1246e7dabe968199756b5919c4ca83f0aedc01bbe5a7bc6242", "decided_on": "2026-11-22", "decision_id": "SR-001.02", "words": "approve"},
       "sources": {"blender_manual": "blender-manual-4-5", "bonsai_docs": "bonsai-docs-0-8-5-post1", "bonsai_source": "bonsai-source-0-8-5-post1"},
-      "status": "assistant_drafted"
+      "status": "chad_accepted"
     }
   ]
 }

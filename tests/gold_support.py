@@ -44,6 +44,16 @@ LEXICON_DOCUMENTS = {
 LEXICON_VIEW = gp.Lexicons(LEXICON_DOCUMENTS)
 
 
+def drafted(document: dict) -> dict:
+    """A copy of a raw setup document with every record reset to `assistant_drafted` and no
+    review: the state the setup rules are exercised on, whatever Chad has decided since."""
+    copied = copy.deepcopy(document)
+    for key in ("rows", "profiles", "version_lines"):
+        for record in copied.get(key, []):
+            record.update(status="assistant_drafted", review=None)
+    return copied
+
+
 def slot(identifier, kind, split, category, profile, vector=None) -> dict:
     line = next(p.version_line for p in PROFILES.profiles if p.id == profile)
     return {

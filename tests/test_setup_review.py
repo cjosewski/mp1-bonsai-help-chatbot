@@ -8,11 +8,10 @@ from __future__ import annotations
 
 import json
 import re
-import shutil
 import sys
 
 import pytest
-from gold_support import FIXTURES, MANIFEST, ROOT
+from gold_support import FIXTURES, MANIFEST, ROOT, drafted
 
 from bonsai_help import cli, gold_review, setup, setup_review
 from bonsai_help.doc_snapshot import CheckFailed
@@ -25,8 +24,15 @@ YES = lambda summary: True  # noqa: E731  (a test's stand-in for Chad's typed co
 
 @pytest.fixture
 def root(tmp_path):
-    for name in ("setup-profiles.json", "setup-facts.json"):
-        shutil.copy(ROOT / "reference" / name, tmp_path / name)
+    """Copies of the setup files with every record reset to an unreviewed draft, so the
+    review flow is exercised from the start whatever Chad has decided since."""
+    for name, schema, model in (
+        ("setup-profiles.json", setup.PROFILES_SCHEMA, setup.SetupProfiles),
+        ("setup-facts.json", setup.FACTS_SCHEMA, setup.SetupFacts),
+    ):
+        path = tmp_path / name
+        path.write_text(json.dumps(drafted(json.loads((ROOT / "reference" / name).read_bytes()))))
+        path.write_bytes(setup.format_document(path, schema, model))
     return tmp_path
 
 

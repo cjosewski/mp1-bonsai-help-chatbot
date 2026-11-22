@@ -1,5 +1,5 @@
 {
-  "digest": "b6b188132ca76b93f7caf5e59cbe9d1b38dc9824e03a71fc59357cbf224ab6f9",
+  "digest": "d64036b684847ed197c1be393f8002ca3082f421aa16e398880066e17d431a05",
   "not_citable": [
     {"claim": "Bonsai 0.9.0-post1 supports Blender 5.3.", "reason": "No pinned text names Blender 5.3 with Bonsai 0.9.0-post1; the 0.9.0-post1 developer installation page lists Blender 5.1 or 5.2 (SF-012).", "wanted": "The plan's VL-current pairing (plan §2), replaced by Blender 5.2 on 2026-11-22"},
     {"claim": "Bonsai 0.8.5-post1 serves Blender 4.2 LTS.", "reason": "Only build metadata pairs them (src/bonsai/bonsai/blender_manifest.toml, blender_version_min); no snapshot selects it (the operator sources take .py files only) and it carries a contact address. The 0.8.5-post1 docs list Blender 4.3, 4.4, or 4.5 (SF-013).", "wanted": "The O-3 default VL-older pairing, replaced by Blender 4.5 on 2026-11-22"},
@@ -107,8 +107,8 @@
       "key_terms": ["IFC2X3", "IFC4"],
       "kind": "schema_dependent",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "95d3bb8048e1f218a4320896748f1db38d6dde1df1b23758220307d5dee56e75", "decided_on": "2026-11-22", "decision_id": "SR-001.21", "words": "reject"},
+      "status": "chad_rejected",
       "topic": "georeferencing"
     },
     {
@@ -179,8 +179,8 @@
       "key_terms": ["Projected CRS", "IFC4 onwards"],
       "kind": "schema_dependent",
       "note": "IFC4X3 is included because the docs say 'IFC4 onwards'; the docs do not name IFC4X3 here.",
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "247c9a80b80b2df4bbd87d844774b09c302724eea89d794c6ce73b4bfb8b7eaa", "decided_on": "2026-11-22", "decision_id": "SR-001.22", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "georeferencing"
     },
     {
@@ -225,8 +225,8 @@
       "key_terms": ["IFC2X3", "false origin"],
       "kind": "schema_dependent",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "eff5c7acddb934a91086b0d98bf4e8bcff5b1c3f1e89f7a756e5b59c1636c64f", "decided_on": "2026-11-22", "decision_id": "SR-001.23", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "georeferencing: map coordinates"
     },
     {
@@ -297,8 +297,8 @@
       "key_terms": ["IFC4", "IFC2x3"],
       "kind": "schema_dependent",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "785adb5207c2df8b968dea9f7835c3e0db6f757c33370df7a6d54c12879a22e2", "decided_on": "2026-11-22", "decision_id": "SR-001.24", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "material categories"
     },
     {
@@ -369,8 +369,8 @@
       "key_terms": ["IFC4", "IFC2x3"],
       "kind": "schema_dependent",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "0124ba2125d287aa27eb35c74a0653d80236c1f9ded350ef88971f48469267aa", "decided_on": "2026-11-22", "decision_id": "SR-001.25", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "material properties"
     },
     {
@@ -467,8 +467,8 @@
       "key_terms": ["IFC4", "Material Profile Sets"],
       "kind": "schema_dependent",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "4ffdae9475b13e7fa6dadef3e440b06e54c7db556f9dfafed08f0bf03dfad38e", "decided_on": "2026-11-22", "decision_id": "SR-001.26", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "material profiles"
     },
     {
@@ -539,8 +539,8 @@
       "key_terms": ["IFC2X3", "IFC4", "IFC4X3"],
       "kind": "schema_dependent",
       "note": "Basis of the ifc_schema enum in reference/setup-profiles.json.",
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "6693fd78253a155e56fc1ef180f2bf8abf0bf2b480d9f6a293fa599d13ae6050", "decided_on": "2026-11-22", "decision_id": "SR-001.27", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "new project schema choice"
     },
     {
@@ -572,8 +572,8 @@
       "key_terms": ["IFC4 is recommended for all new projects"],
       "kind": "schema_dependent",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "cf020ceb5da2062c623f9cccdf4f7cc5ba54d676cb52343c270387f72b386cb3", "decided_on": "2026-11-22", "decision_id": "SR-001.28", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "new project schema recommendation"
     },
     {
@@ -696,8 +696,8 @@
       "key_terms": ["IFC2X3", "IFC4"],
       "kind": "schema_dependent",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "d51b52e003629cc201c09ee447ad87dde61a7d12b10fa2a2ff6373ef27263f20", "decided_on": "2026-11-22", "decision_id": "SR-001.29", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "opened model schema"
     },
     {
@@ -768,8 +768,8 @@
       "key_terms": ["Use IFC4"],
       "kind": "schema_dependent",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "3916bbae47d3986b43ca102d986692e500edc616ae3c5e0c820fd19f0ed57ed1", "decided_on": "2026-11-22", "decision_id": "SR-001.30", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "large models: file size"
     },
     {
@@ -814,8 +814,8 @@
       "key_terms": ["Blender 3.3 and above"],
       "kind": "version_dependent",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "ac57339e28d442436e1536935308943d6c66bad436b47e03dd717936787bbdf4", "decided_on": "2026-11-22", "decision_id": "SR-001.31", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "large models: load time"
     },
     {
@@ -847,8 +847,8 @@
       "key_terms": ["Blender 5.1 or 5.2", "Python 3.13"],
       "kind": "version_claim",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "2f7d2fd71c03f40fc6569cbc7aeb6d6beef0f6bf653a6b0598e661ea442c7e76", "decided_on": "2026-11-22", "decision_id": "SR-001.32", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "supported Blender versions"
     },
     {
@@ -880,8 +880,8 @@
       "key_terms": ["Blender 4.3, 4.4, or 4.5", "Python 3.11"],
       "kind": "version_claim",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "66600af276e429df1f379715328dddbb3950701303ca1be728de99cdea01f96e", "decided_on": "2026-11-22", "decision_id": "SR-001.33", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "supported Blender versions"
     },
     {
@@ -926,8 +926,8 @@
       "key_terms": ["Blender 4.5", "Blender 5.1 or 5.2"],
       "kind": "doc_conflict",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "3607c36a66e6e0d29efc464098fb39871ab39cb28f981799d8484fc108667067", "decided_on": "2026-11-22", "decision_id": "SR-001.34", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "supported Blender versions"
     },
     {
@@ -1024,8 +1024,8 @@
       "key_terms": ["4.2 LTS", "First LTS of the 4.0 series", "Blender Extensions platform launched"],
       "kind": "version_dependent",
       "note": "Re-pointed on 2026-11-22 from the Blender 5.3 Manual to the 5.2 and 4.5 Manuals (the same three quotes). No version line uses Blender 4.2 any more, so the row is no longer pairing evidence for VL-older.",
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "af43d93a0f13b865cebecd9fd49795fa354526b75627f8cbabd0f460309a004e", "decided_on": "2026-11-22", "decision_id": "SR-001.35", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "Blender 4.2 LTS"
     },
     {
@@ -1085,8 +1085,8 @@
       "key_terms": ["Edit Wall", "the IFC file is not touched until you commit"],
       "kind": "doc_absence",
       "note": "Page-level absence only: the claim does not say the feature is missing from 0.8.5-post1.",
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "654c9d6c89855d4246b29ab7747babff7e4d307009ba380812e487336fc3e9c7", "decided_on": "2026-11-22", "decision_id": "SR-001.36", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "interactive wall editing"
     },
     {
@@ -1118,8 +1118,8 @@
       "key_terms": ["Unit System", "requires conversion"],
       "kind": "version_dependent",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "0f5eeea3cf7926ca44234f88db50b0b0e15b7610de2964b3852fededd02f3920", "decided_on": "2026-11-22", "decision_id": "SR-001.37", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "project units"
     },
     {
@@ -1164,8 +1164,8 @@
       "key_terms": ["New IFC Project", "blank IFC4 project"],
       "kind": "schema_dependent",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "14215eea1d7b944f4a1c975564c7aee5ac9edf3caaf8c0bb34a1fc3499e6101f", "decided_on": "2026-11-22", "decision_id": "SR-001.38", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "quickstart project"
     },
     {
@@ -1223,8 +1223,8 @@
       "key_terms": ["Ctrl+S", "bim.save_project", "undo entry"],
       "kind": "version_dependent",
       "note": null,
-      "review": null,
-      "status": "assistant_drafted",
+      "review": {"content_sha256": "c60de424473a5391ce17e66ca805bdbf9a98bf250503a36591f19d3b28d022d8", "decided_on": "2026-11-22", "decision_id": "SR-001.39", "words": "approve"},
+      "status": "chad_accepted",
       "topic": "saving during wall edits"
     }
   ],
