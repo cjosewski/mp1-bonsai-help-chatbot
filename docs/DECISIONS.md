@@ -870,6 +870,32 @@ fixtures from the committed files with every record reset to an unreviewed draft
 the rules rather than the committed review state; record counts in the review-flow tests are
 derived from the files.
 
+### Assistant's calls integrating the redrafts (not owner decisions)
+
+Assistant lanes redrafted the 104 rejected items as assistant drafts under `gold-check-v2`
+and Chad's "Code wins, cited" rule; nothing here approves, imports or reviews an item.
+
+- **Full-set check of the draft heads.** `gold check --complete` covers published items
+  and `--drafts` applies no regex budget, so the assistant ran the set checks in complete
+  mode, with the fixture-slice rule, over all 110 heads (6 accepted, 104 redrafts) through
+  the checker's own functions, read-only. Counts, vectors, duplicates, question leakage
+  and the negative control pass; 4 of 332 scored patterns are regexes (1.2%). Warnings
+  only: 54 held-out/development pairs share reference 8-grams and 34 section records are
+  cited in both splits. No cross-lane problem needed a fix.
+- **Fixture slice follows the drafts.** As on November 22 for the first drafts, every page
+  and code span a draft head cites joins the slice now, so a reviewed item can publish
+  without another fixture change: 12 Blender Manual pages (5 of 5.2, 7 of 4.5) and 242 code
+  spans (132 at 0.9.0-post1, 110 at 0.8.5-post1), each span as its own lines, written by
+  `snapshot fixtures --replace`, none with a privacy match. A page or span in the slice is
+  not a reviewed citation.
+- **Partial publish.** `gold publish --write` published Chad's 6 accepted items (2
+  development, 4 held-out). With so few published items the negative control does not
+  apply to 10 of their patterns (fewer than 10 other-category items); it applies again as
+  the published set grows, and the full set meets it.
+- **New packets.** The 104 redrafts were exported for Chad's decisions on November 22, 2026
+  as GP-006 to GP-008 (58 development) and GP-009 and GP-010 (46 held-out), and SF-021 as
+  setup packet SR-002. The packets stay outside Git under `data/`; the imports are Chad's.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

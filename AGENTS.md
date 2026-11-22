@@ -74,7 +74,9 @@ with Chad's four decisions (pairings, IFC schemas, review packets, drafting; quo
   imported GP-001 to GP-005 on November 22, 2026 (6 accepted, 104 rejected) and SR-001.
   He delegated those reviews to an assistant reviewer and records the decisions as his own
   ("I delegated; record them as mine"); future packets may be reviewed the same way, and
-  only he runs `gold packet import` and `setup review import`.
+  only he runs `gold packet import` and `setup review import`. The 6 accepted items are
+  published (`reference/gold/`). The 104 rejected items are redrafted as assistant drafts
+  and exported for Chad's decisions in GP-006 to GP-010; fact row SF-021 is in SR-002.
 - Docs versus code (Chad, November 22, 2026, "Code wins, cited"): where the pinned Bonsai
   docs and the pinned add-on source disagree, a reference answer follows the code, cites
   both (the doc section with role `conflict`, the code span as a code citation), and carries

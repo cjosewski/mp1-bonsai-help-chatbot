@@ -11,7 +11,7 @@ the pins in `config/doc-sources.json` and checks them against the page hashes in
 
 Bonsai documentation by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/docs at tag bonsai-0.9.0post1, commit 2744f8426bdef98a486406628a121298a5479690), licensed under the GNU General Public License v3.0 or later. Copied unmodified.
 
-- Files: `tests/fixtures/docs/bonsai-docs/src/bonsai/docs/` (33 pages).
+- Files: `tests/fixtures/docs/bonsai-docs/src/bonsai/docs/` (34 pages).
 - License text: [`tests/fixtures/docs/bonsai-docs/src/bonsai/COPYING`](tests/fixtures/docs/bonsai-docs/src/bonsai/COPYING)
   (GNU GPL v3; the upstream `src/bonsai/docs/conf.py` header states "version 3 of the
   License, or (at your option) any later version"). That `conf.py` is recorded in the
@@ -24,8 +24,8 @@ Bonsai documentation by the IfcOpenShell contributors (https://github.com/IfcOpe
 
 - Pinned for the older version line (Blender 4.5 with Bonsai 0.8.5-post1, Chad's decision of
   November 22, 2026, which settles open item O-3).
-- Files: `tests/fixtures/docs/bonsai-docs-0-8-5-post1/src/bonsai/docs/` (16 pages: the ones
-  setup-fact rows cite, the six tutorials that gold multi-part requests cite, and the
+- Files: `tests/fixtures/docs/bonsai-docs-0-8-5-post1/src/bonsai/docs/` (23 pages: the ones
+  setup-fact rows and gold drafts cite, the six tutorials that gold multi-part requests cite, and the
   `troubleshooting` and `project_info` pages, whose public example home paths Chad allowed
   on November 22, 2026).
 - License text: the same `src/bonsai/COPYING` blob as above, committed once under
@@ -53,7 +53,7 @@ Bonsai add-on source code by the IfcOpenShell contributors (https://github.com/I
 
 The Blender 5.2 Manual (https://docs.blender.org/manual/) by the Blender Documentation Team (https://projects.blender.org/blender/documentation), licensed under CC BY-SA 4.0 or any later version (https://creativecommons.org/licenses/by-sa/4.0/). Source: https://projects.blender.org/blender/blender-manual, branch blender-v5.2-release, commit 4a3be8f9ed3b66b24913e0a0d491d3429a70ea08. Copied unmodified; logos, trademarks, icons, source code and Python scripts are not covered by that license and are not included.
 
-- Files: `tests/fixtures/docs/blender-manual/manual/` (22 pages plus the Manual's own
+- Files: `tests/fixtures/docs/blender-manual/manual/` (29 pages plus the Manual's own
   license page).
 - License text: [`tests/fixtures/docs/blender-manual/LICENSE`](tests/fixtures/docs/blender-manual/LICENSE)
   (CC BY-SA 4.0 legal code) and the Manual's license page
@@ -70,8 +70,8 @@ The Blender 4.5 Manual (https://docs.blender.org/manual/) by the Blender Documen
 
 - Pinned for the older version line (Blender 4.5 with Bonsai 0.8.5-post1, Chad's decision of
   November 22, 2026).
-- Files: `tests/fixtures/docs/blender-manual-4-5/manual/` (1 page, the one a setup-fact row
-  cites).
+- Files: `tests/fixtures/docs/blender-manual-4-5/manual/` (11 pages, the ones setup-fact
+  rows and gold drafts cite).
 - License text: the same `LICENSE` and `manual/copyright.rst` blobs as above, committed once
   under `tests/fixtures/docs/blender-manual/`. The fixture check rejects Python code blocks in
   these fixtures too.

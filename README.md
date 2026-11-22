@@ -29,14 +29,19 @@ lane batches, checker, review packets, import, publish, pattern score; see
 2026. All 110 items were drafted by assistant lanes; Chad imported his decisions on packets
 GP-001 to GP-005 on November 22, 2026: 6 items accepted and 104 rejected, to be redrafted.
 He delegated those reviews to an assistant reviewer and records the decisions as his own
-([`docs/DECISIONS.md`](docs/DECISIONS.md)). No gold item is published yet.
+([`docs/DECISIONS.md`](docs/DECISIONS.md)). The 6 accepted items are published in
+`reference/gold/` (2 development, 4 held-out). Assistant lanes redrafted the 104 rejected
+items under checker `gold-check-v2` and Chad's "Code wins, cited" rule; all 110 heads pass a
+complete-mode check with the fixture-slice rule, and the 104 redrafts await Chad's decisions
+in packets GP-006 to GP-010, with fact row SF-021 (which replaces SF-001) in setup packet
+SR-002.
 
 | Milestone | What it delivers | Status |
 | --- | --- | --- |
 | B0 | Repository, licenses, decision log, porting map, packaging | Done |
 | B1 | Pinned, hashed documentation snapshots; fixture slice | Done |
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (Chad's SR-001 decisions applied) |
-| B3 | Gold set and multi-part and injection requests | In progress: 6 of 110 items accepted; 104 being redrafted |
+| B3 | Gold set and multi-part and injection requests | In progress: 6 of 110 items accepted and published; 104 redrafts await review (GP-006 to GP-010) |
 | B4 | Rubric, prompts, deterministic checks; generation, gate and collection modules ported | Not yet implemented |
 | B5 | Baseline run | Not yet implemented |
 | B6 | Baseline human labels | Not yet implemented |
@@ -168,13 +173,14 @@ failure; 4 upstream differs from the pins; 5 refused to write. Errors are one li
 each on stderr, without tracebacks or absolute paths. A failed build leaves its
 staging directory for inspection; `snapshot check` lists it as a warning.
 
-The fixture slice in `tests/fixtures/docs/` (33 Bonsai 0.9.0-post1 pages, 16 Bonsai
-0.8.5-post1 pages, 22 Blender 5.2 Manual pages, 1 Blender 4.5 Manual page, the license
-texts and `fixtures.json`) covers every plan §5 category, every page a setup fact cites and
+The fixture slice in `tests/fixtures/docs/` (34 Bonsai 0.9.0-post1 pages, 23 Bonsai
+0.8.5-post1 pages, 29 Blender 5.2 Manual pages, 11 Blender 4.5 Manual pages, the license
+texts and `fixtures.json`) covers every plan §5 category, every page a setup fact or gold draft cites and
 the six Bonsai tutorials of each pin (`tutorials/project0.rst` to `project5.rst`, which gold
 multi-part requests cite), so offline tests and the later replay demo need no network. Its pages link to pages outside the slice, so nothing
 offline may require those links to resolve. The add-on sources contribute only the line
-spans that gold items and fact rows cite (`fixture_code_spans` in the config; 6 per pin),
+spans that gold items and fact rows cite (`fixture_code_spans` in the config; 138 at
+0.9.0-post1 and 116 at 0.8.5-post1),
 each written unmodified as `tests/fixtures/docs/<source>/<path>.L<first>-L<last>` with its
 hashes in `fixtures.json`. `snapshot fixtures` refuses a span with any privacy match, and
 `snapshot check` compares each span with the snapshot's lines.
