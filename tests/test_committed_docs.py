@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from bonsai_help import cli
-from bonsai_help.doc_snapshot import PYTHON_CODE, check_committed
+from bonsai_help.doc_snapshot import PYTHON_CODE, check_committed, fixture_refusal
 from bonsai_help.doc_sources import CATEGORIES, load_config
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -127,3 +127,21 @@ def test_notice_carries_both_attributions():
     text = " ".join(NOTICE.read_text(encoding="utf-8").split())
     assert "IfcOpenShell contributors" in text and "Blender Documentation Team" in text
     assert "GNU General Public License v3.0 or later" in text and "CC BY-SA 4.0" in text
+
+
+def test_fixture_refusal_applies_the_privacy_allowance_and_python_rules():
+    """Pages that could never join the slice are found before anything cites them (gold ingest)."""
+    config = load_config(CONFIG)
+    bonsai, manual = config.source("bonsai-docs"), config.source("blender-manual")
+    path = "src/bonsai/docs/guides/troubleshooting.rst"
+    allowed = (ROOT / "tests/fixtures/docs/bonsai-docs" / path).read_bytes()
+    assert fixture_refusal(config, bonsai, path, allowed) is None
+    changed = allowed + b"\nSee /home/someone/notes.\n"
+    assert "home-path match(es) without a reviewed allowance" in fixture_refusal(
+        config, bonsai, path, changed
+    )
+    other = "src/bonsai/docs/guides/authoring/drawings.rst"
+    assert "without a reviewed allowance" in fixture_refusal(config, bonsai, other, allowed)
+    code = b"Title\n=====\n\n.. code-block:: python\n\n   import bpy\n"
+    assert "Python code" in fixture_refusal(config, manual, "manual/x.rst", code)
+    assert fixture_refusal(config, bonsai, "src/bonsai/docs/x.rst", code) is None

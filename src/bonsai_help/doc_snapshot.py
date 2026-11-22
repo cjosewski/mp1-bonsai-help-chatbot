@@ -525,6 +525,22 @@ def check_privacy(config: DocSources, written: list[Path], fixtures_dir: Path) -
     return problems
 
 
+def fixture_refusal(config: DocSources, source: Source, path: str, data: bytes) -> str | None:
+    """Why a page could never join the source's fixture slice, or None.
+
+    The rules of `check_privacy` and `check_fixtures`: a privacy-pattern match needs a reviewed
+    allowance for these exact bytes, and a source that forbids Python code in fixtures refuses
+    a page holding a Python code block."""
+    allowances = {(item.source, item.path, item.pattern): item for item in config.privacy_allowlist}
+    for pattern, count in privacy_matches(data.decode("utf-8", "replace")).items():
+        allowance = allowances.get((source.id, path, pattern))
+        if not (allowance and allowance.sha256 == sha256_hex(data) and allowance.count == count):
+            return f"{count} {pattern} match(es) without a reviewed allowance"
+    if source.fixture_forbid_python and PYTHON_CODE.search(data):
+        return "contains Python code, excluded from this source's license"
+    return None
+
+
 def check_notice(config: DocSources, notice_path: Path) -> list[Problem]:
     try:
         text = " ".join(notice_path.read_text(encoding="utf-8").split())

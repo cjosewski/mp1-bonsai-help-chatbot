@@ -578,3 +578,11 @@ def test_setup_candidates_need_the_built_index_and_print_json_lines(docs):
 def test_setup_format_on_missing_files_is_exit_1(docs):
     code, _, err = docs.run("setup", "format")
     assert code == 1 and "p.json" in err
+
+
+def test_g5_tokens_and_ngrams():
+    """Ported from the earlier repository's retrieval tests (the B3 leakage check's tokens)."""
+    assert di.g5_tokens("Use Part::Box, e.g. 3.5!") == ["use", "part", "box", "e", "g", "3", "5"]
+    assert di.ngrams(["a", "b", "c"], 2) == {("a", "b"), ("b", "c")}
+    assert di.ngrams(["a"], 8) == set()
+    assert len(di.ngrams(di.g5_tokens("one two three four five six seven eight nine"))) == 2

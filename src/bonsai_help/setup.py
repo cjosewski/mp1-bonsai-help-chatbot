@@ -301,8 +301,13 @@ def verify_citation(
     manifest: Mapping,
     read: Callable[[str, str], bytes | None],
     where: str,
+    *,
+    require_fixture: bool = True,
 ) -> list[Problem]:
-    """Every field of a citation against the pinned page bytes; see the module docstring."""
+    """Every field of a citation against the pinned page bytes; see the module docstring.
+
+    `require_fixture=False` lets a gold draft cite a page outside the committed fixture slice;
+    publishing it still needs the page in the slice."""
     shown = f"{where}: {citation.path}"
     ids = {source.id: source for source in config.sources}
     source = ids.get(citation.source)
@@ -314,7 +319,7 @@ def verify_citation(
         or citation.commit != config.repository_of(source).commit
     ):
         return [Problem("setup", shown, "stale pin: pin_id or commit differs from the manifest")]
-    if citation.path not in fixture_plan(source):
+    if require_fixture and citation.path not in fixture_plan(source):
         return [Problem("setup", shown, "cites a page outside the committed fixture slice")]
     page = next((item for item in entry["pages"] if item["path"] == citation.path), None)
     data = read(source.id, citation.path)

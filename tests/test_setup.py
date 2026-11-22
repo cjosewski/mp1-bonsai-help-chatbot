@@ -432,3 +432,29 @@ def test_candidates_cover_mentions_and_pin_differences():
         ("bonsai-docs-0-8-5-post1", "pin-diff"),
         ("bonsai-docs-0-8-5-post1", "schema-mention"),
     ]
+
+
+def test_a_draft_may_cite_a_snapshot_page_outside_the_slice_only_when_asked(tmp_path):
+    """`require_fixture=False` (gold drafts) skips only the slice rule; the page must still be
+    hash-verified, so a reader that cannot supply it still fails."""
+    data = (FIXTURES / "bonsai-docs/src/bonsai/docs/guides/troubleshooting.rst").read_bytes()
+    entry = MANIFEST["sources"]["bonsai-docs"]
+    pages = frozenset(page["path"] for page in entry["pages"])
+    path = "src/bonsai/docs/guides/troubleshooting.rst"
+    record = split_page(
+        CONFIG.source("bonsai-docs"),
+        entry["pin_id"],
+        entry["repository"]["commit"],
+        path,
+        data,
+        pages,
+        Diagnostics(),
+    )[0]
+    quote = next(line for line in record["text"].splitlines() if len(line.strip()) > 30).strip()
+    citation = setup.Citation(**setup.make_citation(record, quote))
+    assert setup.verify_citation(citation, CONFIG, MANIFEST, READ, "x") == []
+    moved = citation.model_copy(update={"path": "src/bonsai/docs/guides/authoring/drawings.rst"})
+    found = setup.verify_citation(moved, CONFIG, MANIFEST, READ, "x")
+    assert "outside the committed fixture slice" in str(found[0])
+    found = setup.verify_citation(moved, CONFIG, MANIFEST, READ, "x", require_fixture=False)
+    assert "page missing" in str(found[0])

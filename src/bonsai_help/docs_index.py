@@ -10,7 +10,8 @@ Layout under the data root (outside Git):
     index/<source-id>/<index-id>/sections.jsonl, index.json (written last)
     index/<source-id>/.staging-*      an interrupted build, left for inspection
 
-The BM25 core (terms, Okapi BM25, windows, ranking, the JSONL separator guard) is copied
+The BM25 core (terms, Okapi BM25, windows, ranking, the JSONL separator guard) and the
+leakage tokens (`g5_tokens`, `ngrams`, used by the gold set at B3) are copied
 by hand from the earlier repository's `retrieval.py`; see `docs/PORTING-MAP.md`.
 """
 
@@ -66,6 +67,7 @@ STOPWORDS = frozenset(
     "were what when where which while who why will with within without you your".split()
 )
 JSONL_SEPARATORS = ("\x85", " ", " ")
+LEAKAGE_N = 8
 
 
 def separator_location(text: str) -> tuple[int, str] | None:
@@ -85,6 +87,15 @@ def split_lines(text: str) -> list[str]:
     if text.endswith("\n"):
         lines.pop()
     return lines
+
+
+def g5_tokens(text: str) -> list[str]:
+    """Lower-case ASCII letter and digit runs: the token stream of the leakage check."""
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+def ngrams(tokens: Sequence[str], n: int = LEAKAGE_N) -> set[tuple[str, ...]]:
+    return {tuple(tokens[i : i + n]) for i in range(len(tokens) - n + 1)}
 
 
 def windows(
