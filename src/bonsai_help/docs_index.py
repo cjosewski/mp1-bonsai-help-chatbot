@@ -47,7 +47,7 @@ from bonsai_help.doc_sources import (
 )
 from bonsai_help.git_fetch import git_blob_id
 
-PARSER = "rst-sections-v1"
+PARSER = "rst-sections-v2"
 INDEX_SCHEMA = "docs-index-v1"
 DIGEST_SCHEMA = "docs-index-digest-v1"
 
@@ -342,6 +342,20 @@ TOCTREE = re.compile(r"(?P<indent>[ \t]*)\.\. toctree::.*")
 INDEX = re.compile(r"\.\. index::.*")
 OPTION = re.compile(r"[ \t]+:[\w-]+:.*")
 MARKUP = re.compile(r"`|\*|\||:[\w-]+:")
+ESCAPE = re.compile(r"``.+?``|\\(?P<char>.)")
+
+
+def unescape(text: str) -> str:
+    """RST backslash escapes rendered as docutils does: `\\x` gives `x` and an escaped space
+    gives nothing; inline literals are kept as written. Other markup is not rendered."""
+
+    def replace(match: re.Match) -> str:
+        char = match["char"]
+        if char is None:
+            return match.group()
+        return "" if char.isspace() else char
+
+    return ESCAPE.sub(replace, text)
 
 
 class PageRefused(CheckFailed):
@@ -384,8 +398,12 @@ class Title:
     start: int  # 0-based first line (the overline when there is one)
     line: int  # 0-based title text line
     end: int  # 0-based adornment line that closes the title
-    text: str
+    raw: str  # the title line as written; `text` renders its backslash escapes
     style: tuple[str, bool]
+
+    @property
+    def text(self) -> str:
+        return unescape(self.raw)
 
 
 @dataclass
@@ -573,7 +591,7 @@ def split_page(
         floor = title.end + 1
     heads: list[dict] = []
     if not titles:
-        heads.append({"first": 0, "title": None, "level": 0, "labels": [], "path": []})
+        heads.append({"first": 0, "title": None, "raw": None, "level": 0, "labels": [], "path": []})
     stack: list[tuple[int, str]] = []
     for index, title in enumerate(titles):
         if title.style not in styles:
@@ -589,6 +607,7 @@ def split_page(
             {
                 "first": 0 if index == 0 else first,
                 "title": title.text,
+                "raw": title.raw,
                 "title_line": title.line + 1,
                 "level": level,
                 "depth": len(stack),
@@ -612,11 +631,12 @@ def split_page(
         includes, toctree, targets = _directives(lines, first, last, path, source.root, pages)
         auto_label = None
         if asl is not None and head["title"] is not None and head["depth"] <= asl.maxdepth:
-            if MARKUP.search(head["title"]):
+            # Sphinx's autosectionlabel names a section by its title's raw source.
+            if MARKUP.search(head["raw"]):
                 diagnostics.auto_label_markup.append(f"{shown}:{head['title_line']}")
             else:
                 prefix = f"{docname(source, path)}:" if asl.prefix_document else ""
-                auto_label = prefix + head["title"]
+                auto_label = prefix + head["raw"]
         anchored = set(head["labels"])
         record = {
             "id": f"{source.id}:{path}#L{first + 1}-L{last + 1}",

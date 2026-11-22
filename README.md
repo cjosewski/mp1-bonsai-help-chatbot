@@ -180,8 +180,8 @@ uv run --locked bonsai-help setup check
 | `setup check [--committed]` | Profiles and every fact citation, against the fixture slice (`--committed`) or the snapshots and the built index | Never |
 | `setup format` | Validate the two hand-edited setup files and rewrite them in canonical layout with their digests | Never |
 
-A section record is one heading's span of a page: source, pin, path, heading path, line
-and byte span and the SHA-256 of its bytes. The records of a page concatenate to the page
+A section record is one heading's span of a page: source, pin, path, heading path (titles
+with RST backslash escapes rendered), line and byte span and the SHA-256 of its bytes. The records of a page concatenate to the page
 exactly; directives (`include`, `toctree`) are recorded, not expanded. Measured on the
 pins: 463 records for the Bonsai 0.9.0-post1 docs, 464 for 0.8.5-post1 and 9,367 for the
 Manual (199 Manual pages are include stubs with no heading). Building the index takes

@@ -367,6 +367,23 @@ def test_autosectionlabel_follows_the_source_settings():
     assert all(r["auto_label"] is None for r in records)
 
 
+def test_titles_render_backslash_escapes_and_auto_labels_keep_the_raw_title():
+    text = (
+        "Guide\n=====\n\nShould I Translate\\.\\.\\. ?\n------------------------\n\n"
+        "Keep ``a\\b`` and drop an escaped\\ space\n------------------------------------\n"
+    )
+    asl = {"prefix_document": False, "maxdepth": 3}
+    records, _ = split(text, autosectionlabel=asl)
+    assert [r["title"] for r in records] == [
+        "Guide",
+        "Should I Translate... ?",
+        "Keep ``a\\b`` and drop an escapedspace",
+    ]
+    assert records[1]["heading_path"] == ["Guide", "Should I Translate... ?"]
+    assert records[1]["auto_label"] == "Should I Translate\\.\\.\\. ?"
+    assert_partition(records, text.encode())
+
+
 def test_labels_not_attached_to_a_title_are_inline_targets():
     records, _ = split("Page\n====\n\n.. _bpy.ops.mesh.merge:\n\nMerge\n   Merges.\n")
     assert records[0]["anchors"] == []

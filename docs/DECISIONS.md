@@ -212,7 +212,11 @@ These were made by the assistant while building B2 and are open to Chad's review
   between) adornment lines of two or more of one punctuation character; explicit markup
   (`..`) is never title text; an underline shorter than the title but at least 4
   characters is still a title, with a diagnostic, and a shorter one is text, as in
-  docutils. All such diagnostics are 0 on the three docs pins. Records are not committed
+  docutils. All such diagnostics are 0 on the three docs pins. Titles and heading paths
+  render RST backslash escapes (parser `rst-sections-v2`): on the pins this changed one
+  Manual title, `Should I Translate\.\.\. ?`, now `Should I Translate... ?`, and the heading
+  paths of the three records at or under it. `auto_label` keeps the raw title, as Sphinx's
+  autosectionlabel does, and other inline markup stays as written. Records are not committed
   (they are a pure function of the hash-pinned pages); `reference/docs-index.json` commits
   their digest.
 - **BM25 port deviations** are listed in `docs/PORTING-MAP.md` §8 (no `n1`, `g5` and
