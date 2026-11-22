@@ -6,7 +6,7 @@ items in a narrow *lane form*; ingest (`gold_review`) derives every citation fie
 pinned pages, and this module proves them again. Chad approves, edits or rejects every item
 through review packets; only his decisions publish an item into `reference/gold/`.
 
-The checks (G01-G25) are heuristics that catch defects before Chad reads an item. They never
+The checks (G01-G26) are heuristics that catch defects before Chad reads an item. They never
 replace his review, and the pattern score they enforce never decides a rubric dimension.
 
 Held-out items are public but held out from development decisions: they load only through
@@ -26,7 +26,7 @@ from dataclasses import field as dataclass_field
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_serializer
 
 from bonsai_help import gold_patterns as gp
 from bonsai_help.doc_snapshot import (
@@ -37,10 +37,13 @@ from bonsai_help.doc_snapshot import (
     fixture_plan,
     fixture_refusal,
     load_canonical,
+    read_code_span,
+    span_refusal,
     write_new,
 )
 from bonsai_help.doc_sources import (
     CATEGORIES,
+    MAX_CODE_SPAN_LINES,
     Category,
     ConfigError,
     DocSources,
@@ -48,7 +51,7 @@ from bonsai_help.doc_sources import (
     privacy_matches,
     sha256_hex,
 )
-from bonsai_help.docs_index import Diagnostics, g5_tokens, ngrams, split_page
+from bonsai_help.docs_index import STOPWORDS, Diagnostics, g5_tokens, ngrams, split_page
 from bonsai_help.lexicon_bonsai import BIM_ID
 from bonsai_help.setup import (
     Citation,
@@ -58,6 +61,7 @@ from bonsai_help.setup import (
     VersionLine,
     collapse,
     locate_quote,
+    omit_empty,
     verify_citation,
 )
 
@@ -65,7 +69,7 @@ SLOTS_SCHEMA = "gold-slots-v1"
 SUBSTITUTIONS_SCHEMA = "gold-slot-substitutions-v1"
 SET_SCHEMA = "gold-set-v1"
 BATCH_SCHEMA = "gold-draft-batch-v1"
-CHECKER = "gold-check-v1"
+CHECKER = "gold-check-v2"
 INPUT_RENDERING = "gold-input-v1"
 SET_LICENSE = (
     "CC BY-SA 4.0 (generated data); quoted Bonsai or Blender Manual text keeps its source license"
@@ -96,6 +100,7 @@ EDIT_FIELDS = (
     "parts",
     "reference",
     "citations",
+    "code_citations",
     "setup_facts",
     "patterns",
     "unusual",
@@ -129,6 +134,24 @@ CONTROL_TRIGGER = re.compile(
     re.IGNORECASE,
 )
 TUTORIAL = re.compile(r"/tutorials/project[0-5]\.rst$")
+SENTENCE_INSIDE = re.compile(r"[.;!?]\s")
+MAX_ALTERNATIVES = 8
+KEYMAP = re.compile(
+    r'\{\s*"type":\s*"(?P<key>[A-Z0-9_]+)",\s*"value":\s*"PRESS"'
+    r'(?P<mods>(?:,\s*"(?:shift|ctrl|alt|oskey)":\s*True)*)\s*\}'
+)
+KEY_NAMES = {
+    "ZERO": "0",
+    "ONE": "1",
+    "TWO": "2",
+    "THREE": "3",
+    "FOUR": "4",
+    "FIVE": "5",
+    "SIX": "6",
+    "SEVEN": "7",
+    "EIGHT": "8",
+    "NINE": "9",
+}
 RECORD_ID = re.compile(r"(?P<source>[a-z0-9]+(?:-[a-z0-9]+)*):(?P<path>[^#]+)#L\d+-L\d+")
 BACKTICK = re.compile(r"`([^`]+)`")
 DATE = r"^\d{4}-\d{2}-\d{2}$"
@@ -157,8 +180,22 @@ PatternKind = Literal[
     "phrase",
     "regex",
     "planted",
+    "tokens",
+    "any_of",
 ]
-Ref = Annotated[str, Field(pattern=r"^C\d+\.Q\d+$")]
+AlternativeKind = Literal[
+    "bonsai_operator",
+    "bonsai_panel",
+    "bonsai_menu",
+    "bonsai_tool",
+    "blender_operator",
+    "menu_path",
+    "hotkey",
+    "ui_label",
+    "phrase",
+    "tokens",
+]
+Ref = Annotated[str, Field(pattern=r"^[CK]\d+\.Q\d+$")]
 PartId = Literal["a", "b", "c", "d"]
 
 
@@ -216,8 +253,12 @@ class Quote(LaneQuote):
 
 
 class LaneCitation(_Model):
+    """A doc section. `contrast`: the other version line's docs (version_contrast);
+    `conflict`: the line's own docs where the pinned code disagrees (doc_conflict; the code
+    wins, Chad, November 22, 2026), never support."""
+
     id: str = Field(pattern=r"^C\d+$")
-    role: Literal["support", "contrast"]
+    role: Literal["support", "contrast", "conflict"]
     record_id: str
     quotes: list[LaneQuote] = Field(min_length=1)
 
@@ -234,6 +275,38 @@ class GoldCitation(LaneCitation):
     quotes: list[Quote] = Field(min_length=1)
 
 
+class LaneCodeCitation(_Model):
+    """A line span of the line's own pinned add-on source (`bonsai-source...`) with verbatim
+    quotes: `support` backs reference text, `conflict` is evidence that a cited doc statement
+    is stale (doc_conflict)."""
+
+    id: str = Field(pattern=r"^K\d+$")
+    role: Literal["support", "conflict"]
+    source: str
+    path: str
+    line_start: int = Field(ge=1)
+    line_end: int = Field(ge=1)
+    quotes: list[LaneQuote] = Field(min_length=1)
+
+
+class GoldCodeCitation(LaneCodeCitation):
+    pin_id: str
+    commit: str
+    file_sha256: str = Field(pattern=SHA)
+    span_sha256: str = Field(pattern=SHA)
+    quotes: list[Quote] = Field(min_length=1)
+
+
+class Alternative(_Model):
+    """One accepted form of an `any_of` pattern: a tool (by id, label, button text, menu
+    route or hotkey), a `phrase` or an order-free `tokens` set."""
+
+    kind: AlternativeKind
+    value: str = Field(min_length=1)
+    window: int | None = Field(default=None, ge=2, le=gp.MAX_WINDOW)
+    support: list[Ref] = []
+
+
 class Pattern(_Model):
     id: str = Field(pattern=r"^P\d+$")
     polarity: Literal["required", "forbidden"]
@@ -243,11 +316,22 @@ class Pattern(_Model):
     part: PartId | None = None
     reason: str | None = None
     support: list[Ref] = []
+    window: int | None = Field(default=None, ge=2, le=gp.MAX_WINDOW)
+    alternatives: list[Alternative] | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit(self, handler):
+        # Added in gold-check-v2; left out while unused so earlier drafts keep their digests.
+        return omit_empty(handler(self), ("window", "alternatives"))
 
 
 class Unusual(_Model):
     reason: Literal[
-        "version_contrast", "blender_vs_bonsai_hazard", "schema_dependent", "out_of_scope"
+        "version_contrast",
+        "blender_vs_bonsai_hazard",
+        "schema_dependent",
+        "out_of_scope",
+        "doc_conflict",
     ]
     note: str = Field(min_length=1, max_length=300)
 
@@ -295,11 +379,17 @@ class LaneItem(_Model):
     parts: list[Part] = []
     reference: LaneReference
     citations: list[LaneCitation] = Field(min_length=1)
+    code_citations: list[LaneCodeCitation] = []
     setup_facts: list[Annotated[str, Field(pattern=r"^SF-\d{3}$")]] = []
     patterns: list[Pattern] = Field(min_length=1)
     unusual: Unusual | None = None
     injection: Injection | None = None
     control: Control | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit(self, handler):
+        # Added in gold-check-v2; left out while empty so earlier drafts keep their digests.
+        return omit_empty(handler(self), ("code_citations",))
 
 
 class GoldContent(LaneItem):
@@ -308,6 +398,7 @@ class GoldContent(LaneItem):
     version_line: str
     reference: Reference
     citations: list[GoldCitation] = Field(min_length=1)
+    code_citations: list[GoldCodeCitation] = []
 
 
 class DraftInfo(_Model):
@@ -389,6 +480,19 @@ def lane_form(item: GoldContent) -> dict:
     data["reference"]["tools"] = [
         {"kind": t["kind"], "value": t["value"]} for t in data["reference"]["tools"]
     ]
+    if data.get("code_citations"):
+        data["code_citations"] = [
+            {
+                "id": c["id"],
+                "role": c["role"],
+                "source": c["source"],
+                "path": c["path"],
+                "line_start": c["line_start"],
+                "line_end": c["line_end"],
+                "quotes": [{"id": q["id"], "text": q["text"]} for q in c["quotes"]],
+            }
+            for c in data["code_citations"]
+        ]
     return data
 
 
@@ -589,6 +693,7 @@ class Context:
     _pages: dict = dataclass_field(default_factory=dict)
     _corpus: dict = dataclass_field(default_factory=dict)
     _grams: dict = dataclass_field(default_factory=dict)
+    _spans: dict = dataclass_field(default_factory=dict)
 
     @property
     def full(self) -> bool:
@@ -612,6 +717,16 @@ class Context:
 
     def record(self, record_id: str) -> dict | str:
         return find_record(self.page, record_id)
+
+    def code_span(self, source_id: str, path: str, line_start: int, line_end: int) -> bytes | str:
+        """A pinned add-on source span's bytes (snapshot file, or its fixture span), or a
+        problem."""
+        key = (source_id, path, line_start, line_end)
+        if key not in self._spans:
+            self._spans[key] = read_code_span(
+                self.config, self.manifest, self.read, source_id, path, line_start, line_end
+            )
+        return self._spans[key]
 
     def corpus(self, source_id: str) -> list[str]:
         """Collapsed, casefolded text of every readable page of a docs source."""
@@ -677,6 +792,39 @@ def line_sources(line: VersionLine, kind: str) -> list[str]:
 
 def resolve(ctx: Context, line: VersionLine, kind: str, value: str) -> gp.Tool | None:
     return ctx.lexicons.resolve(kind, value, line_sources(line, kind))
+
+
+def code_hotkeys(item: LaneItem) -> set[tuple[frozenset[str], str]]:
+    """Hotkeys bound by `bim.hotkey` keymap entries quoted from the item's support code
+    citations, as (modifiers, key): the add-on's keymap is not in the lexicons (B2)."""
+    found = set()
+    for citation in item.code_citations:
+        if citation.role != "support":
+            continue
+        for quote in citation.quotes:
+            for match in KEYMAP.finditer(quote.text):
+                mods = frozenset(re.findall(r'"(shift|ctrl|alt|oskey)"', match["mods"]))
+                key = KEY_NAMES.get(match["key"], match["key"])
+                found.add((mods, key.casefold()))
+    return found
+
+
+def _hotkey_key(value: str) -> tuple[frozenset[str], str] | None:
+    chords = gp.parse_keys(value)
+    if len(chords) != 1 or not chords[0]:
+        return None
+    *mods, key = chords[0]
+    return frozenset(m.casefold() for m in mods), key.casefold()
+
+
+def resolve_item(
+    item: LaneItem, ctx: Context, line: VersionLine, kind: str, value: str
+) -> gp.Tool | None:
+    """A hotkey bound in a cited support code span (the code wins), or a tool in the line's
+    lexicons."""
+    if kind == "hotkey" and _hotkey_key(value) in code_hotkeys(item):
+        return gp.Tool("hotkey", value, value, origin="code")
+    return resolve(ctx, line, kind, value)
 
 
 def resolve_anywhere(ctx: Context, kind: str, value: str) -> gp.Tool | None:
@@ -768,13 +916,25 @@ def setup_sha(item: LaneItem, ctx: Context) -> str:
 
 
 def pattern_tools(item: LaneItem, ctx: Context, line: VersionLine | None) -> dict:
-    tools = {}
+    """Pattern id -> its tool (a tool kind), or the tuple of its alternatives' tools
+    (`any_of`; None for a text alternative). A required tool resolves in the line's lexicons
+    (or a cited code keymap), a forbidden one in any line's."""
+
+    def one(polarity: str, kind: str, value: str) -> gp.Tool | None:
+        if kind not in gp.TOOL_KINDS:
+            return None
+        if polarity == "required" and line is not None:
+            return resolve_item(item, ctx, line, kind, value)
+        return resolve_anywhere(ctx, kind, value)
+
+    tools: dict = {}
     for pattern in item.patterns:
-        if pattern.kind in gp.TOOL_KINDS:
-            if pattern.polarity == "required" and line is not None:
-                tools[pattern.id] = resolve(ctx, line, pattern.kind, pattern.value)
-            else:
-                tools[pattern.id] = resolve_anywhere(ctx, pattern.kind, pattern.value)
+        if pattern.kind == "any_of":
+            tools[pattern.id] = tuple(
+                one(pattern.polarity, a.kind, a.value) for a in pattern.alternatives or ()
+            )
+        elif pattern.kind in gp.TOOL_KINDS:
+            tools[pattern.id] = one(pattern.polarity, pattern.kind, pattern.value)
     return tools
 
 
@@ -783,8 +943,9 @@ def item_texts(item: LaneItem) -> list[str]:
     texts = [item.question, *reference_texts(item), *(part.span for part in item.parts)]
     if item.user_context is not None:
         texts.append(item.user_context.text)
-    texts += [q.text for c in item.citations for q in c.quotes]
+    texts += [q.text for c in (*item.citations, *item.code_citations) for q in c.quotes]
     texts += [p.value for p in item.patterns] + [p.reason for p in item.patterns if p.reason]
+    texts += [a.value for p in item.patterns for a in p.alternatives or ()]
     if item.unusual is not None:
         texts.append(item.unusual.note)
     if item.injection is not None:
@@ -843,9 +1004,38 @@ def derive(item: LaneItem, ctx: Context) -> tuple[GoldContent | None, list[str]]
             }
         )
     data["citations"] = citations
+    code = []
+    for citation in item.code_citations:
+        span = ctx.code_span(citation.source, citation.path, citation.line_start, citation.line_end)
+        if isinstance(span, str):
+            problems.append(f"{citation.id}: {span}")
+            continue
+        quotes = []
+        for quote in citation.quotes:
+            located = locate_quote(span.decode("utf-8", "replace"), citation.line_start, quote.text)
+            if isinstance(located, str):
+                problems.append(f"{citation.id}.{quote.id}: {located}")
+                continue
+            quotes.append({"id": quote.id, "text": quote.text, "line": located[0]})
+        source = ctx.config.source(citation.source)
+        page = next(
+            p for p in ctx.manifest["sources"][source.id]["pages"] if p["path"] == citation.path
+        )
+        code.append(
+            {
+                **citation.model_dump(mode="json"),
+                "pin_id": ctx.manifest["sources"][source.id]["pin_id"],
+                "commit": ctx.config.repository_of(source).commit,
+                "file_sha256": page["sha256"],
+                "span_sha256": sha256_hex(span),
+                "quotes": quotes,
+            }
+        )
+    if code:
+        data["code_citations"] = code
     tools = []
     for tool in item.reference.tools:
-        found = resolve(ctx, line, tool.kind, tool.value) if line is not None else None
+        found = resolve_item(item, ctx, line, tool.kind, tool.value) if line is not None else None
         if found is None:
             problems.append(
                 f"tool {tool.kind} {tool.value} is not in {profile.version_line}'s lexicons"
@@ -888,6 +1078,7 @@ def check_item(item: GoldContent, ctx: Context, *, require_fixture: bool) -> lis
     if item.version_line != profile.version_line:
         add(f"version line is not {profile.id}'s {profile.version_line}")
     found += _citations(item, ctx, line, require_fixture)
+    found += _code_citations(item, ctx, line, require_fixture)
     found += _refs(item)
     found += _tools(item, ctx, line)
     found += _patterns(item, ctx, line)
@@ -932,8 +1123,12 @@ def _citations(item: GoldContent, ctx: Context, line: VersionLine, require_fixtu
         if len({q.id for q in citation.quotes}) != len(citation.quotes):
             found.append(f"{shown}: quote ids are not unique")
         # G04 roles and sources
-        if citation.role == "support" and citation.source not in own:
-            found.append(f"{shown}: a support citation must come from {line.id}'s docs")
+        if citation.role in ("support", "conflict") and citation.source not in own:
+            found.append(f"{shown}: a {citation.role} citation must come from {line.id}'s docs")
+        if citation.role == "conflict" and (
+            item.unusual is None or item.unusual.reason != "doc_conflict"
+        ):
+            found.append(f"{shown}: a conflict citation needs unusual.reason doc_conflict")
         if citation.role == "contrast":
             if citation.source not in others:
                 found.append(f"{shown}: a contrast citation must come from another line's docs")
@@ -988,15 +1183,96 @@ def _citations(item: GoldContent, ctx: Context, line: VersionLine, require_fixtu
     return found
 
 
+def _alternative_tools(tools: Mapping, pattern: Pattern) -> tuple:
+    found = tools.get(pattern.id)
+    return found if isinstance(found, tuple) else ()
+
+
+def _code_citations(
+    item: GoldContent, ctx: Context, line: VersionLine, require_fixture: bool
+) -> list[str]:
+    """G26: every code citation against the line's own pinned add-on source (or its fixture
+    span): pin, file hash, span hash, verbatim quotes; a published item's spans are in the
+    fixture slice, and a span with a privacy match can never join it."""
+    found = []
+    ids = [c.id for c in item.code_citations]
+    if len(ids) != len(set(ids)):
+        found.append("code citation ids are not unique")
+    missing = []
+    for citation in item.code_citations:
+        shown = f"{citation.id} {citation.source}:{citation.path}#L{citation.line_start}-L{citation.line_end}"
+        if citation.source != line.sources.bonsai_source:
+            found.append(
+                f"{shown}: a code citation must come from {line.id}'s add-on source "
+                f"{line.sources.bonsai_source}"
+            )
+            continue
+        if len({q.id for q in citation.quotes}) != len(citation.quotes):
+            found.append(f"{citation.id}: quote ids are not unique")
+        source = ctx.config.source(citation.source)
+        entry = ctx.manifest["sources"][source.id]
+        if (
+            citation.pin_id != entry["pin_id"]
+            or citation.commit != ctx.config.repository_of(source).commit
+        ):
+            found.append(f"{shown}: stale pin: pin_id or commit differs from the manifest")
+            continue
+        page = next((p for p in entry["pages"] if p["path"] == citation.path), None)
+        if page is None or page["sha256"] != citation.file_sha256:
+            found.append(f"{shown}: file hash differs from the manifest or file missing")
+            continue
+        span = ctx.code_span(citation.source, citation.path, citation.line_start, citation.line_end)
+        if isinstance(span, str):
+            found.append(f"{shown}: {span}")
+            continue
+        if sha256_hex(span) != citation.span_sha256:
+            found.append(f"{shown}: span hash mismatch")
+        if citation.line_end - citation.line_start + 1 > MAX_CODE_SPAN_LINES:
+            found.append(f"{shown}: a code span is at most {MAX_CODE_SPAN_LINES} lines")
+        refusal = span_refusal(span)
+        if refusal:
+            found.append(f"{shown}: can never join the fixture slice: code span holds {refusal}")
+        text = span.decode("utf-8", "replace")
+        for quote in citation.quotes:
+            located = locate_quote(text, citation.line_start, quote.text)
+            if isinstance(located, str):
+                found.append(f"{citation.id}.{quote.id}: {located}")
+            elif located[0] != quote.line:
+                found.append(
+                    f"{citation.id}.{quote.id}: line is {quote.line}, match starts at {located[0]}"
+                )
+        if citation.role == "conflict" and (
+            item.unusual is None or item.unusual.reason != "doc_conflict"
+        ):
+            found.append(f"{citation.id}: a conflict citation needs unusual.reason doc_conflict")
+        spans = {(s.path, s.line_start, s.line_end) for s in source.fixture_code_spans}
+        if require_fixture and (citation.path, citation.line_start, citation.line_end) not in spans:
+            missing.append((citation.source, citation.path, citation.line_start, citation.line_end))
+    if missing:
+        wanted = [
+            {"source": s, "path": p, "line_start": a, "line_end": b}
+            for s, p, a, b in sorted(set(missing))
+        ]
+        found.append(
+            "cites code spans outside the fixture slice; add them to config/doc-sources.json "
+            "fixture_code_spans and run snapshot fixtures: " + json.dumps(wanted)
+        )
+    return found
+
+
 def _quote_index(item: LaneItem) -> dict[str, LaneQuote]:
-    return {f"{c.id}.{q.id}": q for c in item.citations for q in c.quotes}
+    return {f"{c.id}.{q.id}": q for c in (*item.citations, *item.code_citations) for q in c.quotes}
+
+
+def _roles(item: LaneItem) -> dict[str, str]:
+    return {c.id: c.role for c in (*item.citations, *item.code_citations)}
 
 
 def _refs(item: GoldContent) -> list[str]:
     """G06: every reference resolves, every quote is used, support comes from support citations."""
     found = []
     quotes = _quote_index(item)
-    roles = {c.id: c.role for c in item.citations}
+    roles = _roles(item)
     used = set()
     supported = [("answer", item.reference.answer)]
     supported += [(f"step {k + 1}", step) for k, step in enumerate(item.reference.steps)]
@@ -1010,30 +1286,56 @@ def _refs(item: GoldContent) -> list[str]:
             if ref not in quotes:
                 found.append(f"{name}: support {ref} names no quote")
             elif roles[ref.split(".")[0]] != "support":
-                found.append(f"{name}: support {ref} is a contrast citation")
+                found.append(f"{name}: support {ref} is a {roles[ref.split('.')[0]]} citation")
     for pattern in item.patterns:
-        for ref in pattern.support:
+        refs = [(pattern.id, ref) for ref in pattern.support]
+        refs += [
+            (f"{pattern.id} alternative {k}", ref)
+            for k, alternative in enumerate(pattern.alternatives or (), 1)
+            for ref in alternative.support
+        ]
+        for shown, ref in refs:
             used.add(ref)
             if ref not in quotes:
-                found.append(f"pattern {pattern.id}: support {ref} names no quote")
-    for ref in sorted(set(quotes) - used):
+                found.append(f"pattern {shown}: support {ref} names no quote")
+    # A conflict citation is the record of a doc/code disagreement; its quotes need no user.
+    exempt = {ref for ref in quotes if roles[ref.split(".")[0]] == "conflict"}
+    for ref in sorted(set(quotes) - used - exempt):
         found.append(f"quote {ref} is referenced by nothing")
     return found
 
 
 def _support_text(item: GoldContent, ctx: Context) -> tuple[set[str], str]:
+    """Support sections (record ids) and the text a Bonsai tool must be named in: the cited
+    support sections and the cited support code spans."""
     cited = {c.record_id for c in item.citations if c.role == "support"}
     texts = []
     for record_id in sorted(cited):
         record = ctx.record(record_id)
         if isinstance(record, dict):
             texts.append(record["text"])
+    texts += _code_texts(item, ctx, "support")
     return cited, "\n".join(texts)
+
+
+def _code_texts(item: LaneItem, ctx: Context, role: str | None = None) -> list[str]:
+    texts = []
+    for citation in item.code_citations:
+        if role is None or citation.role == role:
+            span = ctx.code_span(
+                citation.source, citation.path, citation.line_start, citation.line_end
+            )
+            if isinstance(span, bytes):
+                texts.append(span.decode("utf-8", "replace"))
+    return texts
 
 
 def _grounded(tool: gp.Tool, cited: set[str], text: str) -> bool:
     """G09: an RST tool is listed in a cited record; a Bonsai tool is named in a cited section
-    by its id or an accepted label (multi-word, or exact case)."""
+    or code span by its id or an accepted label (multi-word, or exact case); a code hotkey
+    comes from a cited support code span's keymap entry."""
+    if tool.origin == "code":
+        return True
     if tool.kind in gp.RST_KINDS:
         return bool(tool.records & cited)
     return gp.tool_hit(text, tool)
@@ -1044,7 +1346,7 @@ def _tools(item: GoldContent, ctx: Context, line: VersionLine) -> list[str]:
     cited, text = _support_text(item, ctx)
     for tool in item.reference.tools:
         # G08 resolution and display
-        found_tool = resolve(ctx, line, tool.kind, tool.value)
+        found_tool = resolve_item(item, ctx, line, tool.kind, tool.value)
         if found_tool is None:
             found.append(f"tool {tool.kind} {tool.value} is not in {line.id}'s lexicons")
             continue
@@ -1054,17 +1356,29 @@ def _tools(item: GoldContent, ctx: Context, line: VersionLine) -> list[str]:
             )
         if not _grounded(found_tool, cited, text):
             found.append(f"tool {tool.value} is named in no cited section (G09)")
+    tools = pattern_tools(item, ctx, line)
     for pattern in item.patterns:
-        if pattern.polarity == "required" and pattern.kind in gp.TOOL_KINDS:
-            tool = resolve(ctx, line, pattern.kind, pattern.value)
+        if pattern.polarity != "required":
+            continue
+        if pattern.kind in gp.TOOL_KINDS:
+            tool = tools.get(pattern.id)
             if tool is not None and not _grounded(tool, cited, text):
                 found.append(
                     f"pattern {pattern.id} {pattern.value} is named in no cited section (G09)"
+                )
+        for k, (alternative, tool) in enumerate(
+            zip(pattern.alternatives or (), _alternative_tools(tools, pattern), strict=False), 1
+        ):
+            if tool is not None and not _grounded(tool, cited, text):
+                found.append(
+                    f"pattern {pattern.id} alternative {k} {alternative.value} is named in no "
+                    "cited section (G09)"
                 )
     # G10 backticked spans and bare bim ids in the reference text
     allowed = {collapse(t.value) for t in item.reference.tools}
     allowed |= {collapse(t.display) for t in item.reference.tools}
     allowed |= {collapse(p.value) for p in item.patterns if p.kind != "regex"}
+    allowed |= {collapse(a.value) for p in item.patterns for a in p.alternatives or ()}
     own_ids = ctx.lexicons.known_ids(line.sources.bonsai_source)
     for text_value in reference_texts(item):
         for span in BACKTICK.findall(text_value):
@@ -1087,6 +1401,125 @@ def _tools(item: GoldContent, ctx: Context, line: VersionLine) -> list[str]:
     return found
 
 
+def _shape(shown: str, kind: str, value: str) -> list[str]:
+    """G11 for a tool kind with a written form (menu path, hotkey)."""
+    found = []
+    if kind == "menu_path":
+        segments = gp.menu_segments(value)
+        if " --> ".join(segments) != value or len(segments) < 2:
+            found.append(f"{shown}: a menu path needs two or more segments joined by ' --> '")
+    if kind == "hotkey":
+        canonical_value = " ".join("-".join(chord) for chord in gp.parse_keys(value))
+        if gp.hotkey_regex(value) is None or canonical_value != value:
+            found.append(f"{shown}: hotkey is not in parsed form ({canonical_value!r})")
+    return found
+
+
+def _phrase_rules(shown: str, value: str, support: Sequence[str], quotes: Mapping) -> list[str]:
+    found = []
+    if not support:
+        found.append(f"{shown}: a phrase needs support")
+    if len(gp.content_tokens(value)) < MIN_PHRASE_TOKENS:
+        found.append(f"{shown}: a phrase needs {MIN_PHRASE_TOKENS} or more non-stopwords")
+    if SENTENCE_INSIDE.search(collapse(value)):
+        found.append(
+            f"{shown}: a phrase spans two sentences; score each claim or mapping on its own"
+        )
+    return found
+
+
+def _phrase_anchored(value: str, support: Sequence[str], quotes: Mapping) -> bool:
+    return any(gp.phrase_hit(quotes[ref].text, value) for ref in support if ref in quotes)
+
+
+def _entry_in(text: str, words: Sequence[str]) -> bool:
+    tokens = re.findall(r"[a-z0-9]+", collapse(text).casefold())
+    return any(
+        all(gp._word_hit(w, tokens[k + j]) for j, w in enumerate(words))
+        for k in range(len(tokens) - len(words) + 1)
+    )
+
+
+def _tokens_rules(
+    shown: str, value: str, window: int | None, support: Sequence[str], quotes: Mapping
+) -> tuple[list[str], bool]:
+    """G11 for `tokens`: shape, window, support; anchored when every entry has an option in
+    one of its quotes."""
+    found = []
+    entries = gp.parse_tokens(value)
+    if entries is None:
+        return [
+            f"{shown}: tokens are 2 to {gp.MAX_ENTRIES} entries 'a + b' of words "
+            f"(a|b alternatives, a word* prefix of {gp.MIN_PREFIX} or more letters)"
+        ], False
+    if window is None:
+        found.append(f"{shown}: a tokens pattern needs a window (2 to {gp.MAX_WINDOW} tokens)")
+    elif window < sum(min(len(o) for o in options) for options in entries):
+        found.append(f"{shown}: the window is smaller than its entries")
+    if not support:
+        found.append(f"{shown}: a tokens pattern needs support")
+    for options in entries:
+        if any(all(w.rstrip("*") in STOPWORDS for w in option) for option in options):
+            found.append(f"{shown}: an entry option is only stopwords")
+    texts = [quotes[ref].text for ref in support if ref in quotes]
+    anchored = all(any(_entry_in(t, o) for t in texts for o in options) for options in entries)
+    return found, anchored
+
+
+def _any_of_rules(
+    item: GoldContent,
+    pattern: Pattern,
+    quotes: Mapping,
+    tools: tuple,
+    cited: set[str],
+    text: str,
+    line: VersionLine,
+) -> list[str]:
+    """G11/G12 for `any_of`: 2 to 8 distinct alternatives, each well formed; a required group
+    needs one alternative tied to the sources (a phrase in its quote, tokens from its quotes
+    or a grounded tool); the others may be paraphrases, which Chad's review judges."""
+    shown = f"pattern {pattern.id}"
+    alternatives = pattern.alternatives or []
+    found = []
+    if not 2 <= len(alternatives) <= MAX_ALTERNATIVES:
+        found.append(f"{shown}: any_of has 2 to {MAX_ALTERNATIVES} alternatives")
+    keys = [(a.kind, a.value, a.window) for a in alternatives]
+    if len(keys) != len(set(keys)):
+        found.append(f"{shown}: any_of repeats an alternative")
+    if pattern.support:
+        found.append(f"{shown}: an any_of pattern's support sits on its alternatives")
+    anchored = False
+    for k, alternative in enumerate(alternatives, 1):
+        where = f"{shown} alternative {k}"
+        tool = tools[k - 1] if k - 1 < len(tools) else None
+        if alternative.kind != "tokens" and alternative.window is not None:
+            found.append(f"{where}: window belongs to a tokens alternative")
+        if alternative.kind in gp.TOOL_KINDS:
+            found += _shape(where, alternative.kind, alternative.value)
+            if alternative.support:
+                found.append(f"{where}: a tool alternative is grounded by its section, not support")
+            if tool is None:
+                scope = f"{line.id}'s lexicons" if pattern.polarity == "required" else "any lexicon"
+                found.append(f"{where}: {alternative.kind} {alternative.value} is not in {scope}")
+            elif _grounded(tool, cited, text):
+                anchored = True
+        elif alternative.kind == "phrase":
+            found += _phrase_rules(where, alternative.value, alternative.support, quotes)
+            anchored |= _phrase_anchored(alternative.value, alternative.support, quotes)
+        else:
+            problems, tied = _tokens_rules(
+                where, alternative.value, alternative.window, alternative.support, quotes
+            )
+            found += problems
+            anchored |= tied
+    if pattern.polarity == "required" and alternatives and not anchored:
+        found.append(
+            f"{shown}: no alternative is tied to a cited quote or section (a phrase in its "
+            "quote, tokens from its quotes, or a tool named in a cited section)"
+        )
+    return found
+
+
 def _patterns(item: GoldContent, ctx: Context, line: VersionLine) -> list[str]:
     found = []
     quotes = _quote_index(item)
@@ -1095,17 +1528,29 @@ def _patterns(item: GoldContent, ctx: Context, line: VersionLine) -> list[str]:
     if len(ids) != len(set(ids)):
         found.append("pattern ids are not unique")
     tools = pattern_tools(item, ctx, line)
+    cited, text = _support_text(item, ctx)
     for pattern in item.patterns:
         shown = f"pattern {pattern.id}"
         # G11 well formed for its kind
-        if pattern.kind == "menu_path":
-            segments = gp.menu_segments(pattern.value)
-            if " --> ".join(segments) != pattern.value or len(segments) < 2:
-                found.append(f"{shown}: a menu path needs two or more segments joined by ' --> '")
-        if pattern.kind == "hotkey":
-            canonical_value = " ".join("-".join(chord) for chord in gp.parse_keys(pattern.value))
-            if gp.hotkey_regex(pattern.value) is None or canonical_value != pattern.value:
-                found.append(f"{shown}: hotkey is not in parsed form ({canonical_value!r})")
+        if pattern.kind != "tokens" and pattern.window is not None:
+            found.append(f"{shown}: window belongs to a tokens pattern")
+        if (pattern.kind == "any_of") != (pattern.alternatives is not None):
+            found.append(f"{shown}: alternatives belong to an any_of pattern, which needs them")
+        found += _shape(shown, pattern.kind, pattern.value)
+        if pattern.kind == "tokens":
+            problems, anchored = _tokens_rules(
+                shown, pattern.value, pattern.window, pattern.support, quotes
+            )
+            found += problems
+            if not anchored and not problems:
+                found.append(
+                    f"{shown}: every entry needs an option in one of its quotes (use any_of "
+                    "for a paraphrase)"
+                )
+        if pattern.kind == "any_of":
+            found += _any_of_rules(
+                item, pattern, quotes, _alternative_tools(tools, pattern), cited, text, line
+            )
         if pattern.kind == "regex":
             try:
                 re.compile(pattern.value)
@@ -1119,13 +1564,9 @@ def _patterns(item: GoldContent, ctx: Context, line: VersionLine) -> list[str]:
             if pattern.kind != "planted" and pattern.field not in gp.FORBIDDEN_FIELDS:
                 found.append(f"{shown}: a forbidden pattern scores steps or tools_required only")
         if pattern.kind == "phrase":
-            refs = [quotes[ref] for ref in pattern.support if ref in quotes]
-            if not pattern.support:
-                found.append(f"{shown}: a phrase needs support")
-            elif not any(gp.phrase_hit(q.text, pattern.value) for q in refs):
+            found += _phrase_rules(shown, pattern.value, pattern.support, quotes)
+            if pattern.support and not _phrase_anchored(pattern.value, pattern.support, quotes):
                 found.append(f"{shown}: the phrase occurs in none of its quotes")
-            if len(gp.content_tokens(pattern.value)) < MIN_PHRASE_TOKENS:
-                found.append(f"{shown}: a phrase needs {MIN_PHRASE_TOKENS} or more non-stopwords")
         if pattern.kind == "planted":
             planted = item.injection
             if planted is None:
@@ -1146,7 +1587,8 @@ def _patterns(item: GoldContent, ctx: Context, line: VersionLine) -> list[str]:
         if pattern.kind in gp.TOOL_KINDS and tools.get(pattern.id) is None:
             where = f"{line.id}'s lexicons" if pattern.polarity == "required" else "any lexicon"
             found.append(f"{shown}: {pattern.kind} {pattern.value} is not in {where}")
-    # G13 the reference passes its own patterns; echoing the input never does
+    # G13 the reference passes its own patterns; echoing the input never does. A forbidden
+    # pattern counts only an affirmative occurrence ("Do not remove the slab" is a warning).
     fields = pseudo_payload(item, ctx)
     echoed = render_input(item)
     for pattern in item.patterns:
@@ -1155,13 +1597,25 @@ def _patterns(item: GoldContent, ctx: Context, line: VersionLine) -> list[str]:
             continue
         if pattern.kind == "regex" and _bad_regex(pattern.value):
             continue
-        hit = gp.matches(pattern.model_dump(), gp.field_text(fields, pattern.field), tool)
+        dumped = pattern.model_dump()
+        hit = gp.hit(dumped, gp.field_text(fields, pattern.field), tool)
         if pattern.polarity == "required" and not hit:
             found.append(f"pattern {pattern.id} does not match the reference's {pattern.field}")
         if pattern.polarity == "forbidden" and hit:
-            found.append(f"forbidden pattern {pattern.id} matches the reference's {pattern.field}")
-        if pattern.polarity == "required" and gp.matches(pattern.model_dump(), echoed, tool):
-            found.append(f"pattern {pattern.id} matches the question itself, so an echo passes")
+            found.append(
+                f"forbidden pattern {pattern.id} matches the reference's {pattern.field} "
+                "(not as a warning)"
+            )
+        if pattern.polarity == "required" and gp.matches(dumped, echoed, tool):
+            which = ""
+            for k, alternative in enumerate(pattern.alternatives or (), 1):
+                own = tool[k - 1] if isinstance(tool, tuple) and k - 1 < len(tool) else None
+                if gp.matches({**alternative.model_dump(), "alternatives": None}, echoed, own):
+                    which = f" (alternative {k})"
+                    break
+            found.append(
+                f"pattern {pattern.id}{which} matches the question itself, so an echo passes"
+            )
     # G14 counts per item
     required = [p for p in item.patterns if p.polarity == "required"]
     if not required:
@@ -1345,6 +1799,32 @@ def _facts(item: GoldContent, ctx: Context, profile: Profile, line: VersionLine)
         )
     if reason == "out_of_scope" and item.reference.scope_note is None:
         found.append("unusual out_of_scope needs a scope_note")
+    if reason == "doc_conflict":
+        # Docs versus code: the code wins, and the item cites both (Chad, 2026-11-22).
+        if not any(c.role == "conflict" for c in item.citations):
+            found.append("unusual doc_conflict needs a conflict citation of the stale doc section")
+        if not item.code_citations:
+            found.append("unusual doc_conflict needs a code citation of the pinned add-on source")
+        code_refs = {
+            f"{c.id}.{q.id}" for c in item.code_citations if c.role == "support" for q in c.quotes
+        }
+        code_text = "\n".join(_code_texts(item, ctx, "support"))
+        tools = pattern_tools(item, ctx, line)
+
+        def on_code(pattern: Pattern) -> bool:
+            refs = set(pattern.support) | {r for a in pattern.alternatives or () for r in a.support}
+            own = tools.get(pattern.id)
+            named = [own] if isinstance(own, gp.Tool) else [t for t in own or () if t]
+            return bool(refs & code_refs) or any(
+                t.origin == "code" or (t.kind in gp.BONSAI_KINDS and gp.tool_hit(code_text, t))
+                for t in named
+            )
+
+        if not any(p.polarity == "required" and on_code(p) for p in item.patterns):
+            found.append(
+                "unusual doc_conflict needs a required pattern that follows the code (supported "
+                "by a code quote, or a tool named in a cited code span)"
+            )
     return found
 
 
@@ -1367,8 +1847,9 @@ def check_set(
     final: bool = False,
     focus: Iterable[str] | None = None,
 ) -> tuple[list[Problem], list[str]]:
-    """G13b, G14 (regex budget, `final` only), G19 and G20 over a set keyed by item id (a
-    redraft replaces its previous head). With `focus`, only problems naming a focus item."""
+    """G13b, G14 (regex budget: `complete`, or `final` with every slot filled), G19 and G20
+    over a set keyed by item id (a redraft replaces its previous head). With `focus`, only
+    problems naming a focus item."""
     problems: list[tuple[set[str], Problem]] = []
     warnings: list[str] = []
     order = sorted(items)
@@ -1474,8 +1955,9 @@ def check_set(
             f"negative control not applied to {skipped} pattern(s): fewer than "
             f"{NEGATIVE_CONTROL_MIN} other-category items"
         )
-    # G14 regex budget, at publish and --complete only
-    if final:
+    # G14 regex budget: a proportion of the whole set, so it applies at --complete and when
+    # the set being published or checked fills every slot, not to a partial publish
+    if complete or (final and all(slot in items for slot in ctx.slots)):
         scored = [p for i in order for p in items[i].patterns if p.kind != "planted"]
         regexes = sum(p.kind == "regex" for p in scored)
         if scored and regexes / len(scored) > REGEX_SHARE:

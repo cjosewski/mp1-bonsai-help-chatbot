@@ -628,3 +628,13 @@ def test_a_draft_may_cite_a_snapshot_page_outside_the_slice_only_when_asked(tmp_
     assert "outside the committed fixture slice" in str(found[0])
     found = setup.verify_citation(moved, CONFIG, MANIFEST, READ, "x", require_fixture=False)
     assert "page missing" in str(found[0])
+
+
+def test_rows_without_code_keep_the_content_hash_chad_decided():
+    for item in load(FACTS)["rows"]:
+        if item["review"] is not None:
+            assert "code_citations" not in item
+            assert (
+                setup.record_sha(setup.FactRow.model_validate(item))
+                == item["review"]["content_sha256"]
+            )

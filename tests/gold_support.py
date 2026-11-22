@@ -336,6 +336,123 @@ def control_property(**changes) -> dict:
     return item
 
 
+QUANTITIES = (
+    "bonsai-docs:src/bonsai/docs/guides/authoring/basic_modeling/creating_walls.rst#L128-L135"
+)
+WORKSPACE = "src/bonsai/bonsai/bim/module/model/workspace.py"
+KEYMAP_LINE = (
+    '("bim.hotkey", {"type": "Q", "value": "PRESS", "shift": True}, '
+    '{"properties": [("hotkey", "S_Q")]}),'
+)
+TAKE_OFF_LINE = (
+    'row, "Perform Quantity Take-off", "S_Q", bpy.ops.bim.perform_quantity_take_off.__doc__, '
+    "ui_context"
+)
+
+
+def conflict(**changes) -> dict:
+    """A VL-current item where the pinned docs and code disagree (synthetic question): the docs
+    say Q and "Calculate All Quantities", the pinned add-on binds Shift+Q to "Perform Quantity
+    Take-off". The code wins, and the item cites both (doc_conflict)."""
+    item = single(
+        question="My walls are drawn. How do I get their area and volume quantities in Bonsai?",
+        reference={
+            "answer": {
+                "text": "Select the walls and run Perform Quantity Take-off with Shift-Q.",
+                "support": ["C1.Q1", "K1.Q1", "K2.Q1"],
+            },
+            "steps": [
+                {"text": "Select the wall(s) you want to measure.", "support": ["C1.Q1"]},
+                {
+                    "text": "Press Shift-Q, or click Perform Quantity Take-off.",
+                    "support": ["K1.Q1"],
+                },
+                {"text": "Read the calculated quantities.", "support": ["K2.Q1"]},
+            ],
+            "tools": [{"kind": "bonsai_operator", "value": "bim.perform_quantity_take_off"}],
+            "hazard": None,
+            "scope_note": None,
+            "assumptions": ["blender", "bonsai"],
+        },
+        citations=[
+            {
+                "id": "C1",
+                "role": "support",
+                "record_id": QUANTITIES,
+                "quotes": [{"id": "Q1", "text": "Select the wall(s) you want to measure."}],
+            },
+            {
+                "id": "C2",
+                "role": "conflict",
+                "record_id": QUANTITIES,
+                "quotes": [
+                    {
+                        "id": "Q1",
+                        "text": 'Press Q or click "Calculate All Quantities" in the top bar.',
+                    }
+                ],
+            },
+        ],
+        code_citations=[
+            {
+                "id": "K1",
+                "role": "support",
+                "source": "bonsai-source",
+                "path": WORKSPACE,
+                "line_start": 82,
+                "line_end": 82,
+                "quotes": [{"id": "Q1", "text": KEYMAP_LINE}],
+            },
+            {
+                "id": "K2",
+                "role": "support",
+                "source": "bonsai-source",
+                "path": WORKSPACE,
+                "line_start": 1060,
+                "line_end": 1060,
+                "quotes": [{"id": "Q1", "text": TAKE_OFF_LINE}],
+            },
+        ],
+        patterns=[
+            {
+                "id": "P1",
+                "polarity": "required",
+                "kind": "any_of",
+                "value": "run the quantity take-off",
+                "field": "any",
+                "part": None,
+                "reason": None,
+                "support": [],
+                "alternatives": [
+                    {"kind": "hotkey", "value": "Shift-Q", "window": None, "support": []},
+                    {
+                        "kind": "bonsai_operator",
+                        "value": "bim.perform_quantity_take_off",
+                        "window": None,
+                        "support": [],
+                    },
+                ],
+            },
+            {
+                "id": "P2",
+                "polarity": "forbidden",
+                "kind": "hotkey",
+                "value": "Q",
+                "field": "steps",
+                "part": None,
+                "reason": "the stale docs' hotkey",
+                "support": [],
+            },
+        ],
+        unusual={
+            "reason": "doc_conflict",
+            "note": "The pinned code binds Shift+Q to Perform Quantity Take-off; the docs say Q.",
+        },
+    )
+    item.update(copy.deepcopy(changes))
+    return item
+
+
 def derive(lane: dict, ctx: gold.Context | None = None) -> gold.GoldContent:
     content, problems = gold.derive(gold.LaneItem.model_validate(lane), ctx or context())
     assert content is not None, problems

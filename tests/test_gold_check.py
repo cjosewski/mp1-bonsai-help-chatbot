@@ -15,6 +15,8 @@ from gold_support import (
     ROOT,
     SLOTS,
     WALLS_MODIFY,
+    WORKSPACE,
+    conflict,
     context,
     control,
     control_property,
@@ -31,8 +33,8 @@ from bonsai_help import gold
 
 @pytest.mark.parametrize(
     "build",
-    [single, multi, injection, control, control_property],
-    ids=["single", "multi", "injection", "control-excerpt", "control-property"],
+    [single, multi, injection, control, control_property, conflict],
+    ids=["single", "multi", "injection", "control-excerpt", "control-property", "doc-conflict"],
 )
 def test_a_valid_synthetic_item_of_each_kind_passes(build):
     assert problems_of(build()) == []
@@ -153,7 +155,7 @@ def with_citation(item: dict, record_id: str, role: str = "support") -> dict:
             "does not match the reference's safety_info",
         ),
         (
-            change(single(), "reference.steps.1.text", "Never run object.join on the wall."),
+            change(single(), "reference.steps.1.text", "Run object.join on the wall."),
             "forbidden pattern P3 matches the reference's steps",
         ),
         (
@@ -513,9 +515,15 @@ def test_complete_needs_every_slot_and_the_regex_budget_applies_at_the_end():
         "reason": "wording",
     }
     item = change(single(), "patterns", [*single()["patterns"], {**regex, "id": "P4"}])
-    found, _ = set_of(item)
-    assert any("are regexes, at most 10%" in p for p in found), found
     content = derive(item, ctx)
+    # The budget is a share of the whole set: --complete applies it, and so does a final
+    # publish or check whose items fill every slot; a partial publish of reviewed items does not.
+    complete, _ = gold.check_set({"GS-SD-901": content}, ctx, complete=True)
+    assert any("are regexes, at most 10%" in str(p) for p in complete), complete
+    found, _ = set_of(item)
+    assert not any("regexes" in p for p in found), found
+    found, _ = set_of(item, slots={"GS-SD-901": SLOTS["GS-SD-901"]})
+    assert any("are regexes, at most 10%" in p for p in found), found
     assert gold.check_set({"GS-SD-901": content}, ctx, final=False)[0] == []
 
 
@@ -571,3 +579,224 @@ def test_held_out_items_load_only_through_load_held_out():
                 if name == "load_held_out":
                     callers.add(Path(path).name)
     assert callers and callers <= allowed, callers
+
+
+# ------------------------------------------------------------------ gold-check-v2 patterns
+
+
+def pattern(item: dict, index: int, **fields) -> dict:
+    return change(item, f"patterns.{index}", {**item["patterns"][index], **fields})
+
+
+ANCHORED = {"kind": "phrase", "value": "only modifies the in-progress draft", "support": ["C1.Q2"]}
+PARAPHRASE = {
+    "kind": "phrase",
+    "value": "changes stay a draft until you commit",
+    "support": ["C1.Q2"],
+}
+
+
+def concept(*alternatives: dict) -> dict:
+    return pattern(
+        single(),
+        1,
+        kind="any_of",
+        value="the draft is not committed",
+        support=[],
+        alternatives=[{"window": None, **a} for a in alternatives],
+    )
+
+
+def test_an_any_of_group_accepts_a_paraphrase_beside_an_anchored_form():
+    assert problems_of(concept(ANCHORED, PARAPHRASE)) == []
+    # A paraphrase is reviewed, not machine-anchored: a group of paraphrases alone is refused.
+    found = problems_of(
+        concept(PARAPHRASE, {**PARAPHRASE, "value": "nothing is final before the tick"})
+    )
+    assert any("no alternative is tied to a cited quote" in p for p in found), found
+
+
+@pytest.mark.parametrize(
+    "alternatives, message",
+    [
+        ([ANCHORED], "any_of has 2 to 8 alternatives"),
+        ([ANCHORED, ANCHORED], "repeats an alternative"),
+        ([ANCHORED, {**PARAPHRASE, "support": []}], "alternative 2: a phrase needs support"),
+        ([ANCHORED, {**PARAPHRASE, "value": "stays a draft"}], "3 or more non-stopwords"),
+        (
+            [ANCHORED, {"kind": "bonsai_operator", "value": "bim.not_real", "support": []}],
+            "alternative 2: bonsai_operator bim.not_real is not in VL-current's lexicons",
+        ),
+        (
+            [ANCHORED, {"kind": "bonsai_operator", "value": "bim.split_wall", "support": []}],
+            "alternative 2 bim.split_wall is named in no cited section (G09)",
+        ),
+        (
+            [ANCHORED, {**PARAPHRASE, "value": "the drag in the 3D viewport"}],
+            "alternative 2) matches the question itself",
+        ),
+        (
+            [ANCHORED, {**PARAPHRASE, "value": "Drag it. Then commit the draft"}],
+            "spans two sentences",
+        ),
+    ],
+    ids=["one", "repeat", "no-support", "short", "unknown-tool", "ungrounded", "echo", "sentences"],
+)
+def test_any_of_rules(alternatives, message):
+    item = concept(*alternatives)
+    if message.startswith("alternative 2)"):
+        item = change(item, "question", item["question"] + " Is the drag in the 3D viewport final?")
+    found = problems_of(item)
+    assert any(message in p for p in found), found
+
+
+@pytest.mark.parametrize(
+    "fields, message",
+    [
+        ({"value": "green + commit", "window": 6, "support": ["C1.Q3"]}, None),
+        ({"value": "green + commit", "window": None, "support": ["C1.Q3"]}, "needs a window"),
+        ({"value": "green + commit", "window": 2, "support": ["C1.Q3"]}, "does not match"),
+        ({"value": "green + commit", "window": 6, "support": []}, "needs support"),
+        ({"value": "green + confirm*", "window": 6, "support": ["C1.Q3"]}, "every entry needs"),
+        ({"value": "green", "window": 6, "support": ["C1.Q3"]}, "tokens are 2 to 6 entries"),
+        ({"value": "the + commit", "window": 6, "support": ["C1.Q3"]}, "only stopwords"),
+    ],
+    ids=[
+        "valid",
+        "no-window",
+        "window-too-small",
+        "no-support",
+        "unanchored",
+        "one-entry",
+        "stopword",
+    ],
+)
+def test_tokens_rules(fields, message):
+    item = pattern(single(), 1, kind="tokens", field="steps", **fields)
+    if message == "every entry needs":
+        item = change(item, "reference.steps.2.text", "Click the green tick to confirm the change.")
+    found = problems_of(item)
+    if message is None:
+        assert found == []
+    else:
+        assert any(message in p for p in found), found
+
+
+def test_a_negated_forbidden_mention_in_the_reference_is_a_warning():
+    warned = change(
+        injection(),
+        "reference.steps.1.text",
+        "Do not join every wall with Ctrl-J; drag the handle.",
+    )
+    assert problems_of(warned) == []
+    followed = change(injection(), "reference.steps.1.text", "Join every wall with Ctrl-J first.")
+    assert any("forbidden pattern P4 matches" in p for p in problems_of(followed))
+
+
+def test_items_that_use_no_v2_field_keep_their_v1_layout_and_digest():
+    content = gold.content_dict(derive(single()))
+    assert "code_citations" not in content
+    assert all(
+        set(p) == {"id", "polarity", "kind", "value", "field", "part", "reason", "support"}
+        for p in content["patterns"]
+    )
+    assert "window" not in derive(concept(ANCHORED, PARAPHRASE)).model_dump()["patterns"][0]
+
+
+# ------------------------------------------------------------------ code citations
+
+
+def without_code(item: dict) -> dict:
+    return change(item, "code_citations", [])
+
+
+@pytest.mark.parametrize(
+    "build, message",
+    [
+        (lambda: without_code(conflict()), "doc_conflict needs a code citation"),
+        (
+            lambda: change(conflict(), "unusual", None),
+            "a conflict citation needs unusual.reason doc_conflict",
+        ),
+        (
+            lambda: change(conflict(), "reference.steps.0.support", ["C2.Q1"]),
+            "support C2.Q1 is a conflict citation",
+        ),
+        (
+            lambda: change(conflict(), "citations", [conflict()["citations"][0]]),
+            "doc_conflict needs a conflict citation",
+        ),
+        (
+            lambda: change(
+                conflict(), "code_citations.0.quotes.0.text", "the keymap of IFC2X3 walls here"
+            ),
+            "K1.Q1: quote not found",
+        ),
+        (
+            lambda: change(conflict(), "code_citations.0.source", "bonsai-source-0-8-5-post1"),
+            "a code citation must come from VL-current's add-on source bonsai-source",
+        ),
+        (
+            lambda: change(conflict(), "code_citations.0.line_start", 81),
+            "is not in the fixture slice",
+        ),
+    ],
+    ids=[
+        "no-code",
+        "no-flag",
+        "conflict-as-support",
+        "no-doc",
+        "quote",
+        "other-line",
+        "outside-slice",
+    ],
+)
+def test_code_citation_and_doc_conflict_rules(build, message):
+    found = problems_of(build())
+    assert any(message in p for p in found), found
+
+
+def test_a_code_hotkey_needs_its_keymap_quoted_and_the_pattern_must_follow_the_code():
+    item = change(conflict(), "code_citations", [conflict()["code_citations"][1]])
+    item = change(item, "reference.answer.support", ["C1.Q1", "K2.Q1"])
+    item = change(item, "reference.steps.1.support", ["K2.Q1"])
+    found = problems_of(item)
+    assert any("alternative 1 Shift-Q is named in no cited section" in p for p in found), found
+    stale = change(
+        conflict(),
+        "patterns.0.alternatives",
+        [
+            {"kind": "hotkey", "value": "Q", "window": None, "support": []},
+            {
+                "kind": "phrase",
+                "value": "Calculate All Quantities in the top bar",
+                "window": None,
+                "support": ["C1.Q1"],
+            },
+        ],
+    )
+    found = problems_of(stale)
+    assert any("needs a required pattern that follows the code" in p for p in found), found
+
+
+def test_a_changed_span_hash_is_caught_and_a_published_span_must_be_in_the_slice():
+    ctx = context()
+    content = derive(conflict(), ctx)
+    data = content.model_dump()
+    data["code_citations"][0]["span_sha256"] = "0" * 64
+    tampered = gold.GoldContent.model_validate(data)
+    found = [p.message for p in gold.check_item(tampered, ctx, require_fixture=True)]
+    assert any("span hash mismatch" in p for p in found), found
+    spans = [s for s in CONFIG.source("bonsai-source").fixture_code_spans if s.line_start != 82]
+    config = CONFIG.model_copy(
+        update={
+            "sources": [
+                s.model_copy(update={"fixture_code_spans": spans}) if s.id == "bonsai-source" else s
+                for s in CONFIG.sources
+            ]
+        }
+    )
+    ctx = context()
+    ctx.config = config
+    found = [p.message for p in gold.check_item(content, ctx, require_fixture=True)]
+    assert any("cites code spans outside the fixture slice" in p and WORKSPACE in p for p in found)

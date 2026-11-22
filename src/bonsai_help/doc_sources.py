@@ -182,6 +182,41 @@ class FixturePage(_Model):
         return _relative_path(value, glob=False)
 
 
+MAX_CODE_SPAN_LINES = 60
+
+
+class CodeSpan(_Model):
+    """A line span of an operator-source file that a gold item or fact row cites. Only the
+    span's own lines enter the fixture slice (`<path>.L<first>-L<last>`), unmodified, because
+    the files' license headers name contributors' contact addresses."""
+
+    path: str
+    line_start: int = Field(ge=1)
+    line_end: int = Field(ge=1)
+
+    @field_validator("path")
+    @classmethod
+    def _path(cls, value: str) -> str:
+        return _relative_path(value, glob=False)
+
+    @model_validator(mode="after")
+    def _span(self) -> CodeSpan:
+        if self.line_end < self.line_start:
+            raise ValueError("line_end is before line_start")
+        if self.line_end - self.line_start + 1 > MAX_CODE_SPAN_LINES:
+            raise ValueError(f"a code span is at most {MAX_CODE_SPAN_LINES} lines")
+        return self
+
+    @property
+    def fixture_path(self) -> str:
+        return code_span_path(self.path, self.line_start, self.line_end)
+
+
+def code_span_path(path: str, line_start: int, line_end: int) -> str:
+    """Where a code span's lines sit in the fixture slice, beside nothing else of the file."""
+    return f"{path}.L{line_start}-L{line_end}"
+
+
 class AutoSectionLabel(_Model):
     """Sphinx `autosectionlabel` settings read from the source's own `conf.py`."""
 
@@ -206,6 +241,7 @@ class Source(_Model):
     attribution: str = Field(min_length=1)
     permitted_use: str = Field(min_length=1)
     fixture_pages: list[FixturePage] = []
+    fixture_code_spans: list[CodeSpan] = []
     fixture_min_per_category: int = Field(default=0, ge=0)
     fixture_forbid_python: bool = False
 
@@ -242,6 +278,14 @@ class Source(_Model):
             raise ValueError("license_evidence paths must be unique")
         if self.role == "operator-source" and (self.fixture_pages or self.autosectionlabel):
             raise ValueError("an operator-source has no fixture_pages and no autosectionlabel")
+        if self.role != "operator-source" and self.fixture_code_spans:
+            raise ValueError("only an operator-source has fixture_code_spans")
+        spans = [(s.path, s.line_start, s.line_end) for s in self.fixture_code_spans]
+        if len(spans) != len(set(spans)):
+            raise ValueError("fixture_code_spans must be unique")
+        outside = [s.path for s in self.fixture_code_spans if not _under(s.path, self.root)]
+        if outside:
+            raise ValueError(f"fixture_code_spans outside root {self.root!r}: {outside}")
         return self
 
 

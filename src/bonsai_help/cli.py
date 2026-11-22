@@ -482,6 +482,8 @@ def _check(
     if not problems and data_root is not None:
         manifest, _ = doc_snapshot.load_manifest(manifest_path)
         problems = doc_snapshot.check_snapshots(config, manifest, data_root)
+        if not problems:
+            problems = doc_snapshot.check_code_spans(config, manifest, data_root, fixtures_dir)
         report.warnings += doc_snapshot.stale_staging(data_root, config)
     if problems:
         for problem in problems:

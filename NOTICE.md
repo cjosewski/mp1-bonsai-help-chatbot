@@ -34,13 +34,18 @@ Bonsai documentation by the IfcOpenShell contributors (https://github.com/IfcOpe
 
 ## Bonsai add-on source (operator lexicon)
 
-Bonsai add-on source code by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/bonsai at tag bonsai-0.9.0post1, commit 2744f8426bdef98a486406628a121298a5479690), licensed under the GNU General Public License v3.0 or later. Read only to extract the operator, panel and menu lexicon; no source file is committed.
+Bonsai add-on source code by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/bonsai at tag bonsai-0.9.0post1, commit 2744f8426bdef98a486406628a121298a5479690), licensed under the GNU General Public License v3.0 or later. Read to extract the operator, panel and menu lexicon. No whole source file is committed: only the short line spans that gold items and setup fact rows cite are copied unmodified into the fixture slice, without the files' license headers.
 
-Bonsai add-on source code by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/bonsai at tag bonsai-0.8.5-post1, commit e6258ab4a8e8c76d18b743ea80a6f7699809319b), licensed under the GNU General Public License v3.0 or later. Read only to extract the operator, panel and menu lexicon; no source file is committed.
+Bonsai add-on source code by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/bonsai at tag bonsai-0.8.5-post1, commit e6258ab4a8e8c76d18b743ea80a6f7699809319b), licensed under the GNU General Public License v3.0 or later. Read to extract the operator, panel and menu lexicon. No whole source file is committed: only the short line spans that gold items and setup fact rows cite are copied unmodified into the fixture slice, without the files' license headers.
 
-- No Bonsai source file is committed (their headers name contributors' contact
+- No whole Bonsai source file is committed (their headers name contributors' contact
   addresses). The committed lexicons under `reference/lexicons/bonsai-source*.json` hold
   only identifiers, labels, button texts, panel fields, file paths and line numbers, and
+  keep GPL-3.0-or-later.
+- Code spans: the line spans listed in `fixture_code_spans` of `config/doc-sources.json`
+  are copied unmodified, as `tests/fixtures/docs/<source>/<path>.L<first>-L<last>`, because
+  gold items and setup fact rows quote them where the pinned code and the docs disagree
+  (Chad, November 22, 2026: the code wins, cited). A span may hold no privacy match; they
   keep GPL-3.0-or-later.
 - License text: the same `src/bonsai/COPYING` blob as above.
 

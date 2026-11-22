@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -692,3 +693,106 @@ def test_glob_semantics():
     assert tag_for(parsed, "docs/guide/page.rst") == "first"
     assert tag_for(parsed, "docs/index.rst") == "second"
     assert tag_for(parsed, "elsewhere.rst") == "user"
+
+
+CODE = b"# Copyright (C) 2026 Someone <someone@example.invalid>\nline two\nIFC2X3 fallback\nline four\n"
+
+
+def code_source(**overrides) -> dict:
+    """A synthetic operator-source whose cited line spans join the fixture slice."""
+    base = {
+        "id": "fake-code",
+        "root": "code",
+        "role": "operator-source",
+        "include": ["code/**/*.py"],
+        "deny": [],
+        "tags": [],
+        "default_tag": "source",
+        "license_evidence": [
+            {"path": "COPYING", "blob": git_blob_id(FILES["COPYING"]), "commit_copy": False}
+        ],
+        "attribution": "Synthetic add-on code by the test suite; cited spans copied unmodified.",
+        "fixture_pages": [],
+        "fixture_code_spans": [{"path": "code/tool.py", "line_start": 2, "line_end": 3}],
+    }
+    return source_config(**{**base, **overrides})
+
+
+def code_workspace(ws, spans=None) -> None:
+    remote = make_remote(ws.tmp, {**FILES, "code/tool.py": CODE})
+    overrides = {} if spans is None else {"fixture_code_spans": spans}
+    write_config(ws.config, remote, sources=[source_config(), code_source(**overrides)])
+    assert ws.run("build", "--write-manifest")[0] == 0
+    ws.notice.write_text(
+        f"# Notice\n\n{source_config()['attribution']}\n\n{code_source()['attribution']}\n"
+    )
+
+
+def test_a_code_span_joins_the_slice_as_its_own_lines_and_is_checked(ws):
+    code_workspace(ws)
+    assert ws.run("fixtures")[0] == 0
+    span = ws.fixtures / "fake-code/code/tool.py.L2-L3"
+    assert span.read_bytes() == b"line two\nIFC2X3 fallback\n"
+    assert not (ws.fixtures / "fake-code/code/tool.py").exists()  # never the header
+    record = json.loads((ws.fixtures / "fixtures.json").read_bytes())["sources"]["fake-code"]
+    assert record["code_spans"][0]["sha256"] and record["code_spans"][0]["line_start"] == 2
+    assert ws.run("check", "--committed")[0] == 0 and ws.run("check")[0] == 0
+    span.write_bytes(b"line two\nIFC4 only\n")
+    code, _, err = ws.run("check", "--committed")
+    assert code == 1 and "tool.py.L2-L3: bytes differ from the manifest" in err
+
+
+def test_a_tampered_span_with_a_redigested_fixture_list_fails_the_full_check(ws):
+    code_workspace(ws)
+    assert ws.run("fixtures")[0] == 0
+    span = ws.fixtures / "fake-code/code/tool.py.L2-L3"
+    changed = b"line two\nIFC4 only\n"
+    span.write_bytes(changed)
+    path = ws.fixtures / "fixtures.json"
+    document = json.loads(path.read_bytes())
+    document["sources"]["fake-code"]["code_spans"][0].update(
+        blob=git_blob_id(changed), sha256=hashlib.sha256(changed).hexdigest(), bytes=len(changed)
+    )
+    path.write_bytes(dump_json(_with_digest(document, "digest")))
+    assert ws.run("check", "--committed")[0] == 0  # offline cannot see the file
+    code, _, err = ws.run("check")
+    assert code == 1 and "differs from the snapshot's lines" in err
+
+
+@pytest.mark.parametrize(
+    "spans, message",
+    [
+        ([{"path": "code/tool.py", "line_start": 1, "line_end": 2}], "email match"),
+        ([{"path": "code/tool.py", "line_start": 4, "line_end": 9}], "outside the file"),
+    ],
+    ids=["header-address", "past-the-end"],
+)
+def test_a_span_with_a_privacy_match_or_outside_the_file_is_never_exported(ws, spans, message):
+    code_workspace(ws, spans)
+    code, _, err = ws.run("fixtures")
+    assert code == 1 and message in err
+    assert not (ws.fixtures / "fake-code").exists()
+
+
+@pytest.mark.parametrize(
+    "overrides, valid",
+    [
+        ({"fixture_code_spans": [{"path": "code/a.py", "line_start": 3, "line_end": 2}]}, False),
+        ({"fixture_code_spans": [{"path": "code/a.py", "line_start": 1, "line_end": 61}]}, False),
+        ({"fixture_code_spans": [{"path": "other/a.py", "line_start": 1, "line_end": 2}]}, False),
+    ],
+    ids=["reversed", "too-long", "outside-root"],
+)
+def test_code_span_config_rules(overrides, valid):
+    raw = code_source(**overrides)
+    if valid:
+        Source.model_validate(raw)
+    else:
+        with pytest.raises(ValueError):
+            Source.model_validate(raw)
+    with pytest.raises(ValueError, match="only an operator-source"):
+        Source.model_validate(
+            source_config(
+                fixture_code_spans=[{"path": "docs/a.py", "line_start": 1, "line_end": 1}]
+            )
+        )

@@ -77,7 +77,13 @@ with Chad's four decisions (pairings, IFC schemas, review packets, drafting; quo
   only he runs `gold packet import` and `setup review import`.
 - Docs versus code (Chad, November 22, 2026, "Code wins, cited"): where the pinned Bonsai
   docs and the pinned add-on source disagree, a reference answer follows the code, cites
-  both, and carries the unusual flag `doc_conflict`.
+  both (the doc section with role `conflict`, the code span as a code citation), and carries
+  the unusual flag `doc_conflict`. Code spans join the fixture slice only as their own lines
+  (`fixture_code_spans`, then `snapshot fixtures`); never commit a whole add-on file.
+- Checker `gold-check-v2` (assistant's calls in `docs/DECISIONS.md`): `any_of` and `tokens`
+  patterns, negation-aware forbidden patterns, code citations (G26), and the regex budget
+  only for a set that fills every slot. Record every further change to a check as a dated
+  assistant's call; never weaken a check silently.
 - Gold rules:
   - Only Chad writes a packet's `DECISION:` and `NOTE:` lines and its edit JSON, and only
     Chad runs `gold packet import` (interactive terminal, typed confirmation). An

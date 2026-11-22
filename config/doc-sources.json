@@ -836,9 +836,41 @@
           "note": "The same blob as bonsai-docs' committed copy, tests/fixtures/docs/bonsai-docs/src/bonsai/COPYING."
         }
       ],
-      "attribution": "Bonsai add-on source code by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/bonsai at tag bonsai-0.9.0post1, commit 2744f8426bdef98a486406628a121298a5479690), licensed under the GNU General Public License v3.0 or later. Read only to extract the operator, panel and menu lexicon; no source file is committed.",
-      "permitted_use": "Redistribution and modification under GPL-3.0-or-later. Parsed (never imported or executed) to extract operator, panel, menu and tool identifiers, labels and locations for the deterministic checks.",
+      "attribution": "Bonsai add-on source code by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/bonsai at tag bonsai-0.9.0post1, commit 2744f8426bdef98a486406628a121298a5479690), licensed under the GNU General Public License v3.0 or later. Read to extract the operator, panel and menu lexicon. No whole source file is committed: only the short line spans that gold items and setup fact rows cite are copied unmodified into the fixture slice, without the files' license headers.",
+      "permitted_use": "Redistribution and modification under GPL-3.0-or-later. Parsed (never imported or executed) to extract operator, panel, menu and tool identifiers, labels and locations for the deterministic checks; cited line spans quoted as evidence for gold reference answers and setup fact rows.",
       "fixture_pages": [],
+      "fixture_code_spans": [
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/data.py",
+          "line_start": 66,
+          "line_end": 68
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/data.py",
+          "line_start": 105,
+          "line_end": 106
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 93,
+          "line_end": 95
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 82,
+          "line_end": 82
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1060,
+          "line_end": 1060
+        },
+        {
+          "path": "src/bonsai/bonsai/core/project.py",
+          "line_start": 98,
+          "line_end": 98
+        }
+      ],
       "fixture_min_per_category": 0,
       "fixture_forbid_python": false
     },
@@ -872,9 +904,41 @@
           "note": "The same blob as bonsai-docs' committed copy, tests/fixtures/docs/bonsai-docs/src/bonsai/COPYING."
         }
       ],
-      "attribution": "Bonsai add-on source code by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/bonsai at tag bonsai-0.8.5-post1, commit e6258ab4a8e8c76d18b743ea80a6f7699809319b), licensed under the GNU General Public License v3.0 or later. Read only to extract the operator, panel and menu lexicon; no source file is committed.",
-      "permitted_use": "Redistribution and modification under GPL-3.0-or-later. Parsed (never imported or executed) to extract operator, panel, menu and tool identifiers, labels and locations for the deterministic checks.",
+      "attribution": "Bonsai add-on source code by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/bonsai at tag bonsai-0.8.5-post1, commit e6258ab4a8e8c76d18b743ea80a6f7699809319b), licensed under the GNU General Public License v3.0 or later. Read to extract the operator, panel and menu lexicon. No whole source file is committed: only the short line spans that gold items and setup fact rows cite are copied unmodified into the fixture slice, without the files' license headers.",
+      "permitted_use": "Redistribution and modification under GPL-3.0-or-later. Parsed (never imported or executed) to extract operator, panel, menu and tool identifiers, labels and locations for the deterministic checks; cited line spans quoted as evidence for gold reference answers and setup fact rows.",
       "fixture_pages": [],
+      "fixture_code_spans": [
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/data.py",
+          "line_start": 66,
+          "line_end": 68
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/data.py",
+          "line_start": 105,
+          "line_end": 106
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 93,
+          "line_end": 95
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 82,
+          "line_end": 82
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/model/workspace.py",
+          "line_start": 1061,
+          "line_end": 1061
+        },
+        {
+          "path": "src/bonsai/bonsai/core/project.py",
+          "line_start": 99,
+          "line_end": 99
+        }
+      ],
       "fixture_min_per_category": 0,
       "fixture_forbid_python": false
     }

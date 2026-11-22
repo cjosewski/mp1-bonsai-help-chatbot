@@ -18,6 +18,7 @@ from gold_support import (
     GOLD,
     ROOT,
     WALLS,
+    conflict,
     context,
     control,
     injection,
@@ -210,6 +211,24 @@ def test_a_packet_shows_the_cited_sections_in_a_long_enough_fence(tmp_path):
     assert "Dragging only modifies the in-progress" in text
     assert "| P1 | required | bonsai_operator | bim.enable_editing_wall | any |" in text
     assert "This answer assumes Blender 5.2, Bonsai 0.9.0-post1, the IFC4 schema." in text
+
+
+def test_a_packet_shows_code_spans_alternatives_and_the_negation_rule(tmp_path):
+    ingest(tmp_path, conflict())
+    export(tmp_path)
+    text = packet_path(tmp_path).read_text(encoding="utf-8")
+    assert "#### K1 (support, pinned add-on source) bonsai-source:" in text
+    assert '"type": "Q", "value": "PRESS", "shift": True' in text
+    assert "| P1 | required | any_of | run the quantity take-off |" in text
+    assert "| P1.1 |  | hotkey | Shift-Q |" in text and "grounded" in text
+    assert "| P1.2 |  | bonsai_operator | bim.perform_quantity_take_off |" in text
+    assert "counts only an affirmative occurrence" in text
+    # The edit JSON carries the code citations in lane form, and an unchanged approve imports.
+    fence = prefill(tmp_path, "GS-SD-901")
+    assert fence["code_citations"][0]["quotes"][0]["id"] == "Q1"
+    assert "span_sha256" not in json.dumps(fence)
+    decide(tmp_path, "GS-SD-901", "approve")
+    assert import_(tmp_path).lines[0].startswith("GP-001: 1 decision(s) recorded")
 
 
 def test_an_item_failing_the_check_is_skipped(tmp_path):

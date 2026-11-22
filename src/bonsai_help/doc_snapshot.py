@@ -30,6 +30,7 @@ from bonsai_help.doc_sources import (
     SnapshotError,
     Source,
     canonical,
+    code_span_path,
     glob_match,
     pin_id,
     privacy_matches,
@@ -371,7 +372,55 @@ def fixture_plan(source: Source) -> dict[str, dict]:
     return dict(sorted(plan.items()))
 
 
-def fixtures_document(config: DocSources, manifest: dict) -> dict:
+def slice_lines(data: bytes, line_start: int, line_end: int) -> bytes | None:
+    """Lines `line_start` to `line_end` (1-based, inclusive) with their line ends, or None."""
+    lines = data.splitlines(keepends=True)
+    if line_start < 1 or line_end < line_start or line_end > len(lines):
+        return None
+    return b"".join(lines[line_start - 1 : line_end])
+
+
+def span_refusal(data: bytes) -> str | None:
+    """Why a code span could never join the fixture slice: a code span carries no privacy
+    match at all (no allowance applies; the file headers' addresses stay out of Git)."""
+    found = privacy_matches(data.decode("utf-8", "replace"))
+    if found:
+        return ", ".join(f"{count} {pattern} match(es)" for pattern, count in found.items())
+    return None
+
+
+def _span_record(span, entry: dict, recorded: dict | None) -> dict:
+    page = _files_by_path(entry).get(span.path)
+    return {
+        "path": span.path,
+        "line_start": span.line_start,
+        "line_end": span.line_end,
+        "file_sha256": page["sha256"] if page else None,
+        "blob": recorded.get("blob") if recorded else None,
+        "sha256": recorded.get("sha256") if recorded else None,
+        "bytes": recorded.get("bytes") if recorded else None,
+    }
+
+
+def committed_spans(document: dict | None) -> dict[tuple[str, str], dict]:
+    """The code-span records of a fixtures document by (source id, fixture path)."""
+    found = {}
+    for sid, value in ((document or {}).get("sources") or {}).items():
+        for record in value.get("code_spans", []) if isinstance(value, dict) else []:
+            if isinstance(record, dict):
+                key = code_span_path(
+                    str(record.get("path")), record.get("line_start"), record.get("line_end")
+                )
+                found[(sid, key)] = record
+    return found
+
+
+def fixtures_document(
+    config: DocSources, manifest: dict, spans: dict[tuple[str, str], dict] | None = None
+) -> dict:
+    """The fixture list. An operator-source lists its code spans; their own hashes come from
+    `spans` (the export's snapshot bytes, or the committed record that the span files are then
+    checked against), the file hash from the manifest."""
     sources = {}
     for source in config.sources:
         entry = manifest["sources"][source.id]
@@ -391,6 +440,13 @@ def fixtures_document(config: DocSources, manifest: dict) -> dict:
             "source_digest": entry["source_digest"],
             "files": files,
         }
+        if source.role == "operator-source":
+            sources[source.id]["code_spans"] = [
+                _span_record(span, entry, (spans or {}).get((source.id, span.fixture_path)))
+                for span in sorted(
+                    source.fixture_code_spans, key=lambda s: (s.path, s.line_start, s.line_end)
+                )
+            ]
     return _with_digest({"schema": FIXTURES_SCHEMA, "sources": sources}, "digest")
 
 
@@ -443,8 +499,11 @@ def check_fixtures(config: DocSources, manifest: dict, fixtures_dir: Path) -> li
     )
     if document is None:
         return problems or [Problem(label, "fixtures.json", "missing")]
+    recorded = committed_spans(document)
     if {key: value for key, value in document.items() if key != "digest"} != {
-        key: value for key, value in fixtures_document(config, manifest).items() if key != "digest"
+        key: value
+        for key, value in fixtures_document(config, manifest, recorded).items()
+        if key != "digest"
     }:
         problems.append(
             Problem(
@@ -459,6 +518,10 @@ def check_fixtures(config: DocSources, manifest: dict, fixtures_dir: Path) -> li
         known = _files_by_path(manifest["sources"][source.id])
         plan = fixture_plan(source)
         expected = {path: known[path] for path in plan}
+        for span in source.fixture_code_spans:
+            record = recorded.get((source.id, span.fixture_path))
+            if record and all(record.get(k) is not None for k in ("blob", "sha256", "bytes")):
+                expected[span.fixture_path] = record
         base = fixtures_dir / source.id
         problems += _compare_files(source.id, base, expected, f"fixtures/{source.id}")
         for category in CATEGORIES:
@@ -517,6 +580,15 @@ def check_privacy(config: DocSources, written: list[Path], fixtures_dir: Path) -
                             path,
                             f"{count} {pattern} match(es) without a reviewed allowance",
                         )
+                    )
+    for source in config.sources:
+        for span in source.fixture_code_spans:
+            target = fixtures_dir / source.id / span.fixture_path
+            if target.is_file() and not target.is_symlink():
+                refusal = span_refusal(target.read_bytes())
+                if refusal:
+                    problems.append(
+                        Problem(source.id, span.fixture_path, f"code span holds {refusal}")
                     )
     for key in sorted(set(allowances) - used):
         problems.append(
@@ -628,6 +700,71 @@ def check_snapshots(config: DocSources, manifest: dict, data_root: Path) -> list
             problems.append(Problem(source.id, shown, "not built (run snapshot build)"))
         else:
             problems += check_snapshot(source, manifest["sources"][source.id], snapshot, shown)
+    return problems
+
+
+def span_from_snapshot(source: Source, manifest: dict, snapshot: Path, span) -> tuple[bytes, str]:
+    """A code span's bytes from a built snapshot, or a problem (file hash, range, privacy)."""
+    page = _files_by_path(manifest["sources"][source.id]).get(span.path)
+    target = snapshot / "files" / span.path
+    if page is None or not target.is_file() or sha256_hex(target.read_bytes()) != page["sha256"]:
+        return b"", "file missing from the snapshot or its hash differs from the manifest"
+    data = slice_lines(target.read_bytes(), span.line_start, span.line_end)
+    if data is None:
+        return b"", "line span is outside the file"
+    refusal = span_refusal(data)
+    if refusal:
+        return b"", f"code span holds {refusal}; it cannot join the fixture slice"
+    return data, ""
+
+
+def read_code_span(
+    config: DocSources,
+    manifest: dict,
+    read,
+    source_id: str,
+    path: str,
+    line_start: int,
+    line_end: int,
+) -> bytes | str:
+    """A code span's bytes, or a problem. `read(source, path)` gives a snapshot file (full
+    mode: hash-checked against the manifest, then sliced) or, offline, nothing for the file and
+    the span's own fixture (`<path>.L<first>-L<last>`, which `check_fixtures` hash-checks)."""
+    source = next((s for s in config.sources if s.id == source_id), None)
+    if source is None or source.role != "operator-source":
+        return f"unknown add-on source {source_id}"
+    page = _files_by_path(manifest["sources"][source_id]).get(path)
+    if page is None:
+        return f"{source_id}:{path} is not a file of the pin"
+    data = read(source_id, path)
+    if data is not None:
+        if sha256_hex(data) != page["sha256"]:
+            return f"{source_id}:{path}: file hash differs from the manifest"
+        span = slice_lines(data, line_start, line_end)
+        return span if span is not None else f"{source_id}:{path}: lines outside the file"
+    span = read(source_id, code_span_path(path, line_start, line_end))
+    if span is None:
+        return (
+            f"{source_id}:{path}#L{line_start}-L{line_end} is not in the fixture slice "
+            "(add it to fixture_code_spans and run snapshot fixtures, or check against the snapshots)"
+        )
+    return span
+
+
+def check_code_spans(config: DocSources, manifest: dict, data_root: Path, fixtures_dir: Path):
+    """Every committed code span equals its lines in the built snapshot."""
+    problems = []
+    for source in config.sources:
+        snapshot = snapshot_dir(data_root, source, config.repository_of(source))
+        for span in source.fixture_code_spans:
+            data, problem = span_from_snapshot(source, manifest, snapshot, span)
+            target = fixtures_dir / source.id / span.fixture_path
+            if problem:
+                problems.append(Problem(source.id, span.fixture_path, problem))
+            elif not target.is_file() or target.read_bytes() != data:
+                problems.append(
+                    Problem(source.id, span.fixture_path, "differs from the snapshot's lines")
+                )
     return problems
 
 
@@ -894,11 +1031,22 @@ def export_fixtures(
     if snapshot_problems:
         raise CheckFailed("; ".join(map(str, snapshot_problems[:5])))
     desired: dict[str, bytes] = {}
+    spans: dict[tuple[str, str], dict] = {}
     for source in config.sources:
         snapshot = snapshot_dir(data_root, source, config.repository_of(source))
         for path in fixture_plan(source):
             desired[f"{source.id}/{path}"] = (snapshot / "files" / path).read_bytes()
-    desired["fixtures.json"] = dump_json(fixtures_document(config, manifest))
+        for span in source.fixture_code_spans:
+            data, problem = span_from_snapshot(source, manifest, snapshot, span)
+            if problem:
+                raise CheckFailed(f"{source.id}: {span.fixture_path}: {problem}")
+            desired[f"{source.id}/{span.fixture_path}"] = data
+            spans[(source.id, span.fixture_path)] = {
+                "blob": git_blob_id(data),
+                "sha256": sha256_hex(data),
+                "bytes": len(data),
+            }
+    desired["fixtures.json"] = dump_json(fixtures_document(config, manifest, spans))
     found, odd = _walk_files(fixtures_dir) if fixtures_dir.is_dir() else ({}, [])
     conflicts = [
         path

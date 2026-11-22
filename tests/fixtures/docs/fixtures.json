@@ -1,5 +1,5 @@
 {
-  "digest": "aefb69b0760218201186ac41210d98ba7a42cd6bd1fc8795bd7e27fd6e44fdb1",
+  "digest": "f535acfb795c88e7d3555ee3c3105fb6ef77a4469b69cdb07aaa1b4cdbcb82ae",
   "schema": "doc-fixtures-v1",
   "sources": {
     "blender-manual": {
@@ -731,11 +731,27 @@
       "source_digest": "8e2359af5403395ef00ae213417820d4d3cff57741d75ba05d0dba0ce0ffdbd0"
     },
     "bonsai-source": {
+      "code_spans": [
+        {"blob": "3982c310bcd1ab0bd9f4a89e25c6e84117e204ed", "bytes": 210, "file_sha256": "b4c2809b4c599ddd239015478db1a5f5b0f9b11989e702fb0d5395780318db43", "line_end": 68, "line_start": 66, "path": "src/bonsai/bonsai/bim/module/georeference/data.py", "sha256": "ddf74a854fe60072ff5b7e332ea48c222af33366f386f9b630255d7189dda043"},
+        {"blob": "e4f5bb9453f6fd8db574d2764afe52542e8bbce1", "bytes": 156, "file_sha256": "b4c2809b4c599ddd239015478db1a5f5b0f9b11989e702fb0d5395780318db43", "line_end": 106, "line_start": 105, "path": "src/bonsai/bonsai/bim/module/georeference/data.py", "sha256": "3f86258f9feeb14dc13ec78cd577bcf815a0a41a76bb94e57b7ef43a7add086b"},
+        {"blob": "5c76e6cb1abff36bbe6ac293961de7e2aadb07bc", "bytes": 148, "file_sha256": "770614d9b6243011de9e72f1a99dd0388224ffb8d0e2e49f9ef10437261c088d", "line_end": 95, "line_start": 93, "path": "src/bonsai/bonsai/bim/module/georeference/ui.py", "sha256": "872ca6ae5440ca0b0652caeaf554e4746ec651c9f25af8261100906ce5418f2c"},
+        {"blob": "1dd9f7a20f036c204a767810ff40c58051a61da7", "bytes": 109, "file_sha256": "106bfa64b9da294f6c1c83ecc1433797ca9b55afe3ceeea638f9a429d7799c88", "line_end": 82, "line_start": 82, "path": "src/bonsai/bonsai/bim/module/model/workspace.py", "sha256": "1d14df3624848b655803f887ed2537a843d12dba534f7cb02a6c5607bb42748f"},
+        {"blob": "c21700514e631c29e025360ba4e687fa7a9b60b3", "bytes": 111, "file_sha256": "106bfa64b9da294f6c1c83ecc1433797ca9b55afe3ceeea638f9a429d7799c88", "line_end": 1060, "line_start": 1060, "path": "src/bonsai/bonsai/bim/module/model/workspace.py", "sha256": "9f31aa506ddcf2f84a7bbf2ed06d2699d96d1871b9a6588e0cdd93e2babf678b"},
+        {"blob": "d5ca46cbcbecb31fb255252908c384e01cf8486d", "bytes": 91, "file_sha256": "7523dd99654e461659cdb769f0adf674bdbbb641616f6bf1ed3aca52e77ab1e5", "line_end": 98, "line_start": 98, "path": "src/bonsai/bonsai/core/project.py", "sha256": "5d25d563ea5b58097bc149df252ad89ccfec9a0dd24f5d4568f3f879374e934b"}
+      ],
       "files": [],
       "pin_id": "bonsai-source-0af9a03ac2055c14",
       "source_digest": "b245cfa97eecff83f433c82199e86c5ed39327f47a63a14699dc26c4086a7619"
     },
     "bonsai-source-0-8-5-post1": {
+      "code_spans": [
+        {"blob": "3982c310bcd1ab0bd9f4a89e25c6e84117e204ed", "bytes": 210, "file_sha256": "b4c2809b4c599ddd239015478db1a5f5b0f9b11989e702fb0d5395780318db43", "line_end": 68, "line_start": 66, "path": "src/bonsai/bonsai/bim/module/georeference/data.py", "sha256": "ddf74a854fe60072ff5b7e332ea48c222af33366f386f9b630255d7189dda043"},
+        {"blob": "e4f5bb9453f6fd8db574d2764afe52542e8bbce1", "bytes": 156, "file_sha256": "b4c2809b4c599ddd239015478db1a5f5b0f9b11989e702fb0d5395780318db43", "line_end": 106, "line_start": 105, "path": "src/bonsai/bonsai/bim/module/georeference/data.py", "sha256": "3f86258f9feeb14dc13ec78cd577bcf815a0a41a76bb94e57b7ef43a7add086b"},
+        {"blob": "5c76e6cb1abff36bbe6ac293961de7e2aadb07bc", "bytes": 148, "file_sha256": "770614d9b6243011de9e72f1a99dd0388224ffb8d0e2e49f9ef10437261c088d", "line_end": 95, "line_start": 93, "path": "src/bonsai/bonsai/bim/module/georeference/ui.py", "sha256": "872ca6ae5440ca0b0652caeaf554e4746ec651c9f25af8261100906ce5418f2c"},
+        {"blob": "1dd9f7a20f036c204a767810ff40c58051a61da7", "bytes": 109, "file_sha256": "70bc3ca865f887f6a1c4e39e3b9248ca7c25c7fa609aec20f2f3187165b9dc21", "line_end": 82, "line_start": 82, "path": "src/bonsai/bonsai/bim/module/model/workspace.py", "sha256": "1d14df3624848b655803f887ed2537a843d12dba534f7cb02a6c5607bb42748f"},
+        {"blob": "c21700514e631c29e025360ba4e687fa7a9b60b3", "bytes": 111, "file_sha256": "70bc3ca865f887f6a1c4e39e3b9248ca7c25c7fa609aec20f2f3187165b9dc21", "line_end": 1061, "line_start": 1061, "path": "src/bonsai/bonsai/bim/module/model/workspace.py", "sha256": "9f31aa506ddcf2f84a7bbf2ed06d2699d96d1871b9a6588e0cdd93e2babf678b"},
+        {"blob": "d5ca46cbcbecb31fb255252908c384e01cf8486d", "bytes": 91, "file_sha256": "ecbc5a5aa60f27c53fb4ee9e67b2c1a5403065c581166d0c3065a658c51370d0", "line_end": 99, "line_start": 99, "path": "src/bonsai/bonsai/core/project.py", "sha256": "5d25d563ea5b58097bc149df252ad89ccfec9a0dd24f5d4568f3f879374e934b"}
+      ],
       "files": [],
       "pin_id": "bonsai-source-0-8-5-post1-2ef0a8933f49af97",
       "source_digest": "e9506abbe4e9e057d5ccd68b3a78ca4eb3e4d766a58667c74bf231dc639b06dd"

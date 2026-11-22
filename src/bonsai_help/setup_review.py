@@ -78,11 +78,13 @@ EDIT_FIELDS = {
         "claim",
         "key_terms",
         "citations",
+        "code_citations",
         "absent_in",
         "conflicts_with",
         "candidate_rule",
     ),
 }
+CODE_EDIT_KEYS = {"source", "path", "line_start", "line_end", "quote"}
 STATUS = {"approve": "chad_accepted", "edit": "chad_amended", "reject": "chad_rejected"}
 
 
@@ -151,11 +153,15 @@ def edit_prefill(record: BaseModel) -> dict:
     """A record's editable fields; a fact row's citations as a record id and a quote."""
     kind = kind_of(record.id)
     content = setup.record_content(record)
-    data = {key: content[key] for key in EDIT_FIELDS[kind]}
+    data = {key: content[key] for key in EDIT_FIELDS[kind] if key in content}
     if kind == "fact":
         data["citations"] = [
             {"record_id": c["record_id"], "quote": c["quote"]} for c in content["citations"]
         ]
+        if content.get("code_citations"):
+            data["code_citations"] = [
+                {key: c[key] for key in sorted(CODE_EDIT_KEYS)} for c in content["code_citations"]
+            ]
     return data
 
 
@@ -204,6 +210,28 @@ def _fact(row: setup.FactRow, state: SetupState) -> list[str]:
                 f'- citation {number} (line {citation.quote_line}): "{collapse_cell(citation.quote)}"'
             )
         out.append("")
+    if row.code_citations:
+        out += ["### Cited code (pinned add-on source)", ""]
+    for number, citation in enumerate(row.code_citations, 1):
+        span = setup.read_code_span(
+            state.config,
+            state.manifest,
+            state.read,
+            citation.source,
+            citation.path,
+            citation.line_start,
+            citation.line_end,
+        )
+        text = span.decode("utf-8", "replace") if isinstance(span, bytes) else f"({span})"
+        out += [
+            f"#### code {number}: {citation.source}:{citation.path}"
+            f"#L{citation.line_start}-L{citation.line_end}",
+            "",
+            fence(text, "python"),
+            "",
+            f'- code citation {number} (line {citation.quote_line}): "{collapse_cell(citation.quote)}"',
+            "",
+        ]
     return out
 
 
@@ -279,8 +307,9 @@ def render_record(record: BaseModel, state: SetupState, prior: dict | None) -> s
     out += [
         "",
         "To edit, change the JSON below in place and write DECISION: edit. A fact row's "
-        "citations are a record id and a verbatim quote; the other citation fields are filled "
-        "in again, and the whole setup check runs on the edited record.",
+        "citations are a record id and a verbatim quote (a code citation: source, path, line "
+        "span and quote); the other citation fields are filled in again, and the whole setup "
+        "check runs on the edited record.",
         DECIDE_MARK.format(record.id),
     ]
     fixed = "\n".join(out)
@@ -468,6 +497,34 @@ def _derive_citations(value: object, state: SetupState) -> list[dict] | str:
     return out
 
 
+def _derive_code_citations(value: object, state: SetupState) -> list[dict] | str:
+    shape = "code_citations is a list of {source, path, line_start, line_end, quote}"
+    if not isinstance(value, list):
+        return shape
+    out = []
+    for number, citation in enumerate(value, 1):
+        if not isinstance(citation, dict) or set(citation) != CODE_EDIT_KEYS:
+            return f"code citation {number}: {shape}"
+        if not all(isinstance(citation[k], int) for k in ("line_start", "line_end")):
+            return f"code citation {number}: line_start and line_end are numbers"
+        try:
+            out.append(
+                setup.make_code_citation(
+                    state.config,
+                    state.manifest,
+                    state.read,
+                    str(citation["source"]),
+                    str(citation["path"]),
+                    citation["line_start"],
+                    citation["line_end"],
+                    str(citation["quote"]),
+                )
+            )
+        except (ValueError, KeyError) as error:
+            return f"code citation {number}: {error}"
+    return out
+
+
 def _apply(block: Mapping, record: BaseModel, state: SetupState) -> BaseModel | None | list[str]:
     """The edited record (status assistant_drafted until applied), None, or problems."""
     record_id, word, fence_value = block["item"], block["word"], block["fence"]
@@ -493,6 +550,11 @@ def _apply(block: Mapping, record: BaseModel, state: SetupState) -> BaseModel | 
         if isinstance(derived, str):
             return [f"{record_id}: edit: {derived}"]
         changed["citations"] = derived
+    if "code_citations" in changed:
+        derived = _derive_code_citations(changed["code_citations"], state)
+        if isinstance(derived, str):
+            return [f"{record_id}: edit: {derived}"]
+        changed["code_citations"] = derived
     merged = {
         **setup.record_content(record),
         **changed,

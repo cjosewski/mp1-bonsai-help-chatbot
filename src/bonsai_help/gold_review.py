@@ -385,7 +385,7 @@ def collapse_cell(text: str) -> str:
 
 def edit_prefill(item: GoldContent) -> dict:
     data = gold.lane_form(item)
-    return {key: data[key] for key in gold.EDIT_FIELDS}
+    return {key: data[key] for key in gold.EDIT_FIELDS if key in data}
 
 
 def render_item(item: GoldContent, ctx: Context, prior: dict | None) -> tuple[str, str]:
@@ -459,6 +459,21 @@ def render_item(item: GoldContent, ctx: Context, prior: dict | None) -> tuple[st
                 f'- {citation.id}.{quote.id} (line {quote.line}): "{collapse_cell(quote.text)}"'
             )
         out.append("")
+    for citation in item.code_citations:
+        span = ctx.code_span(citation.source, citation.path, citation.line_start, citation.line_end)
+        text = span.decode("utf-8", "replace") if isinstance(span, bytes) else f"({span})"
+        out += [
+            f"#### {citation.id} ({citation.role}, pinned add-on source) {citation.source}:"
+            f"{citation.path}#L{citation.line_start}-L{citation.line_end}",
+            "",
+            fence(text, "python"),
+            "",
+        ]
+        for quote in citation.quotes:
+            out.append(
+                f'- {citation.id}.{quote.id} (line {quote.line}): "{collapse_cell(quote.text)}"'
+            )
+        out.append("")
     out += ["### Check patterns", ""]
     out.append(
         "| id | polarity | kind | value | field | part | accepted forms | matches reference |"
@@ -466,15 +481,31 @@ def render_item(item: GoldContent, ctx: Context, prior: dict | None) -> tuple[st
     out.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
     tools_by_id = gold.pattern_tools(item, ctx, line)
     fields = gold.pseudo_payload(item, ctx)
+    cited, support_text = gold._support_text(item, ctx)
+    quotes = gold._quote_index(item)
+
+    def row(values) -> str:
+        return "| " + " | ".join(_cell(v) for v in values) + " |"
+
+    def accepted(kind: str, value: str, window, tool) -> str:
+        if isinstance(tool, gp.Tool):
+            return ", ".join([tool.value, *tool.forms])
+        if kind == "tokens":
+            return f"all of: {value} (any order, within {window} tokens of a sentence)"
+        return "(text)"
+
     for pattern in item.patterns:
         tool = tools_by_id.get(pattern.id)
-        forms = ", ".join([tool.value, *tool.forms]) if tool else "(text)"
-        hit = gp.matches(pattern.model_dump(), gp.field_text(fields, pattern.field), tool)
+        text = gp.field_text(fields, pattern.field)
+        hit = gp.hit(pattern.model_dump(), text, tool)
+        forms = (
+            f"any of {len(pattern.alternatives or [])} alternatives below"
+            if pattern.kind == "any_of"
+            else accepted(pattern.kind, pattern.value, pattern.window, tool)
+        )
         out.append(
-            "| "
-            + " | ".join(
-                _cell(v)
-                for v in (
+            row(
+                (
                     pattern.id,
                     pattern.polarity,
                     pattern.kind,
@@ -485,8 +516,42 @@ def render_item(item: GoldContent, ctx: Context, prior: dict | None) -> tuple[st
                     "yes" if hit else "no",
                 )
             )
-            + " |"
         )
+        for k, alternative in enumerate(pattern.alternatives or (), 1):
+            own = tool[k - 1] if isinstance(tool, tuple) and k - 1 < len(tool) else None
+            if own is not None:
+                tie = "grounded" if gold._grounded(own, cited, support_text) else "not grounded"
+            elif alternative.kind == "phrase":
+                tied = gold._phrase_anchored(alternative.value, alternative.support, quotes)
+                tie = "in its quote" if tied else "paraphrase: check it against its quotes"
+            else:
+                _, tied = gold._tokens_rules(
+                    "", alternative.value, alternative.window, alternative.support, quotes
+                )
+                tie = "from its quotes" if tied else "paraphrase: check it against its quotes"
+            support = f" [{', '.join(alternative.support)}]" if alternative.support else ""
+            sub = gp.matches({**alternative.model_dump(), "alternatives": None}, text, own)
+            out.append(
+                row(
+                    (
+                        f"{pattern.id}.{k}",
+                        "",
+                        alternative.kind,
+                        alternative.value + support,
+                        "",
+                        "",
+                        f"{accepted(alternative.kind, alternative.value, alternative.window, own)}"
+                        f"; {tie}",
+                        "yes" if sub else "no",
+                    )
+                )
+            )
+    if any(p.polarity == "forbidden" for p in item.patterns):
+        out += [
+            "",
+            "A forbidden pattern counts only an affirmative occurrence: a warning against it "
+            'in the same clause ("Do not ...", "... is false") does not count.',
+        ]
     rows = {row.id: row for row in ctx.facts.rows}
     if item.setup_facts:
         out += ["", "### Setup facts", ""]

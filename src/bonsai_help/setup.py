@@ -18,9 +18,23 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    model_serializer,
+    model_validator,
+)
 
-from bonsai_help.doc_snapshot import Problem, dump_json, fixture_plan, load_canonical
+from bonsai_help.doc_snapshot import (
+    Problem,
+    dump_json,
+    fixture_plan,
+    load_canonical,
+    read_code_span,
+    span_refusal,
+)
 from bonsai_help.doc_sources import DocSources, canonical, sha256_hex
 from bonsai_help.docs_index import Diagnostics, docname, split_lines, split_page
 
@@ -176,6 +190,32 @@ class Citation(_Model):
     quote_line: int = Field(ge=1)
 
 
+class CodeCitation(_Model):
+    """A verbatim quote from a line span of a pinned add-on source file (`bonsai-source`,
+    `bonsai-source-0-8-5-post1`). Where the pinned docs and code disagree, the code wins
+    (Chad, November 22, 2026): a `doc_conflict` row cites both."""
+
+    source: str
+    pin_id: str
+    commit: str
+    path: str
+    line_start: int = Field(ge=1)
+    line_end: int = Field(ge=1)
+    file_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    span_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    quote: str
+    quote_line: int = Field(ge=1)
+
+
+def omit_empty(data: dict, keys: Sequence[str]) -> dict:
+    """Leave optional lists added after a record was reviewed out while empty, so the content
+    hash of every record that does not use them stays what Chad decided."""
+    for key in keys:
+        if data.get(key) in ([], None):
+            data.pop(key, None)
+    return data
+
+
 class Absence(_Model):
     source: str
     pin_id: str
@@ -196,6 +236,7 @@ class FactRow(_Model):
     claim: str = Field(min_length=1)
     key_terms: list[str] = Field(min_length=1)
     citations: list[Citation] = Field(min_length=1)
+    code_citations: list[CodeCitation] = []
     absent_in: list[Absence] = []
     conflicts_with: list[str] = []
     candidate_rule: Literal["schema-mention", "version-mention", "change-words", "pin-diff"]
@@ -209,9 +250,23 @@ class FactRow(_Model):
         _reviewed(self.status, self.review)
         if (self.kind == "doc_absence") != bool(self.absent_in):
             raise ValueError("absent_in is required for doc_absence rows and only for them")
-        if (self.kind == "doc_conflict") != bool(self.conflicts_with):
+        if self.kind != "doc_conflict" and self.conflicts_with:
             raise ValueError("conflicts_with is required for doc_conflict rows and only for them")
+        if self.kind == "doc_conflict" and not (self.conflicts_with or self.code_citations):
+            raise ValueError(
+                "conflicts_with is required for doc_conflict rows and only for them "
+                "(or code_citations, for a docs-versus-code conflict)"
+            )
         return self
+
+    @model_serializer(mode="wrap")
+    def _omit(self, handler):
+        return omit_empty(handler(self), ("code_citations",))
+
+    @property
+    def code_conflict(self) -> bool:
+        """A docs-versus-code conflict (the code wins), not a version line's pairing evidence."""
+        return self.kind == "doc_conflict" and bool(self.code_citations)
 
 
 class NotCitable(_Model):
@@ -388,6 +443,88 @@ def verify_citation(
     return problems
 
 
+def verify_code_citation(
+    citation: CodeCitation,
+    config: DocSources,
+    manifest: Mapping,
+    read: Callable[[str, str], bytes | None],
+    where: str,
+    *,
+    require_fixture: bool = True,
+) -> list[Problem]:
+    """Every field of a code citation against the pinned file (or its committed span)."""
+    shown = f"{where}: {citation.path}#L{citation.line_start}-L{citation.line_end}"
+    source = next((s for s in config.sources if s.id == citation.source), None)
+    if source is None or source.role != "operator-source":
+        return [Problem("setup", shown, f"unknown add-on source {citation.source}")]
+    entry = manifest["sources"][source.id]
+    if (
+        citation.pin_id != entry.get("pin_id")
+        or citation.commit != config.repository_of(source).commit
+    ):
+        return [Problem("setup", shown, "stale pin: pin_id or commit differs from the manifest")]
+    spans = {(s.path, s.line_start, s.line_end) for s in source.fixture_code_spans}
+    if require_fixture and (citation.path, citation.line_start, citation.line_end) not in spans:
+        return [Problem("setup", shown, "cites a code span outside the committed fixture slice")]
+    page = next((p for p in entry["pages"] if p["path"] == citation.path), None)
+    if page is None or page["sha256"] != citation.file_sha256:
+        return [Problem("setup", shown, "file hash differs from the manifest or file missing")]
+    data = read_code_span(
+        config, manifest, read, source.id, citation.path, citation.line_start, citation.line_end
+    )
+    if isinstance(data, str):
+        return [Problem("setup", shown, data)]
+    problems = []
+    if sha256_hex(data) != citation.span_sha256:
+        problems.append(Problem("setup", shown, "span hash mismatch"))
+    refusal = span_refusal(data)
+    if refusal:
+        problems.append(Problem("setup", shown, f"code span holds {refusal}"))
+    located = locate_quote(data.decode("utf-8", "replace"), citation.line_start, citation.quote)
+    if isinstance(located, str):
+        problems.append(Problem("setup", shown, located))
+    elif located[0] != citation.quote_line:
+        problems.append(
+            Problem(
+                "setup", shown, f"quote_line is {citation.quote_line}, match starts at {located[0]}"
+            )
+        )
+    return problems
+
+
+def make_code_citation(
+    config: DocSources,
+    manifest: Mapping,
+    read: Callable[[str, str], bytes | None],
+    source_id: str,
+    path: str,
+    line_start: int,
+    line_end: int,
+    quote: str,
+) -> dict:
+    """The code citation fields for a quote in a pinned code span (checks recompute them)."""
+    data = read_code_span(config, manifest, read, source_id, path, line_start, line_end)
+    if isinstance(data, str):
+        raise ValueError(data)
+    located = locate_quote(data.decode("utf-8", "replace"), line_start, quote)
+    if isinstance(located, str):
+        raise ValueError(f"{source_id}:{path}#L{line_start}-L{line_end}: {located}: {quote!r}")
+    source = config.source(source_id)
+    page = next(p for p in manifest["sources"][source_id]["pages"] if p["path"] == path)
+    return {
+        "source": source_id,
+        "pin_id": manifest["sources"][source_id]["pin_id"],
+        "commit": config.repository_of(source).commit,
+        "path": path,
+        "line_start": line_start,
+        "line_end": line_end,
+        "file_sha256": page["sha256"],
+        "span_sha256": sha256_hex(data),
+        "quote": quote,
+        "quote_line": located[0],
+    }
+
+
 def absence_phrase(config: DocSources, absence: Absence) -> str:
     source = config.source(absence.source)
     tag = config.repository_of(source).ref.name
@@ -404,7 +541,11 @@ def verify_fact(
     problems: list[Problem] = []
     for index, citation in enumerate(row.citations):
         problems += verify_citation(citation, config, manifest, read, f"{row.id} citation {index}")
-    quotes = [collapse(c.quote) for c in row.citations]
+    for index, citation in enumerate(row.code_citations):
+        problems += verify_code_citation(
+            citation, config, manifest, read, f"{row.id} code citation {index}"
+        )
+    quotes = [collapse(c.quote) for c in (*row.citations, *row.code_citations)]
     for term in row.key_terms:
         wanted = collapse(term)
         if not any(
@@ -420,6 +561,16 @@ def verify_fact(
         if line is None:
             problems.append(Problem("setup", row.id, f"unknown version line {name}"))
             continue
+        if row.code_conflict:
+            # Docs versus code (Chad, 2026-11-22: the code wins, cite both): the line's own
+            # docs state it and the line's own add-on source contradicts it.
+            if not any(c.source == line.sources.bonsai_docs for c in row.citations):
+                problems.append(Problem("setup", row.id, f"no citation from {name}'s Bonsai docs"))
+            if not any(c.source == line.sources.bonsai_source for c in row.code_citations):
+                problems.append(
+                    Problem("setup", row.id, f"no code citation from {name}'s add-on source")
+                )
+            continue
         if row.kind in ("version_claim", "doc_conflict"):
             # Evidence for the line's pairing, which may be stated in another release's docs;
             # the line lists it among its claims and its pairing is not scored as a fact.
@@ -429,6 +580,19 @@ def verify_fact(
         allowed = {line.sources.bonsai_docs, line.sources.blender_manual}
         if not any(c.source in allowed for c in row.citations):
             problems.append(Problem("setup", row.id, f"no citation from {name}'s sources"))
+    own_code = {
+        lines[name].sources.bonsai_source for name in row.applies_to.version_lines if name in lines
+    }
+    for citation in row.code_citations:
+        if citation.source not in own_code:
+            problems.append(
+                Problem(
+                    "setup",
+                    row.id,
+                    f"code citation from {citation.source}, not the add-on source of a line "
+                    "the row applies to",
+                )
+            )
     ids = {source.id for source in config.sources}
     for absence in row.absent_in:
         shown = f"{row.id} absence {absence.path}"
@@ -539,7 +703,11 @@ def check_profiles(profiles: SetupProfiles, facts: SetupFacts, config: DocSource
                 )
             )
         for claim in line.claims:
-            if claim not in rows or rows[claim].kind not in ("version_claim", "doc_conflict"):
+            if (
+                claim not in rows
+                or rows[claim].kind not in ("version_claim", "doc_conflict")
+                or rows[claim].code_conflict
+            ):
                 problems.append(
                     Problem("setup", label, f"{line.id}: claim {claim} is not a version row")
                 )

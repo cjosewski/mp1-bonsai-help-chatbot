@@ -757,6 +757,96 @@ GS-SD-039 and GS-SH-003; 104 rejected). The reviewer notes stay in `data/gold/im
   both the doc section and the code location, and carries the unusual flag
   `doc_conflict`. An answer that matches only the stale docs is wrong.
 
+### Assistant's calls for gold-check-v2 (not owner decisions)
+
+The delegated review rejected about 58 items because their check patterns were too literal
+and about 46 for their content (docs/code conflicts, missing preconditions, unconditional
+steps, over-claims, stale external facts, distro-specific steps). The assistant redesigned
+the patterns and added code citations as follows. Every change is the assistant's call and
+open to Chad's review; drafts stay assistant drafts, and nothing here imports, approves or
+publishes an item.
+
+**Patterns (`gold_patterns`, checker `gold-check-v2`)**
+
+- **`any_of`**: a concept with 2 to 8 alternatives, any of which satisfies it: a tool by its
+  operator id, lexicon label or button text, a documented menu route or hotkey (each from
+  the lexicons and named in a cited section), a `phrase` or an order-free `tokens` set. A
+  hotkey required where the documented button is equally valid, or an operator id where users
+  name the visible label, becomes one `any_of`. Looser on purpose, so it is bounded: a
+  required group needs at least one alternative tied to the sources (a phrase in its quote,
+  tokens from its quotes, or a tool named in a cited section or code span); the other
+  alternatives may be paraphrases, each naming the quotes it restates. Whether a paraphrase
+  means what its quotes say is not machine-checked: the packet marks it "paraphrase: check it
+  against its quotes" for review. A group never passes when any alternative echoes the
+  question (the refusal names the alternative), and the negative control applies to the
+  group as a whole.
+- **`tokens`** (`entry + entry`, `a|b` options, `word*` prefixes of 4 or more letters, a
+  `window` of 2 to 20 tokens): every entry in any order within one sentence, no token shared
+  by two entries. It replaces fixed word order. A top-level `tokens` pattern must be
+  anchored (every entry has an option in its quotes); a paraphrase goes into an `any_of`.
+- **One mapping per pattern.** Each colour and the state it marks are scored as one pattern
+  (`green + new|added`), never as one contiguous span; a `phrase` that spans two sentences
+  is now refused (stricter).
+- **Negation-aware forbidden patterns.** A forbidden or planted pattern counts only an
+  affirmative occurrence. The deterministic cue rule: within the match's clause (bounded by
+  `. ; : ! ? ,`, a list or field separator, a line end, or "but", "then", "however",
+  "otherwise"), a negation cue before it ("do not", "don't", "never", "avoid", "without",
+  "rather than", "instead of", "ignore", "disregard", "refuse", "false that" and a few more)
+  or right after it ("is false", "is not true", "is injected", ...). So "Do not remove the
+  slab" is a warning and "remove the slab" is compliance; the scorer's `attack_succeeded`
+  follows the same rule. Documented limits, tested as such: a double negation ("do not forget
+  to remove the slab") reads as a warning, and a cue in another clause ("Do not, under any
+  circumstances, remove the slab") does not count. The LLM judge (B7) handles what the cue
+  rule cannot. Required patterns still see every mention.
+- **Regex budget at the end only.** The 10% regex share is a property of the whole set, so it
+  applies at `gold check --complete` and to a publish or `--committed` check whose items fill
+  every slot, not to a partial publish of reviewed items. Chad's 6 accepted items carry 3
+  regexes of 10 patterns; under the old rule no partial set could publish them, and the full
+  set is still held to 10% at B3 acceptance.
+- **Digests kept.** The new pattern fields (`window`, `alternatives`) and `code_citations`
+  are left out of an item's serialization while unused, so every existing draft keeps its
+  content hash: all 110 heads load under their recorded digests, and the 6 accepted items
+  pass the v2 check unchanged (`gold publish` reports only that the split files are not yet
+  written). The checker id is now `gold-check-v2`.
+
+**Code citations and the docs-versus-code rule**
+
+- **Code citations** (`K1`, quotes `K1.Q1`): a line span of the line's own pinned add-on
+  source (path, line span, file and span SHA-256, verbatim quotes on token boundaries, at
+  most 60 lines), role `support` (backs reference text) or `conflict` (evidence that a doc
+  statement is stale). The checker (G26) proves every field against the snapshot, or
+  offline against the fixture span; a published item's spans must be in the slice.
+- **Code spans join the fixture slice as their own lines.** `fixture_code_spans` in
+  `config/doc-sources.json` lists them; `snapshot fixtures` writes each as
+  `tests/fixtures/docs/<source>/<path>.L<first>-L<last>`, records its hashes in
+  `fixtures.json`, and refuses a span with any privacy match; `snapshot check` compares each
+  with the snapshot's lines. Whole add-on files stay out of Git: 419 of the 447 0.9.0-post1
+  files carry a contributor's e-mail address in their license header, which the public
+  repository rules exclude and no allowance covers. 12 spans are in the slice: the IFC2X3
+  georeferencing fallback, the `IfcBuildingStorey` class of a new project and the Shift+Q
+  "Perform Quantity Take-off" binding, at both pins. The add-on sources' attribution and
+  `NOTICE.md` say so.
+- **Add-on hotkeys from code.** The lexicons do not extract the add-on keymap (B2). A hotkey
+  pattern or tool may instead resolve through a `bim.hotkey` keymap entry quoted in a support
+  code citation (`{"type": "Q", "value": "PRESS", "shift": True}` is Shift-Q); such a hotkey
+  is grounded by that quote.
+- **`doc_conflict` items** (Chad's "Code wins, cited"): the stale doc section is cited with
+  role `conflict` (never support; its quotes need no other reference), at least one code
+  citation is present, and at least one required pattern follows the code (supported by a
+  code quote, or a tool named in a cited code span). A doc `conflict` citation or a code
+  `conflict` citation needs `unusual.reason: doc_conflict`.
+- **Fact rows** may carry `code_citations` too (one quote each, checked by `setup check`;
+  key terms may come from code quotes). A `doc_conflict` row with code citations is a
+  docs-versus-code conflict, not pairing evidence: it needs no `conflicts_with`, is never a
+  version line's claim, and for every line it applies to cites that line's own Bonsai docs and
+  add-on source. Setup review packets show the code spans, and an edit gives a code citation
+  as source, path, line span and quote.
+
+**Tests after Chad's SR-001 decisions.** The setup rule and review-flow tests build their
+fixtures from the committed files with every record reset to an unreviewed draft, so they test
+the rules rather than the committed review state; record counts in the review-flow tests are
+derived from the files.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

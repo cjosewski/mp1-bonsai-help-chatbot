@@ -91,7 +91,14 @@ def test_every_category_is_covered_and_manual_fixtures_carry_no_python():
             count = sum(category in page.categories for page in source.fixture_pages)
             assert count >= source.fixture_min_per_category
         if source.role == "operator-source":
-            assert not (FIXTURES / source.id).exists()
+            # No whole add-on file (their headers name contributors' addresses): only the
+            # cited line spans, each as its own `<path>.L<first>-L<last>` file.
+            found = sorted(
+                p.relative_to(FIXTURES / source.id).as_posix()
+                for p in (FIXTURES / source.id).rglob("*")
+                if p.is_file()
+            )
+            assert found == sorted(s.fixture_path for s in source.fixture_code_spans)
     for source_id in ("blender-manual", "blender-manual-4-5"):
         assert config.source(source_id).fixture_forbid_python
         for path in (FIXTURES / source_id).rglob("*"):

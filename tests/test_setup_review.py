@@ -126,18 +126,20 @@ def fact(raw, identifier):
 
 
 def test_export_batches_every_pending_record_in_review_order(root):
+    records = list(state(root).records())
+    assert 26 <= len(records) <= 50
     report = export(root)
     assert report.lines == [
         "SR-001: 25 record(s) in setup-review/packets/SR-001.md",
-        "SR-002: 14 record(s) in setup-review/packets/SR-002.md",
+        f"SR-002: {len(records) - 25} record(s) in setup-review/packets/SR-002.md",
     ]
     ids = [
         e["item"]
         for p in ("SR-001", "SR-002")
         for e in json.loads((store(root).folder("packets") / f"{p}.json").read_bytes())["items"]
     ]
-    assert ids[:3] == ["VL-current", "VL-older", "SP-01"] and ids[-1] == "SF-020"
-    assert len(ids) == len(set(ids)) == 39
+    assert ids[:3] == ["VL-current", "VL-older", "SP-01"] and ids == records
+    assert len(ids) == len(set(ids)) and ids[-1] == max(r for r in records if r.startswith("SF"))
     text = packet(root, "SR-002").read_text(encoding="utf-8")
     # A fact row shows its claim, the full text of every cited section and each quote.
     assert "## SF-012 · fact row · assistant_drafted" in text
@@ -158,6 +160,8 @@ def test_export_refuses_while_the_setup_check_fails(root):
 
 
 def test_approve_reject_and_blank_are_recorded_then_applied(root):
+    count = len(state(root).records())
+    rest = f"states: assistant_drafted {count - 2}, chad_accepted 1, chad_rejected 1"
     export(root, size=3)
     decide(root, "VL-current", "approve", note="note text 42")
     decide(root, "VL-older", "reject")
@@ -172,7 +176,7 @@ def test_approve_reject_and_blank_are_recorded_then_applied(root):
         "VL-older: assistant_drafted -> chad_rejected",
     ]
     report = apply(root)
-    assert report.lines[-1] == "states: assistant_drafted 37, chad_accepted 1, chad_rejected 1"
+    assert report.lines[-1] == rest
     line = record(root, "VL-current")
     assert line.review.model_dump() == {
         "decided_on": "2026-11-23",
@@ -184,15 +188,15 @@ def test_approve_reject_and_blank_are_recorded_then_applied(root):
     profiles, facts = paths(root)
     assert setup.check_setup(CONFIG, MANIFEST, profiles, facts, READ) == []
     assert b"note text 42" not in profiles.read_bytes() + facts.read_bytes()
-    assert apply(root, write=False).lines == [
-        "states: assistant_drafted 37, chad_accepted 1, chad_rejected 1"
-    ]
+    assert apply(root, write=False).lines == [rest]
     # Decided records are not exported again; the blank one is (the other 36 records wait in
     # the 12 other packets of the first export).
     report = export(root)
-    assert report.lines[-1] == "SR-014: 1 record(s) in setup-review/packets/SR-014.md"
-    assert report.lines[0] == "SP-02: in SR-002, not yet imported" and len(report.lines) == 37
-    assert "<!-- gold:item SP-01 " in packet(root, "SR-014").read_text(encoding="utf-8")
+    following = f"SR-{-(-count // 3) + 1:03d}"
+    assert report.lines[-1] == f"{following}: 1 record(s) in setup-review/packets/{following}.md"
+    assert report.lines[0] == "SP-02: in SR-002, not yet imported"
+    assert len(report.lines) == count - 2
+    assert "<!-- gold:item SP-01 " in packet(root, following).read_text(encoding="utf-8")
 
 
 def test_a_decision_not_yet_applied_is_reported_not_exported(root):
@@ -333,7 +337,8 @@ def test_an_old_packet_cannot_override_a_newer_decision(root):
     import_(root, "SR-002")
     export(root, size=50)  # the pending rest, as an ordinary (not a re-decision) packet
     items = json.loads((store(root).folder("packets") / "SR-003.json").read_bytes())["items"]
-    assert len(items) == 38 and "SF-013" not in {e["item"] for e in items}
+    assert len(items) == len(state(root).records()) - 1
+    assert "SF-013" not in {e["item"] for e in items}
 
 
 def test_a_second_import_an_unconfirmed_import_and_a_lock_write_nothing(root):
