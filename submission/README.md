@@ -29,5 +29,5 @@ fixtures at milestone B1.
 Verbatim text quoted from the Bonsai documentation or the Blender Manual, wherever
 it appears in this folder (including inside the datasets, and cited sections inside
 traces or judge records), keeps its source license: GPL-3.0-or-later for Bonsai, CC BY-SA 4.0 for
-the Blender Manual. The license of the gate report, labels, charts, data tables and
-iteration log is not yet decided by the owner (see `docs/DECISIONS.md`).
+the Blender Manual. The rest of this folder is course work shared for assessment and
+portfolio use (see `docs/DECISIONS.md`).

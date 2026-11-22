@@ -44,6 +44,18 @@ Chad: "Yes, submission/ only (plan default)". The curated submission set is comm
 under `submission/`. Raw attempt logs, scratch runs and all earlier evidence from the
 previous repository stay outside Git.
 
+### Licensing stance
+
+Chad: "I'm not really worried about the licensing. This isn't a product, it's an
+assignment, and a portfolio piece. It will never be commercially distributed."
+
+- The two licensing questions the assistant raised for B10 (the license of other
+  `submission/` content, and GPL Bonsai text inside CC BY-SA datasets) are closed. They
+  do not gate any milestone.
+- The O-1 licenses stay as declared, and sources stay attributed (IfcOpenShell
+  contributors, Blender Documentation Team). Attribution is cheap and the plan already
+  includes it; no further license analysis is required.
+
 ### Repository name
 
 Chad chose `mp1-bonsai-help-chatbot`.
@@ -83,17 +95,6 @@ These were made by the assistant during B0 and are open to Chad's review.
   those open-licensed Bonsai and Blender Manual excerpts is not decided. It needs a dated
   decision from Chad before any hosted run. Human ratings are never sent to a hosted
   service.
-- **License of other submission content (open question raised by the assistant).** O-1
-  licenses the generated datasets under CC BY-SA 4.0. Verbatim Bonsai or Blender Manual
-  text keeps its source license wherever it appears in `submission/`, including inside the
-  datasets. The license of the
-  gate report, human labels, charts, data tables and iteration log in `submission/` is
-  not decided; it needs Chad's decision before B10.
-- **GPL text inside CC BY-SA datasets (open question raised by the assistant).** Bonsai
-  documentation is GPL-3.0-or-later, and GPL text cannot be relicensed under CC BY-SA 4.0.
-  If generated items quote or closely adapt Bonsai docs, the datasets' license needs
-  Chad's decision before B10: for example, keep CC BY-SA 4.0 with the quoted Bonsai text
-  marked as GPL-3.0-or-later, or license affected files under GPL-3.0-or-later.
 - **Human label notes stay out of `submission/`.** Labels in `submission/` carry the
   decisions and IDs only; free-text reviewer notes stay outside Git.
 

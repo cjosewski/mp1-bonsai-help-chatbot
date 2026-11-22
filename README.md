@@ -128,8 +128,8 @@ outside Git. Only the curated set under `submission/` is committed.
 - **Generated datasets** (under `submission/`): Creative Commons
   Attribution-ShareAlike 4.0 International (CC BY-SA 4.0). Quoted Bonsai or Blender
   Manual text keeps its source license wherever it appears in `submission/`, including
-  inside the datasets; the license of the
-  other submission content is not yet decided (see `docs/DECISIONS.md`).
+  inside the datasets. This is a course
+  assignment and portfolio piece, not a product (see `docs/DECISIONS.md`).
 - **Documentation fixtures** keep their own licenses: Bonsai documentation and the
   operator lexicon derived from Bonsai source are GPL-3.0-or-later; Blender Manual
   fixtures are CC BY-SA 4.0.
