@@ -438,6 +438,25 @@ def _validate(model: type[BaseModel], document: dict, label: str) -> tuple[objec
         return None, [Problem("setup", label, f"invalid: {details}")]
 
 
+def _pairing_cited(line: VersionLine, rows: Mapping[str, FactRow]) -> bool:
+    """A version_claim of the line's own Bonsai docs pin names the line's Blender release in a
+    key term, on token boundaries (`5.2` is not found inside `5.2.1`)."""
+    wanted = collapse(line.blender)
+    for claim in line.claims:
+        row = rows.get(claim)
+        if row is None or row.kind != "version_claim":
+            continue
+        if not any(c.source == line.sources.bonsai_docs for c in row.citations):
+            continue
+        for term in map(collapse, row.key_terms):
+            if any(
+                _on_boundaries(term, m.start(), m.start() + len(wanted))
+                for m in re.finditer(f"(?={re.escape(wanted)})", term)
+            ):
+                return True
+    return False
+
+
 def check_profiles(profiles: SetupProfiles, facts: SetupFacts, config: DocSources) -> list[Problem]:
     problems: list[Problem] = []
     label = "setup-profiles.json"
@@ -459,6 +478,15 @@ def check_profiles(profiles: SetupProfiles, facts: SetupFacts, config: DocSource
                 problems.append(
                     Problem("setup", label, f"{line.id}: claim {claim} does not apply to it")
                 )
+        if line.pairing_status == "cited" and not _pairing_cited(line, rows):
+            problems.append(
+                Problem(
+                    "setup",
+                    label,
+                    f"{line.id}: a cited pairing needs a version_claim among its claims that cites "
+                    f"{line.sources.bonsai_docs} and names Blender {line.blender} in a key term",
+                )
+            )
     ids = [p.id for p in profiles.profiles]
     if len(ids) != len(set(ids)):
         problems.append(Problem("setup", label, "profile ids are not unique"))

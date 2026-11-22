@@ -75,6 +75,37 @@ def test_version_lines_carry_chads_cited_pairings_and_matching_manuals():
         assert line["pairing_status"] == "cited" and pairing in line["claims"]
 
 
+@pytest.mark.parametrize(
+    "line, blender, status, message",
+    [
+        (0, "5.3", "cited", "VL-current: a cited pairing needs a version_claim"),
+        (1, "4", "cited", "VL-older: a cited pairing needs a version_claim"),
+        (1, "4.2 LTS", "cited", "VL-older: a cited pairing needs a version_claim"),
+        (0, "5.3", "conflict", None),
+    ],
+    ids=["unlisted-release", "inside-a-longer-token", "old-default", "conflict-is-not-checked"],
+)
+def test_a_cited_pairing_needs_a_version_claim_naming_the_release(
+    tmp_path, line, blender, status, message
+):
+    profiles = load(PROFILES)
+    profiles["version_lines"][line].update(blender=blender, pairing_status=status)
+    found = problems(tmp_path, profiles=profiles)
+    if message is None:
+        assert found == [], found
+    else:
+        assert len(found) == 1 and message in found[0] and f"Blender {blender} " in found[0], found
+
+
+def test_a_cited_pairing_counts_only_its_own_bonsai_docs_pin(tmp_path):
+    facts = load(FACTS)
+    # SF-012 moved onto the older docs pin no longer cites VL-current's own docs.
+    citation = row(facts, "SF-012")["citations"][0]
+    citation["source"] = "bonsai-docs-0-8-5-post1"
+    found = problems(tmp_path, facts=facts)
+    assert any("VL-current: a cited pairing needs a version_claim" in p for p in found), found
+
+
 @pytest.mark.parametrize("status, valid", [("partly cited", True), ("partly_cited", False)])
 def test_pairing_status_spells_partly_cited_as_the_enum_basis_does(tmp_path, status, valid):
     profiles = load(PROFILES)
@@ -248,7 +279,7 @@ def test_key_terms_must_occur_in_a_quote(tmp_path):
 )
 def test_a_key_term_inside_a_longer_token_is_in_no_quote(tmp_path, identifier, term):
     facts = load(FACTS)
-    row(facts, identifier)["key_terms"] = [term]
+    row(facts, identifier)["key_terms"].append(term)
     found = problems(tmp_path, facts=facts)
     assert found == [f"setup: {identifier}: key term {term!r} is in no quote on token boundaries"]
 
