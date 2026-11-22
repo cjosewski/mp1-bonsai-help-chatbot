@@ -91,10 +91,50 @@ def test_a_cited_pairing_needs_a_version_claim_naming_the_release(
     profiles = load(PROFILES)
     profiles["version_lines"][line].update(blender=blender, pairing_status=status)
     found = problems(tmp_path, profiles=profiles)
+    # The line's Manual no longer matches its release either; that check is tested below.
+    pairing = [p for p in found if "Manual branch" not in p]
+    assert len(found) - len(pairing) == 1, found
     if message is None:
-        assert found == [], found
+        assert pairing == [], found
     else:
-        assert len(found) == 1 and message in found[0] and f"Blender {blender} " in found[0], found
+        assert len(pairing) == 1 and message in pairing[0] and f"Blender {blender} " in pairing[0]
+
+
+@pytest.mark.parametrize(
+    "manuals, message",
+    [
+        (
+            ("blender-manual-4-5", "blender-manual"),
+            [
+                "VL-current: blender_manual blender-manual-4-5 pins branch blender-v4.5-release, "
+                "not the Blender 5.2 Manual branch blender-v5.2-release",
+                "VL-older: blender_manual blender-manual pins branch blender-v5.2-release, "
+                "not the Blender 4.5 Manual branch blender-v4.5-release",
+            ],
+        ),
+        (
+            ("blender-manual", "blender-manual"),
+            [
+                "VL-older: blender_manual blender-manual pins branch blender-v5.2-release, "
+                "not the Blender 4.5 Manual branch blender-v4.5-release",
+            ],
+        ),
+        (
+            ("blender-manual-4-5", "blender-manual-4-5"),
+            [
+                "VL-current: blender_manual blender-manual-4-5 pins branch blender-v4.5-release, "
+                "not the Blender 5.2 Manual branch blender-v5.2-release",
+            ],
+        ),
+    ],
+    ids=["swapped", "both-5.2", "both-4.5"],
+)
+def test_each_line_names_the_manual_of_its_own_blender_release(tmp_path, manuals, message):
+    profiles = load(PROFILES)
+    for line, manual in zip(profiles["version_lines"], manuals, strict=True):
+        line["sources"]["blender_manual"] = manual
+    found = [p for p in problems(tmp_path, profiles=profiles) if "Manual branch" in p]
+    assert found == [f"setup: setup-profiles.json: {m}" for m in message], found
 
 
 def test_a_cited_pairing_counts_only_its_own_bonsai_docs_pin(tmp_path):

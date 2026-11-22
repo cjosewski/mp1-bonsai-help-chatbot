@@ -474,6 +474,19 @@ def check_profiles(profiles: SetupProfiles, facts: SetupFacts, config: DocSource
             want = "operator-source" if role == "bonsai_source" else "docs"
             if sid not in {s.id for s in config.sources} or config.source(sid).role != want:
                 problems.append(Problem("setup", label, f"{line.id}: {role} {sid} is not a {want}"))
+            elif role == "blender_manual":
+                # Each line's Blender steps come from its matching Manual (Chad, 2026-11-22).
+                ref = config.repository_of(config.source(sid)).ref
+                branch = f"blender-v{line.blender}-release"
+                if (ref.kind, ref.name) != ("branch", branch):
+                    problems.append(
+                        Problem(
+                            "setup",
+                            label,
+                            f"{line.id}: blender_manual {sid} pins {ref.kind} {ref.name}, "
+                            f"not the Blender {line.blender} Manual branch {branch}",
+                        )
+                    )
         for claim in line.claims:
             if claim not in rows or rows[claim].kind not in ("version_claim", "doc_conflict"):
                 problems.append(
