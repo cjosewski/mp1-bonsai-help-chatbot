@@ -214,7 +214,8 @@ split, and each split covers every schema, model state, discipline and version l
 `reference/setup-facts.json` holds 19 fact rows and 11 claims left out because no pinned
 text supports them. Every row cites pinned sections with short verbatim quotes;
 `setup check` proves each quote occurs exactly once, on token boundaries and outside RST
-comments, in the cited section, and that every key term is in a quote. Whether a claim
+comments, in the cited section, and that every key term is in a quote, on token boundaries
+too. Whether a claim
 says no more than its quotes is not machine-checked: every row, profile and version line
 is `assistant_drafted` until Chad reviews it at B3, and uncited rows cannot exist.
 

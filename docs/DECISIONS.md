@@ -261,7 +261,9 @@ These were made by the assistant while building B2 and are open to Chad's review
   once in the cited section, start and end on token boundaries (only punctuation may sit
   between a match and the surrounding whitespace, so `supported` never matches inside
   `unsupported`, nor `Blender 4` inside `Blender 4.2`) and lie outside RST comments.
-  Collapsing can join two list items into one line of text. Whether a claim says no more than its quotes, and whether
+  Collapsing can join two list items into one line of text. A key term must occur in a quote
+  on the same token boundaries, so `IFC4` is not found inside `IFC4X3`. Whether a claim says
+  no more than its quotes, and whether
   the key terms are the right ones, is not machine-checked: those are Chad's B3 review
   items.
 - **Profile values and split.** `ifc_schema` values are cited (SF-007) for a new project

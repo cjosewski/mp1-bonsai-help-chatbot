@@ -4,8 +4,9 @@ Every fact row is drafted by the assistant and carries `status: assistant_drafte
 Chad reviews it at B3. A row cannot exist without citations, and every citation names a
 pinned section (source, pin, path, heading path, line span, record id and section hash)
 with a short verbatim quote that `verify_citation` proves present, exactly once, on token
-boundaries and outside RST comments, in that section. Claim wording and the choice of key terms are not
-machine-checked; they are review items for Chad.
+boundaries and outside RST comments, in that section; every key term must occur in a quote
+on token boundaries too. Claim wording and the choice of key terms are not machine-checked;
+they are review items for Chad.
 """
 
 from __future__ import annotations
@@ -367,8 +368,15 @@ def verify_fact(
         problems += verify_citation(citation, config, manifest, read, f"{row.id} citation {index}")
     quotes = [collapse(c.quote) for c in row.citations]
     for term in row.key_terms:
-        if not any(term in quote for quote in quotes):
-            problems.append(Problem("setup", row.id, f"key term {term!r} is in no quote"))
+        wanted = collapse(term)
+        if not any(
+            _on_boundaries(quote, m.start(), m.start() + len(wanted))
+            for quote in quotes
+            for m in re.finditer(f"(?={re.escape(wanted)})", quote)
+        ):
+            problems.append(
+                Problem("setup", row.id, f"key term {term!r} is in no quote on token boundaries")
+            )
     for name in row.applies_to.version_lines:
         line = lines.get(name)
         if line is None:

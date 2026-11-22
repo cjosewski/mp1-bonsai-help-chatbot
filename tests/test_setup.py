@@ -195,6 +195,18 @@ def test_key_terms_must_occur_in_a_quote(tmp_path):
     assert any("key term 'IFC4X3' is in no quote" in p for p in problems(tmp_path, facts=facts))
 
 
+@pytest.mark.parametrize(
+    "identifier, term",
+    [("SF-008", "IFC"), ("SF-012", "Python 3.1"), ("SF-012", "Blender 5")],
+    ids=["IFC-inside-IFC4", "3.1-inside-3.13", "5-inside-5.1"],
+)
+def test_a_key_term_inside_a_longer_token_is_in_no_quote(tmp_path, identifier, term):
+    facts = load(FACTS)
+    row(facts, identifier)["key_terms"] = [term]
+    found = problems(tmp_path, facts=facts)
+    assert found == [f"setup: {identifier}: key term {term!r} is in no quote on token boundaries"]
+
+
 def test_a_version_line_needs_a_citation_from_its_own_sources(tmp_path):
     facts = load(FACTS)
     first = facts["rows"][0]
