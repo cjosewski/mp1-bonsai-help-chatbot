@@ -182,10 +182,19 @@ class FixturePage(_Model):
         return _relative_path(value, glob=False)
 
 
+class AutoSectionLabel(_Model):
+    """Sphinx `autosectionlabel` settings read from the source's own `conf.py`."""
+
+    prefix_document: bool
+    maxdepth: int = Field(ge=0)
+
+
 class Source(_Model):
     id: str
     repository: str
     root: str
+    role: Literal["docs", "operator-source"] = "docs"
+    autosectionlabel: AutoSectionLabel | None = None
     include: list[str] = Field(min_length=1)
     exclude: list[str] = []
     deny: list[str] = []
@@ -231,6 +240,8 @@ class Source(_Model):
         evidence = [item.path for item in self.license_evidence]
         if len(evidence) != len(set(evidence)):
             raise ValueError("license_evidence paths must be unique")
+        if self.role == "operator-source" and (self.fixture_pages or self.autosectionlabel):
+            raise ValueError("an operator-source has no fixture_pages and no autosectionlabel")
         return self
 
 

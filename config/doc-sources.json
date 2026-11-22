@@ -18,6 +18,15 @@
         "name": "blender-v5.3-release"
       },
       "commit": "3481be3f6163a7c34e317b685f09fe67ca1057f0"
+    },
+    "ifcopenshell-0-8-5-post1": {
+      "url": "https://github.com/IfcOpenShell/IfcOpenShell.git",
+      "ref": {
+        "kind": "tag",
+        "name": "bonsai-0.8.5-post1",
+        "tag_object": null
+      },
+      "commit": "e6258ab4a8e8c76d18b743ea80a6f7699809319b"
     }
   },
   "sources": [
@@ -25,6 +34,10 @@
       "id": "bonsai-docs",
       "repository": "ifcopenshell",
       "root": "src/bonsai/docs",
+      "autosectionlabel": {
+        "prefix_document": true,
+        "maxdepth": 2
+      },
       "include": [
         "src/bonsai/docs/**/*.rst"
       ],
@@ -435,6 +448,132 @@
       ],
       "fixture_min_per_category": 1,
       "fixture_forbid_python": true
+    },
+    {
+      "id": "bonsai-docs-0-8-5-post1",
+      "repository": "ifcopenshell-0-8-5-post1",
+      "root": "src/bonsai/docs",
+      "autosectionlabel": {
+        "prefix_document": true,
+        "maxdepth": 2
+      },
+      "include": [
+        "src/bonsai/docs/**/*.rst"
+      ],
+      "exclude": [],
+      "deny": [
+        "**/*.png",
+        "**/*.jpg",
+        "**/*.jpeg",
+        "**/*.gif",
+        "**/*.webp",
+        "**/*.svg",
+        "**/*.ifc",
+        "**/*.py"
+      ],
+      "tags": [
+        {
+          "glob": "src/bonsai/docs/guides/development/**",
+          "tag": "developer"
+        },
+        {
+          "glob": "src/bonsai/docs/_*.rst",
+          "tag": "fragment"
+        }
+      ],
+      "default_tag": "user",
+      "license": "GPL-3.0-or-later",
+      "license_evidence": [
+        {
+          "path": "src/bonsai/COPYING",
+          "blob": "810fce6e9bf2aa10265b85614db5ac65941ecf81",
+          "commit_copy": false,
+          "note": "The same blob as bonsai-docs' committed copy, tests/fixtures/docs/bonsai-docs/src/bonsai/COPYING."
+        },
+        {
+          "path": "src/bonsai/docs/conf.py",
+          "blob": "de93f18f4b46159ee9c79b120122e454667b17ba",
+          "commit_copy": false,
+          "note": "Carries the GPL-3.0-or-later header. Kept out of Git because the header names a contributor's personal contact address."
+        }
+      ],
+      "attribution": "Bonsai documentation by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/docs at tag bonsai-0.8.5-post1, commit e6258ab4a8e8c76d18b743ea80a6f7699809319b), licensed under the GNU General Public License v3.0 or later. Copied unmodified.",
+      "permitted_use": "Redistribution and modification under GPL-3.0-or-later. Used as the older-release contrast for setup facts (O-3 default), retrieval grounding, judging and offline test fixtures.",
+      "fixture_pages": [],
+      "fixture_min_per_category": 0,
+      "fixture_forbid_python": false
+    },
+    {
+      "id": "bonsai-source",
+      "repository": "ifcopenshell",
+      "root": "src/bonsai/bonsai",
+      "role": "operator-source",
+      "include": [
+        "src/bonsai/bonsai/**/*.py"
+      ],
+      "exclude": [],
+      "deny": [
+        "**/*.png",
+        "**/*.jpg",
+        "**/*.jpeg",
+        "**/*.gif",
+        "**/*.webp",
+        "**/*.svg",
+        "**/*.blend",
+        "**/*.ifc"
+      ],
+      "tags": [],
+      "default_tag": "source",
+      "license": "GPL-3.0-or-later",
+      "license_evidence": [
+        {
+          "path": "src/bonsai/COPYING",
+          "blob": "810fce6e9bf2aa10265b85614db5ac65941ecf81",
+          "commit_copy": false,
+          "note": "The same blob as bonsai-docs' committed copy, tests/fixtures/docs/bonsai-docs/src/bonsai/COPYING."
+        }
+      ],
+      "attribution": "Bonsai add-on source code by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/bonsai at tag bonsai-0.9.0post1, commit 2744f8426bdef98a486406628a121298a5479690), licensed under the GNU General Public License v3.0 or later. Read only to extract the operator, panel and menu lexicon; no source file is committed.",
+      "permitted_use": "Redistribution and modification under GPL-3.0-or-later. Parsed (never imported or executed) to extract operator, panel, menu and tool identifiers, labels and locations for the deterministic checks.",
+      "fixture_pages": [],
+      "fixture_min_per_category": 0,
+      "fixture_forbid_python": false
+    },
+    {
+      "id": "bonsai-source-0-8-5-post1",
+      "repository": "ifcopenshell-0-8-5-post1",
+      "root": "src/bonsai/bonsai",
+      "role": "operator-source",
+      "include": [
+        "src/bonsai/bonsai/**/*.py"
+      ],
+      "exclude": [],
+      "deny": [
+        "**/*.png",
+        "**/*.jpg",
+        "**/*.jpeg",
+        "**/*.gif",
+        "**/*.webp",
+        "**/*.svg",
+        "**/*.blend",
+        "**/*.ifc"
+      ],
+      "tags": [],
+      "default_tag": "source",
+      "license": "GPL-3.0-or-later",
+      "license_evidence": [
+        {
+          "path": "src/bonsai/COPYING",
+          "blob": "810fce6e9bf2aa10265b85614db5ac65941ecf81",
+          "commit_copy": false,
+          "note": "The same blob as bonsai-docs' committed copy, tests/fixtures/docs/bonsai-docs/src/bonsai/COPYING."
+        }
+      ],
+      "attribution": "Bonsai add-on source code by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/bonsai at tag bonsai-0.8.5-post1, commit e6258ab4a8e8c76d18b743ea80a6f7699809319b), licensed under the GNU General Public License v3.0 or later. Read only to extract the operator, panel and menu lexicon; no source file is committed.",
+      "permitted_use": "Redistribution and modification under GPL-3.0-or-later. Parsed (never imported or executed) to extract operator, panel, menu and tool identifiers, labels and locations for the deterministic checks.",
+      "fixture_pages": [],
+      "fixture_min_per_category": 0,
+      "fixture_forbid_python": false
     }
   ],
   "privacy_allowlist": [

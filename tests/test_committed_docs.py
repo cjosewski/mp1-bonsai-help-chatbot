@@ -31,12 +31,26 @@ def test_committed_check_passes_through_the_cli(capsys, monkeypatch):
     assert "check passed" in capsys.readouterr().out
 
 
-def test_manifest_pins_both_sources():
+def test_manifest_pins_every_source():
     config = load_config(CONFIG)
     manifest = json.loads(MANIFEST.read_bytes())
-    assert {s.id for s in config.sources} == {"bonsai-docs", "blender-manual"}
-    assert manifest["sources"]["bonsai-docs"]["repository"]["ref"]["name"] == "bonsai-0.9.0post1"
-    assert manifest["sources"]["blender-manual"]["repository"]["ref"]["kind"] == "branch"
+    roles = {s.id: s.role for s in config.sources}
+    assert roles == {
+        "bonsai-docs": "docs",
+        "blender-manual": "docs",
+        "bonsai-docs-0-8-5-post1": "docs",
+        "bonsai-source": "operator-source",
+        "bonsai-source-0-8-5-post1": "operator-source",
+    }
+    refs = {sid: manifest["sources"][sid]["repository"]["ref"] for sid in roles}
+    for sid in ("bonsai-docs", "bonsai-source"):
+        assert refs[sid] == {"kind": "tag", "name": "bonsai-0.9.0post1", "tag_object": None}
+    for sid in ("bonsai-docs-0-8-5-post1", "bonsai-source-0-8-5-post1"):
+        assert refs[sid] == {"kind": "tag", "name": "bonsai-0.8.5-post1", "tag_object": None}
+    assert refs["blender-manual"]["kind"] == "branch"
+    # The B1 pins are unchanged by the B2 sources.
+    assert manifest["sources"]["bonsai-docs"]["pin_id"] == "bonsai-docs-00e02b1ec8e4c266"
+    assert manifest["sources"]["blender-manual"]["pin_id"] == "blender-manual-dc59b772db8f70f7"
     assert manifest["totals"]["pages"] == sum(
         e["totals"]["pages"] for e in manifest["sources"].values()
     )
@@ -67,10 +81,14 @@ def test_stale_privacy_allowance_fails(tmp_path):
 
 def test_every_category_is_covered_and_manual_fixtures_carry_no_python():
     config = load_config(CONFIG)
+    for source_id in ("bonsai-docs", "blender-manual"):
+        assert config.source(source_id).fixture_min_per_category >= 1
     for source in config.sources:
         for category in CATEGORIES:
             count = sum(category in page.categories for page in source.fixture_pages)
-            assert count >= max(source.fixture_min_per_category, 1)
+            assert count >= source.fixture_min_per_category
+        if source.role == "operator-source":
+            assert not (FIXTURES / source.id).exists()
     for path in (FIXTURES / "blender-manual").rglob("*"):
         if path.is_file():
             assert not PYTHON_CODE.search(path.read_bytes()), path

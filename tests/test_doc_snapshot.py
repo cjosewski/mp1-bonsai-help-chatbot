@@ -606,6 +606,30 @@ def test_invalid_source_config_is_exit_2_with_no_git_call(ws, sources):
     assert calls == []
 
 
+def test_role_and_autosectionlabel_are_metadata_outside_the_pin(ws):
+    remote = make_remote(ws.tmp)
+    write_config(ws.config, remote)
+    ws.committed()
+    labelled = source_config(autosectionlabel={"prefix_document": True, "maxdepth": 2})
+    write_config(ws.config, remote, sources=[labelled])
+    assert ws.run("check", "--committed")[0] == 0
+    no_fixtures = source_config(role="operator-source", fixture_pages=[])
+    write_config(ws.config, remote, sources=[no_fixtures])
+    code, _, err = ws.run("check", "--committed")
+    assert code == 1 and "fixtures.json" in err and "pin_id" not in err  # slice, not pin
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [{"role": "operator-source"}, {"role": "lexicon"}, {"autosectionlabel": {"maxdepth": 2}}],
+    ids=["operator-source-with-fixtures", "unknown-role", "incomplete-autosectionlabel"],
+)
+def test_invalid_role_settings_are_exit_2(ws, overrides):
+    remote = make_remote(ws.tmp)
+    write_config(ws.config, remote, sources=[source_config(**overrides)])
+    assert ws.run("build", "--write-manifest")[0] == 2
+
+
 def test_https_url_cannot_be_used_by_tests_or_file_url_by_the_cli(ws, capsys):
     remote = make_remote(ws.tmp)
     write_config(ws.config, remote)

@@ -1,5 +1,5 @@
 {
-  "digest": "2d420a3bfb37abc3d5b68ad88b534f59620944ee8d8b6726f59b7bce5b578b56",
+  "digest": "53ac5f9f37f6ffe2b3e2fb4e8f0c580296709ebc9502434ca3b87093c7f04516",
   "schema": "doc-fixtures-v1",
   "sources": {
     "blender-manual": {
@@ -405,6 +405,21 @@
       ],
       "pin_id": "bonsai-docs-00e02b1ec8e4c266",
       "source_digest": "b1f21856c3c106887c1abcafcfb4e0de6f6eb506a9b99c1745752ace5f52bdc9"
+    },
+    "bonsai-docs-0-8-5-post1": {
+      "files": [],
+      "pin_id": "bonsai-docs-0-8-5-post1-9181a4fd7a23da7f",
+      "source_digest": "8e2359af5403395ef00ae213417820d4d3cff57741d75ba05d0dba0ce0ffdbd0"
+    },
+    "bonsai-source": {
+      "files": [],
+      "pin_id": "bonsai-source-0af9a03ac2055c14",
+      "source_digest": "b245cfa97eecff83f433c82199e86c5ed39327f47a63a14699dc26c4086a7619"
+    },
+    "bonsai-source-0-8-5-post1": {
+      "files": [],
+      "pin_id": "bonsai-source-0-8-5-post1-2ef0a8933f49af97",
+      "source_digest": "e9506abbe4e9e057d5ccd68b3a78ca4eb3e4d766a58667c74bf231dc639b06dd"
     }
   }
 }
