@@ -225,7 +225,9 @@ token boundaries. `VL-current` also lists SF-015, the same pin's troubleshooting
 says Blender 4.5. The pairing itself is evidence, not a scored fact. A line's
 `version_claim` and `doc_conflict` rows may cite any docs pin; every other row
 (`schema_dependent`, `version_dependent`, `doc_absence`) needs a citation from the line's
-own Bonsai docs or Manual, so the 5.2 Manual does not stand in for `VL-older`. The
+own Bonsai docs or Manual, so the 5.2 Manual does not stand in for `VL-older`, and a
+line's `blender_manual` source must pin the `blender-v<release>-release` branch of the
+line's own Blender release. The
 `ifc_schema` values are `partly cited`: SF-007 supports them for `new_project` only
 (`cited_for`); for opened and federated models all three are a stated default that Chad
 kept, and schema facts are scored only where a row cites them. The profiles are a
@@ -261,9 +263,9 @@ uv run --locked bonsai-help gold status
 | --- | --- | --- |
 | `gold slots [--write]` | Regenerate the slot plan from the targets, the profiles and `reference/gold/slot-substitutions.json`; compare (exit 1 on a difference) or write `reference/gold/slots.json` | `reference/gold/` |
 | `gold ingest BATCH [--supersede-accepted]` | Validate a lane batch (`gold-draft-batch-v1`, lane form only), derive every citation field from the pinned pages, run the checks against the current drafts, then write the drafts and a receipt, or nothing | `data/gold/` |
-| `gold check [--committed] [--complete] [--drafts]` | The slot plan and the published files: every check, with the fixture-slice rule; `--drafts` adds every draft head, `--complete` requires every slot published (the B3 acceptance check) | — |
+| `gold check [--committed] [--complete] [--drafts]` | The slot plan and the published files: every check, with the fixture-slice rule; `--drafts` adds every draft head (it needs the data root, so not with `--committed`), `--complete` requires every slot published (the B3 acceptance check) | — |
 | `gold status` | Per slot: head draft, check, decision state, published; counts against the targets, unusual reasons, leftover temp files, orphan drafts, a leftover lock and packets not yet imported. Never shows NOTE text | — |
-| `gold packet export --split S [--size 25] [--items ID ...]` | Write review packets of pending drafts that pass the check, about 25 per Markdown file, one split per packet; `--items` re-exports items for a re-decision | `data/gold/packets/` |
+| `gold packet export --split S [--size 25] [--items ID ...]` | Write review packets of pending drafts that pass the check, about 25 per Markdown file, one split per packet; `--items` re-exports items for a re-decision, refused for a draft in a packet not yet imported | `data/gold/packets/` |
 | `gold packet import GP-NNN [--decided-on D] [--skip-stale]` | Record Chad's decisions, all or nothing; runs only from an interactive terminal after a typed confirmation | `data/gold/` |
 | `gold publish [--write]` | Build `reference/gold/development.json` and `held-out.json` from Chad's accepted and amended items; compare (exit 1) or write | `reference/gold/` |
 | `gold score ANSWERS.jsonl` | Pattern scores of published development items, JSON lines; input lines are `{"item_id": ..., "fields": {...}}` with the scored payload fields | — |
@@ -277,9 +279,12 @@ How an item gets in:
    `approve`, `edit` or `reject` after `DECISION:` (blank stays pending), an optional
    one-line `NOTE:`, and for an edit changes the pre-filled JSON in place.
 3. Chad runs `gold packet import GP-NNN`. A changed fixed region is refused and its first
-   changed line named (line-end whitespace and CRLF do not count); a block whose draft
-   changed since export is stale (`--skip-stale` imports the rest); an edit runs the
-   whole checker. A packet is imported once; export its pending items again.
+   changed line named (line-end whitespace and CRLF do not count); a block whose draft,
+   profile, version line or cited fact claims changed since export is stale
+   (`--skip-stale` imports the rest); an edit runs the whole checker, and the packet's
+   edits are checked together too. A packet is imported once; export its pending items
+   again. A profile, version line or fact claim changed after a decision makes publish
+   refuse the item until it is decided again with `--items`.
 4. `gold publish --write` writes the reviewed items, which `gold check --committed`
    then proves offline against the fixture slice.
 

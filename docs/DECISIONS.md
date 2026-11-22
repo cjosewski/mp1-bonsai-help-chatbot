@@ -425,7 +425,9 @@ review.
   exception for a line without a Manual is gone: a line's `version_claim` and
   `doc_conflict` rows may still cite any docs pin, and every other row needs a citation
   from the line's own Bonsai docs or Manual. The 5.2 Manual does not stand in for
-  `VL-older`.
+  `VL-older`. `setup check` also requires a line's `blender_manual` source to pin the
+  branch `blender-v<release>-release` of the line's own `blender` release, so a swapped
+  Manual or both lines on one Manual fails.
 - **No LTS label.** The lines say Blender `5.2` and `4.5`. The history pages of both pinned
   Manuals end at 4.3, so neither release's LTS status can be cited.
 - **`not_citable`.** The claim about Blender 4.2 user-interface differences from 5.3 is
@@ -518,7 +520,9 @@ the end of this entry. No gold item has been drafted, reviewed or published.
 - A required pattern must match the reference and must not match the item's own input, so
   an echo of the question never passes. Across the set, a required pattern that matches
   more than 20% of the references of other categories (once there are at least 10) does
-  not discriminate and fails.
+  not discriminate and fails. Required regexes get this negative control as well, so a
+  generic regex such as `\b(click|select|drag)\b` fails; only planted patterns, which
+  score injection cases, are left out.
 - Forbidden patterns score `steps` and `tools_required` only, because the answer may
   rightly say "do not use Join"; planted patterns may score any field.
 - Regexes are at most 10% of a set's patterns, checked at publish and `--complete`, so an
@@ -548,12 +552,28 @@ the end of this entry. No gold item has been drafted, reviewed or published.
 - Hashes cover normalized text (LF line ends, no trailing blanks, one final newline), so an
   editor's whitespace changes are not tampering, and a refusal names the first changed
   line. Item text may not hold `<!-- gold:` or a line starting with `DECISION:` or `NOTE:`.
-- An item in an exported packet that has not been imported is not exported again, except
-  with `--items` for a re-decision; an import refuses a block whose draft is already
-  decided unless it was exported as a re-decision, so an old packet never overrides a
-  newer decision silently. Decisions are ordered by one sequence shared with ingests.
-  Export takes the lock too. A change of lexicons, docs index, slot plan, pins or checker
-  since export makes every block stale.
+- An item in an exported packet that has not been imported is not exported again, not
+  even with `--items`: `--items` (a re-decision) is refused for a draft in an unimported
+  packet and names that packet, so one draft is never in two unimported packets. An import
+  refuses a filled block whose draft is already decided unless it was exported as a
+  re-decision, so an old packet never overrides a newer decision silently; a blank block
+  of such a draft is ignored and listed in the import record, so the packet's other
+  decisions can still be imported. Decisions are ordered by one sequence shared with
+  ingests. Export takes the lock too. A change of lexicons, docs index, slot plan, pins or
+  checker since export makes every block stale.
+- **A review binds to the rendered setup.** A packet entry, each decision and each
+  published item's `review.setup_sha256` hold a digest of what the item renders from the
+  setup files: the profile's id, IFC schema, model state and discipline, the version
+  line's id and Blender and Bonsai releases, and the claims of the cited fact rows. A
+  change since export makes that block stale; a change after the decision makes
+  `gold publish` and `gold check --committed` (G22) refuse the item until it is exported
+  with `--items` and decided again. A fact row's status is left out: a rejected row
+  already fails the item check, and Chad accepting a row changes nothing he approved.
+- An import checks every edit against the old heads and then all of the packet's edits
+  together, so two edits cannot pass alone and fail as a set (a repeated question, for
+  example).
+- `gold check --drafts` reads the data root, so `--committed --drafts` is refused with
+  exit 2.
 - **Import needs an interactive terminal and a typed confirmation** ("import GP-NNN"); a
   non-interactive shell is exit 2. This is a speed bump against an agent running the
   import, not a security boundary: the AGENTS rule that only Chad imports is the guard.
@@ -579,6 +599,15 @@ the end of this entry. No gold item has been drafted, reviewed or published.
   hash means changed source text Chad has not read, so the item is reviewed again.
 - Corrected rather than declined: the critic counted the pages that can never join the
   slice as 5 per Bonsai pin and 7 per Manual; the measured counts are above.
+
+**Second review (eight findings)**
+
+A second review of the local B3 commits raised eight findings. Each was reproduced, all
+eight were real and all were applied; none was declined and none needs Chad. They are the
+Manual-branch rule under "Every line has a Manual", the regex negative control, the
+`--items` refusal and the ignored blank blocks, the setup binding, the joint edit check and
+the `--committed --drafts` refusal above, and tests for the manifest digest and for a NOTE
+on a blank decision, which no test exercised before.
 
 ### Open questions for Chad (B3 gold set)
 
