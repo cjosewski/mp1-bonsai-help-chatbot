@@ -65,6 +65,14 @@ def test_version_lines_carry_their_defaults_and_pairing_status():
     assert lines["VL-older"]["pairing_status"] == "conflict"
 
 
+@pytest.mark.parametrize("status, valid", [("partly cited", True), ("partly_cited", False)])
+def test_pairing_status_spells_partly_cited_as_the_enum_basis_does(tmp_path, status, valid):
+    profiles = load(PROFILES)
+    profiles["version_lines"][0]["pairing_status"] = status
+    found = problems(tmp_path, profiles=profiles)
+    assert (found == []) is valid, found
+
+
 def test_the_schema_enum_is_cited_for_new_projects_only():
     basis = load(PROFILES)["enums"]["ifc_schema"]
     assert basis["basis"] == "partly cited" and basis["facts"] == ["SF-007"]

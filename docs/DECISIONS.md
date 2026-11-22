@@ -266,7 +266,7 @@ These were made by the assistant while building B2 and are open to Chad's review
   not stand in for it: a `VL-older` row of any other kind needs a 0.8.5-post1 docs citation.
 - **One rule for `pairing_status`.** `conflict` when the line's own Bonsai docs pin lists
   supported Blender versions that leave out the line's Blender version; `uncited` only when
-  nothing in the pin addresses it; `cited` or `partly_cited` when pinned text states the
+  nothing in the pin addresses it; `cited` or `partly cited` when pinned text states the
   pairing in full or in part. Both lines are `conflict` (SF-012 lists 5.1 or 5.2 for
   `VL-current`, SF-013 lists 4.3, 4.4 or 4.5 for `VL-older`); `VL-current` was `uncited`
   before this rule was applied. Whether to keep either pairing is Chad's B3 question.

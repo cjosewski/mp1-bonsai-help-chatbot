@@ -101,7 +101,7 @@ class VersionLine(_Model):
     bonsai_tag: str = Field(min_length=1)
     sources: VersionSources
     origin: Literal["plan §2", "O-3 default"]
-    pairing_status: Literal["cited", "partly_cited", "uncited", "conflict"]
+    pairing_status: Literal["cited", "partly cited", "uncited", "conflict"]
     pairing_note: str = Field(min_length=1)
     claims: list[str] = Field(min_length=1)
     status: Status
