@@ -1,0 +1,31 @@
+# Python, environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Credentials and local configuration (never committed)
+.env
+.env.*
+!.env.example
+*.key
+config/*.local.json
+config/local.json
+
+# Raw runs and scratch output stay outside Git (O-5).
+# Only the curated set under submission/ is committed.
+/data/
+/runs/
+/traces/
+/labels/
+/reports/
+/scratch/
+/artifacts/
+/snapshots/
+
+# Local agent state
+.omc/

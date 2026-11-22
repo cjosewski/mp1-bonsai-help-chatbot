@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mp1-bonsai-help-chatbot"
+version = "0.1.0"
+description = "Course example: a Bonsai (Blender BIM) help chatbot with synthetic data generation and evaluation"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.15"
+authors = [{ name = "Chad Josewski" }]
+dependencies = [
+  "pydantic>=2.12,<3",
+  "instructor>=1.17,<2",
+  "openai>=2,<3",
+  "httpx>=0.28,<1",
+]
+
+[project.optional-dependencies]
+analysis = ["matplotlib>=3.10,<4", "seaborn>=0.13,<1"]
+
+[dependency-groups]
+dev = [
+  "pytest>=9,<10",
+  "ruff>=0.14,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bonsai_help"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
