@@ -583,6 +583,64 @@ def test_a_change_of_the_lines_pinned_sources_after_review_stales_the_published_
     assert gold.check_published_item(item, ctx) == [SETUP_CHANGED]
 
 
+def repinned(source="bonsai-source", *, lexicon=False) -> gold.Context:
+    """A context where a source keeps its id but names another pin (or another lexicon)."""
+    ctx = context()
+    key, name = ("lexicons", f"{source}.json") if lexicon else ("pins", source)
+    ctx.digests = {**ctx.digests, key: {**ctx.digests[key], name: "repinned-under-the-same-id"}}
+    return ctx
+
+
+@pytest.mark.parametrize("lexicon", [False, True], ids=["pin", "lexicon"])
+def test_a_repin_under_the_same_source_id_after_review_stales_the_published_item(tmp_path, lexicon):
+    accept(tmp_path, single())
+    publish_tmp(tmp_path)
+    item = gold.load_items(tmp_path / "gold")[0]
+    assert gold.check_published_item(item, context()) == []
+    ctx = repinned(lexicon=lexicon)
+    assert item.version_line == "VL-current"
+    assert gold.check_published_item(item, ctx) == [SETUP_CHANGED]
+    # A source of another line is not part of this item's review.
+    assert gold.check_published_item(item, repinned("bonsai-source-0-8-5-post1")) == []
+
+
+def test_a_change_of_the_lines_pinned_sources_between_export_and_import_stales_the_block(
+    tmp_path,
+):
+    ingest(tmp_path, single())
+    export(tmp_path)
+    decide(tmp_path, "GS-SD-901", "approve")
+    with pytest.raises(gold_review.ProblemsFound) as caught:
+        import_(tmp_path, ctx=changed_sources(bonsai_source="bonsai-source-0-8-5-post1"))
+    assert caught.value.problems == [
+        "GS-SD-901: stale: the draft, its setup, its check or the lexicons, index or slots changed"
+    ]
+    assert store(tmp_path).imports() == []
+    assert import_(tmp_path).lines[0].startswith("GP-001: 1 decision(s) recorded")
+
+
+def test_status_warns_of_an_amended_head_whose_setup_changed(tmp_path):
+    ingest(tmp_path, single(setup_facts=["SF-012"]))
+    export(tmp_path)
+    fence = prefill(tmp_path, "GS-SD-901")
+    fence["question"] = fence["question"].replace("I placed a wall", "I drew a wall")
+    decide(tmp_path, "GS-SD-901", "edit", fence=fence)
+    import_(tmp_path)
+    assert gold_review.status(store(tmp_path), context(), tmp_path / "gold").warnings == []
+    for ctx in (
+        changed_profile(discipline="architecture"),
+        changed_claim(),
+        changed_sources(bonsai_source="bonsai-source-0-8-5-post1"),
+        repinned(),
+    ):
+        report = gold_review.status(store(tmp_path), ctx, tmp_path / "gold")
+        assert report.warnings == [
+            "GS-SD-901: its profile, version line or cited fact claims changed since Chad's "
+            "decision; export it with --items for a re-decision (G22)"
+        ]
+        assert any("state=chad_amended" in line for line in report.lines)
+
+
 def test_status_warns_of_a_decided_head_whose_setup_changed(tmp_path):
     ingest(tmp_path, single(setup_facts=["SF-012"]))
     export(tmp_path)
@@ -735,7 +793,12 @@ def test_publish_compare_mode_and_stale_headers(tmp_path):
         "lexicons": {**ctx.digests["lexicons"], "bonsai-source.json": "0" * 64},
     }
     problems, _ = gold.check_committed_set(tmp_path / "gold", ctx, complete=False)
-    assert [p.message for p in problems] == ["lexicons is stale; recheck and republish (G22)"]
+    # The file header is stale, and so is Chad's review: the packet's accepted forms came from
+    # the old lexicon of the item's line.
+    assert [p.message for p in problems] == [
+        "lexicons is stale; recheck and republish (G22)",
+        SETUP_CHANGED,
+    ]
 
 
 def test_publish_refuses_pages_outside_the_fixture_slice_and_lists_them(tmp_path):

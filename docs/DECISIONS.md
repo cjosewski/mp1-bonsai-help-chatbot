@@ -569,8 +569,9 @@ the end of this entry. No gold item has been drafted, reviewed or published.
 - **A review binds to the rendered setup.** A packet entry, each decision and each
   published item's `review.setup_sha256` hold a digest of what the item renders from the
   setup files: the profile's id, IFC schema, model state and discipline, the version
-  line's id, Blender and Bonsai releases and pinned sources (the packet's accepted forms
-  resolve against them), and the claims of the cited fact rows. A change since export
+  line's id, Blender and Bonsai releases and each of its sources by id, pin id and lexicon
+  digest (the packet's accepted forms resolve against those lexicons, so a repin or a
+  regenerated lexicon under an unchanged source id counts too), and the claims of the cited fact rows. A change since export
   makes that block stale; a change after the decision makes `gold publish` and
   `gold check --committed` (G22) refuse the item until it is exported with `--items` and
   decided again, and `gold status` warns of it before that. A fact row's status is left out: a rejected row
@@ -623,6 +624,16 @@ needs Chad. A line's Bonsai docs and add-on source pins are now tied to its `bon
 and release (under "Every line has a Manual"), the setup binding covers the line's pinned
 sources, a test now covers the cited fact claims in that binding, and `gold status` warns
 of a decided item whose setup changed (under "A review binds to the rendered setup").
+
+**Remaining minor gaps of the third review (closed)**
+
+The third review left three minor test gaps. The first was a real gap in code: the setup
+binding named a line's sources by id only, so a repin under the same id (as `blender-manual`
+moved from 5.3 to 5.2) or a regenerated lexicon left Chad's decision valid after the fact.
+It now binds each source's pin id and lexicon digest as well, and a test repins a source
+under its id after review. The other two were tests only: `gold status` warns of an amended
+head (Chad's edit) whose setup changed, not just an accepted one, and a change of the line's
+sources between export and import makes the block stale.
 
 ### Open questions for Chad (B3 gold set)
 

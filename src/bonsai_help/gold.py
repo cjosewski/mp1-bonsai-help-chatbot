@@ -720,20 +720,29 @@ def pseudo_payload(item: GoldContent, ctx: Context) -> dict[str, str | list[str]
 
 def setup_sha(item: LaneItem, ctx: Context) -> str:
     """What an item renders from the setup files and a review binds to: its profile, its
-    line's releases and pinned sources (the packet's accepted forms resolve against them)
-    and the claims of its cited fact rows. A fact row's status is left out: a rejected row
-    already fails the item check, and accepting one changes nothing shown."""
+    line's releases, and each of the line's sources by id, pin id and lexicon digest (the
+    packet's accepted forms resolve against those lexicons, so a repin or a regenerated
+    lexicon under an unchanged source id counts too), and the claims of its cited fact
+    rows. A fact row's status is left out: a rejected row already fails the item check, and
+    accepting one changes nothing shown."""
     profile, line = ctx.profile(item.profile), ctx.line(item.version_line)
     rows = {row.id: row for row in ctx.facts.rows}
+    pins, lexicons = ctx.digests.get("pins", {}), ctx.digests.get("lexicons", {})
+    sources = (
+        None
+        if line is None
+        else {
+            role: [source, pins.get(source), lexicons.get(f"{source}.json")]
+            for role, source in line.sources.model_dump().items()
+        }
+    )
     return sha256_hex(
         canonical(
             {
                 "profile": None
                 if profile is None
                 else [profile.id, profile.ifc_schema, profile.model_state, profile.discipline],
-                "line": None
-                if line is None
-                else [line.id, line.blender, line.bonsai, line.sources.model_dump()],
+                "line": None if line is None else [line.id, line.blender, line.bonsai, sources],
                 "facts": [[f, rows[f].claim if f in rows else None] for f in item.setup_facts],
             }
         )
