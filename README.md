@@ -21,16 +21,19 @@ and setup facts) are done.** Install, the offline tests, the documentation corpu
 rebuild, the section index, the lexicons and the setup-fact checks run today; every
 pipeline step below is marked *not yet implemented* and will be filled in when its
 milestone lands. The B2 setup profiles and fact rows are drafts by the assistant,
-pending Chad's review at B3. B3 has started: Chad's November 22, 2026 decisions on the
-version pairings, the IFC schemas, review packets and drafting are applied
-(see [`docs/DECISIONS.md`](docs/DECISIONS.md)); the gold set itself does not exist yet.
+pending Chad's review at B3. **B3 is in progress**: Chad's November 22, 2026 decisions on
+the version pairings, the IFC schemas, review packets and drafting are applied (see
+[`docs/DECISIONS.md`](docs/DECISIONS.md)), and the gold-set tooling is built (slot plan,
+lane batches, checker, review packets, import, publish, pattern score; see
+[Gold set](#gold-set-b3)). No gold item is drafted yet: drafting waits for Chad's answers on
+two count questions in `docs/DECISIONS.md`.
 
 | Milestone | What it delivers | Status |
 | --- | --- | --- |
 | B0 | Repository, licenses, decision log, porting map, packaging | Done |
 | B1 | Pinned, hashed documentation snapshots; fixture slice | Done |
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (rows await Chad's review at B3) |
-| B3 | Gold set and multi-part and injection requests | Started: Chad's decisions applied; gold set not yet built |
+| B3 | Gold set and multi-part and injection requests | In progress: tooling built; no item drafted or reviewed |
 | B4 | Rubric, prompts, deterministic checks; generation, gate and collection modules ported | Not yet implemented |
 | B5 | Baseline run | Not yet implemented |
 | B6 | Baseline human labels | Not yet implemented |
@@ -79,7 +82,10 @@ repositories on local disk (`file://` URLs); an `https` URL fails in the tests i
 of reaching the network. Two test files check the committed pin config, manifest,
 fixture slice, `NOTICE.md` and the files under `reference/` (the same as the
 `--committed` checks below). The extractor tests use synthetic Python and RST; no
-Bonsai source file is in the repository.
+Bonsai source file is in the repository. The gold tests use clearly synthetic items in an
+injected slot plan, built on real fixture-slice sections: every checker rule, the pattern
+matcher, ingest, packet export and import (tampering, stale blocks, re-decisions, edits),
+publish, the interactive-terminal gate on import and the held-out loading rule.
 
 ## Rebuild the documentation corpus
 
@@ -235,6 +241,70 @@ too. Whether a claim
 says no more than its quotes is not machine-checked: every row, profile and version line
 is `assistant_drafted` until Chad reviews it at B3, and uncited rows cannot exist.
 
+## Gold set (B3)
+
+The gold set is 100 slots (Chad's A1 and A2 answers may change the extra kinds' counts):
+50 development and 25 held-out questions, 15 multi-part requests drawn from the Bonsai
+tutorials and 10 injection cases, five categories at 20% within each kind and split, and
+held-out items only on the six assessed profiles. Each item has a question for one setup
+profile, a reference answer drafted only from the pinned sections it cites, those sections
+with verbatim quotes, check patterns (operator, panel, Blender operator, menu path, hotkey,
+UI label, phrase, regex, planted text) and an optional unusual flag.
+
+```bash
+uv run --locked bonsai-help gold slots
+uv run --locked bonsai-help gold check --committed
+uv run --locked bonsai-help gold status
+```
+
+| Command | Does | Writes |
+| --- | --- | --- |
+| `gold slots [--write]` | Regenerate the slot plan from the targets, the profiles and `reference/gold/slot-substitutions.json`; compare (exit 1 on a difference) or write `reference/gold/slots.json` | `reference/gold/` |
+| `gold ingest BATCH [--supersede-accepted]` | Validate a lane batch (`gold-draft-batch-v1`, lane form only), derive every citation field from the pinned pages, run the checks against the current drafts, then write the drafts and a receipt, or nothing | `data/gold/` |
+| `gold check [--committed] [--complete] [--drafts]` | The slot plan and the published files: every check, with the fixture-slice rule; `--drafts` adds every draft head, `--complete` requires every slot published (the B3 acceptance check) | — |
+| `gold status` | Per slot: head draft, check, decision state, published; counts against the targets, unusual reasons, leftover temp files, orphan drafts, a leftover lock and packets not yet imported. Never shows NOTE text | — |
+| `gold packet export --split S [--size 25] [--items ID ...]` | Write review packets of pending drafts that pass the check, about 25 per Markdown file, one split per packet; `--items` re-exports items for a re-decision | `data/gold/packets/` |
+| `gold packet import GP-NNN [--decided-on D] [--skip-stale]` | Record Chad's decisions, all or nothing; runs only from an interactive terminal after a typed confirmation | `data/gold/` |
+| `gold publish [--write]` | Build `reference/gold/development.json` and `held-out.json` from Chad's accepted and amended items; compare (exit 1) or write | `reference/gold/` |
+| `gold score ANSWERS.jsonl` | Pattern scores of published development items, JSON lines; input lines are `{"item_id": ..., "fields": {...}}` with the scored payload fields | — |
+
+How an item gets in:
+
+1. A drafting lane writes a batch in the lane form (citations name a record id and
+   quotes; no derived field) and runs `gold ingest`. A slot a lane cannot support from
+   the pinned sections gets a recorded substitution or stays empty; it is never padded.
+2. `gold packet export` writes `data/gold/packets/GP-NNN.md`. For each item Chad writes
+   `approve`, `edit` or `reject` after `DECISION:` (blank stays pending), an optional
+   one-line `NOTE:`, and for an edit changes the pre-filled JSON in place.
+3. Chad runs `gold packet import GP-NNN`. A changed fixed region is refused and its first
+   changed line named (line-end whitespace and CRLF do not count); a block whose draft
+   changed since export is stale (`--skip-stale` imports the rest); an edit runs the
+   whole checker. A packet is imported once; export its pending items again.
+4. `gold publish --write` writes the reviewed items, which `gold check --committed`
+   then proves offline against the fixture slice.
+
+The checks (G01 to G24, in `src/bonsai_help/gold.py`) cover slot identity and splits;
+every citation field and quote against the pinned bytes; support references; the fixture
+slice for published items; lexicon resolution and grounding of every named tool in a cited
+section; backticked spans and `bim.*` ids (an id that exists only in the other version line
+gets its own message); pattern shape and strictness (the reference must pass its patterns,
+an echo of the question must not, and a pattern that matches most other categories'
+references fails); multi-part and injection rules; cited setup facts (a row Chad rejected
+cannot back an item); duplicates and cross-split leakage; privacy; and packet markers. They
+are heuristics that catch defects before Chad reads an item; the pattern score never
+decides a rubric dimension.
+
+Held-out items are committed with the rest because the review record and the grader need
+them, so anyone can read them. They are held out from development decisions, not secret:
+they load only through `gold.load_held_out`, prompts and few-shot examples use development
+items only, and `gold score` scores development items only. Chad reads held-out reference
+answers when he reviews them; he labels chatbot answers blind to the arm (B6).
+
+Layout outside Git, under `data/gold/`: `drafts/` (content-addressed), `ingests/`
+(receipts), `packets/` (packets and manifests), `imports/` (decisions and NOTE text,
+append-only), `.tmp/` and `.lock`. NOTE text never enters Git and publish never reads it.
+The published files are CC BY-SA 4.0 data; quotes keep their source license (`NOTICE.md`).
+
 ## Run each step
 
 *Not yet implemented (B4 to B9).* Each step will run on its own against saved
@@ -273,11 +343,12 @@ no model and no credentials.
 │   ├── docs-index.json   digest of the section index (written by the tool)
 │   ├── lexicons/         operator, menu and hotkey lexicons (written by the tool)
 │   ├── setup-profiles.json  version lines and setup profiles (assistant-drafted)
-│   └── setup-facts.json  cited setup-fact rows (assistant-drafted)
+│   ├── setup-facts.json  cited setup-fact rows (assistant-drafted)
+│   └── gold/             gold slot plan and, once reviewed, the published gold items (written by the tool)
 ├── docs/
 │   ├── DECISIONS.md     dated owner decisions and open items
 │   └── PORTING-MAP.md   what is ported from the earlier repository, and when
-├── src/bonsai_help/     the package: snapshots, section index, lexicons, setup checks, CLI
+├── src/bonsai_help/     the package: snapshots, section index, lexicons, setup checks, gold set, CLI
 ├── tests/               offline behaviour tests
 │   └── fixtures/docs/   unmodified, attributed documentation fixture slice
 └── submission/          curated course submission set (filled at B10; datasets CC BY-SA 4.0)

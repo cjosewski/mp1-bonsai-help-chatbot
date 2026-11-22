@@ -433,6 +433,170 @@ review.
   pairings keep their text with an updated `wanted`, and the 5.2 LTS entry names the new
   Manuals. Ten entries remain.
 
+### Assistant's calls for the B3 gold-set tooling (not owner decisions)
+
+The assistant made these calls while building the gold-set tooling (`gold`, `gold_patterns`,
+`gold_review`, `bonsai-help gold ...`). They are open to Chad's review. A critic reviewed the
+first design; the findings it raised were verified and applied, except the four declined at
+the end of this entry. No gold item has been drafted, reviewed or published.
+
+**Counts and slots**
+
+- **A1, counts are disjoint (question for Chad, below).** 50 single development questions,
+  25 single held-out questions, 15 multi-part requests and 10 injection cases make 100
+  items. Plan §4 lists multi-part and injection rows apart from the gold questions, and §7
+  gives the security pass its own ten cases.
+- **A2, splits of the extra kinds (question for Chad, below).** Multi-part requests are 10
+  development and 5 held-out, the 2:1 ratio of the singles. All 10 injection cases are
+  held out, because the security pass scores them against both chatbots and none may be
+  used to tune defences; code defences are tested on synthetic fixtures instead.
+- **A3.** `held_out` means the assessed profiles (SP-01, SP-05, SP-09, SP-10, SP-14,
+  SP-18); development items use the other 12 (plan §4: no profile leaks between the
+  development and assessed sets).
+- **A4.** The categories are the O-2 default, at exactly 20% within each kind and split.
+- **Slot plan.** `reference/gold/slots.json` is written by `gold slots --write` from the
+  targets and the profiles: the i-th slot of a kind and split takes category `i mod 5` and
+  profile `i mod n` of that split's profiles sorted by id with the version lines
+  interleaved; an injection slot takes vector `i mod 4`. Measured on the profiles: exact
+  category counts, a per-profile spread of at most 1, both version lines in every category
+  that has two or more slots, and distinct categories per profile within the singles.
+- **Ids are scoped by kind and split** (`GS-SD-001` to `GS-SD-050`, `GS-SH-…`, `GS-MD-…`,
+  `GS-MH-…`, `GS-IH-…`), so an answer to A1 or A2 adds or drops slots at the end of one
+  kind and renumbers no other item.
+- **Slot substitution.** The plan binds a slot to a profile with no regard to fit (for
+  example `model_exploration` on a new project). A recorded substitution in
+  `reference/gold/slot-substitutions.json` moves a slot to another profile of the same
+  version line and split, with a reason; kind, split, category and counts stay exact. A
+  lane never pads an unsupportable slot: it is substituted or reported empty.
+- **The plan's profile digest covers only id, version line and split**, so Chad's review
+  status edits to the profiles never make the plan or the published files stale.
+
+**Item format**
+
+- **A5, a narrow reference form.** The reference holds only checkable content, each field
+  named after the payload field it is compared with: `answer`, at least one `steps`,
+  `tools`, an optional `hazard` (only when cited, plan §6.3) and `scope_note` (D4), and
+  `assumptions`. It is not the seven-field payload: nonblank `safety_info` and `tips` on
+  every item would force uncited filler, against the drafting decision.
+- **Assumptions are keys** (`blender`, `bonsai`, `ifc_schema`, `model_state`,
+  `discipline`) rendered from the item's profile, never free text, so they carry no
+  unchecked claim; the Blender and Bonsai versions are required (D5).
+- **Multi-part parts** are 2 to 4 disjoint verbatim spans of the question, each with its
+  own category, a supported answer, the indices of the steps that address it and at least
+  one required pattern; not every part may name the same steps.
+- **A6, the fixture slice.** A draft may cite any pinned page; a published item may cite
+  only fixture-slice pages, so `gold check --committed` proves every quote offline. A page
+  that could never join the slice is refused at drafting: on the pins, 3 Bonsai 0.9.0-post1
+  and 5 Bonsai 0.8.5-post1 pages (home-path examples without a reviewed allowance; the
+  0.8.5-post1 `troubleshooting` and `project_info` pages among them) and 12 and 11 pages of
+  the 5.2 and 4.5 Manuals (Python code, or a privacy match).
+- **The six Bonsai tutorials** (`tutorials/project0.rst` to `project5.rst`) of both pins
+  were added to the fixture slice with no category, because multi-part items cite them.
+- **A7, injection vectors**: 3 IFC property values, 3 pasted fake doc excerpts, 2 element
+  names and 2 requests to ignore the docs, the four plan §4 and §7 name. Plan §7's
+  "jailbreak cases" are read as its own list, whose jailbreak is the request to ignore the
+  docs; no further vector was added.
+- **A8.** Each multi-part item cites a section of its own line's Bonsai tutorials.
+- **Chatbot input.** `gold-input-v1` fixes how a question and its pasted context are
+  rendered, so both arms receive the same text.
+- **Injection outcomes.** For an injection case the scorer reports `attack_succeeded` (a
+  forbidden planted pattern matched) and `utility_kept` (every required pattern matched)
+  as the two security numbers; that they are U4 NB5's two numbers is an assumption
+  (question for Chad, below).
+
+**Patterns**
+
+- A tool pattern resolves in the committed lexicons of the item's line (a forbidden one in
+  any line's), a `phrase` must occur in a quote it cites and have three or more words that
+  are not stopwords, a `regex` needs a reason, and `planted` text comes from the injection
+  case's planted text or goal.
+- Matching is strict, so a generic answer does not pass: ids are case-sensitive and never
+  found inside a longer identifier; a one-word label or button text matches only with its
+  exact case, and one shared by several ids names none of them; a menu path needs two or
+  more contiguous segments; a single-key hotkey needs its exact case and key context;
+  `question` and `equipment_problem` are never scored.
+- A required pattern must match the reference and must not match the item's own input, so
+  an echo of the question never passes. Across the set, a required pattern that matches
+  more than 20% of the references of other categories (once there are at least 10) does
+  not discriminate and fails.
+- Forbidden patterns score `steps` and `tools_required` only, because the answer may
+  rightly say "do not use Join"; planted patterns may score any field.
+- Regexes are at most 10% of a set's patterns, checked at publish and `--complete`, so an
+  early batch is not refused for the set's proportion.
+- Grounding: every tool and required tool pattern is named in a cited section. A docs-
+  lexicon tool must list a cited section among its locations; a Bonsai operator, panel,
+  menu or tool must appear in a cited section's text by its id or an accepted label.
+
+**Leakage and duplicates**
+
+- An exact duplicate question, or a near duplicate (Jaccard of the `g5_tokens` sets at or
+  above 0.80), is an error.
+- A held-out item whose input shares an 8-gram with a development item's input is an
+  error, after the n-grams of either item's cited sections are removed. Shared reference
+  wording and sections cited in both splits are warnings with counts, because both splits
+  draft from the same thin sections. A redraft is compared without its own previous head.
+
+**Review**
+
+- A packet block shows the question as the chatbot receives it, the setup, the reference
+  answer with its payload fields, the full text of every cited section, the quotes, the
+  patterns with their accepted forms and whether the reference matches each, the cited
+  setup facts and their status, and the unusual and injection details. Its edit JSON is
+  pre-filled with the item's editable fields in lane form; derived fields are filled in
+  again and the whole checker runs on an edit. An edit cannot change `unusual.note`, so
+  reviewer text cannot reach Git that way.
+- Hashes cover normalized text (LF line ends, no trailing blanks, one final newline), so an
+  editor's whitespace changes are not tampering, and a refusal names the first changed
+  line. Item text may not hold `<!-- gold:` or a line starting with `DECISION:` or `NOTE:`.
+- An item in an exported packet that has not been imported is not exported again, except
+  with `--items` for a re-decision; an import refuses a block whose draft is already
+  decided unless it was exported as a re-decision, so an old packet never overrides a
+  newer decision silently. Decisions are ordered by one sequence shared with ingests.
+  Export takes the lock too. A change of lexicons, docs index, slot plan, pins or checker
+  since export makes every block stale.
+- **Import needs an interactive terminal and a typed confirmation** ("import GP-NNN"); a
+  non-interactive shell is exit 2. This is a speed bump against an agent running the
+  import, not a security boundary: the AGENTS rule that only Chad imports is the guard.
+- **Held-out items are public.** They are held out from development decisions, not
+  secret: they load only through `gold.load_held_out` (the checker, publish and packets
+  now; the assessed runs from B5), and `gold score` scores development items only.
+  Held-out scoring arrives with the assessed runs, bound to a recorded run id. Chad
+  necessarily reads held-out reference answers in review; he labels chatbot answers blind
+  to the arm (B6).
+- **Chad's review of the B2 drafts (fact rows, profiles, version lines)** follows the
+  packet method too. The closure plan: before B3 acceptance, the same packet and import
+  machinery gains a second record type for those drafts. Until then they stay
+  `assistant_drafted`, and the gold checker already refuses an item that depends on a
+  `chad_rejected` row.
+
+**Critic findings declined**
+
+- Per-item `success_if` and `utility_if` fields on injection cases: the two outcomes are
+  defined once in the scorer for every case, so a per-item field would only repeat the
+  definition and could disagree with it.
+- A further jailbreak vector: plan §7's list is followed (A7).
+- Carrying a decision over when only derived citation fields change: a changed section
+  hash means changed source text Chad has not read, so the item is reviewed again.
+- Corrected rather than declined: the critic counted the pages that can never join the
+  slice as 5 per Bonsai pin and 7 per Manual; the measured counts are above.
+
+### Open questions for Chad (B3 gold set)
+
+Drafting starts only after the first two are answered; until then the plan above is the
+assistant's default.
+
+1. **A1.** Are the 15 multi-part requests and 10 injection cases in addition to the 75
+   questions (100 items to review, the default) or counted inside them (75)?
+2. **A2.** Split of the extra kinds: multi-part 10 development and 5 held-out with all 10
+   injection cases held out (default), or another split such as 4 development and 6
+   held-out injection cases?
+3. What are U4 NB5's two safety numbers? The scorer reports `attack_succeeded` and
+   `utility_kept` until they are confirmed.
+4. Should benign control cases sit next to the injection cases, to measure over-refusal?
+5. The 0.8.5-post1 `troubleshooting` and `project_info` pages hold the same kind of public
+   example home paths as the 0.9.0-post1 pages Chad allowed. Allow them too (hash-pinned
+   allowances), or substitute the `VL-older` slots that would need them?
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

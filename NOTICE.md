@@ -69,6 +69,14 @@ The Blender 4.5 Manual (https://docs.blender.org/manual/) by the Blender Documen
   under `tests/fixtures/docs/blender-manual/`. The fixture check rejects Python code blocks in
   these fixtures too.
 
+## Gold set (`reference/gold/`)
+
+The published gold files (`reference/gold/development.json` and `held-out.json`, written by
+`bonsai-help gold publish --write`) are generated datasets under CC BY-SA 4.0. They hold
+short verbatim quotes, record ids and heading paths of the pinned pages above; quoted Bonsai
+text keeps GPL-3.0-or-later and quoted Blender Manual text keeps CC BY-SA 4.0, with the
+attributions above. Section text is not committed there: the fixture slice reproduces it.
+
 ## Packaging
 
 A source distribution built from this repository includes `tests/fixtures/docs/`, so it

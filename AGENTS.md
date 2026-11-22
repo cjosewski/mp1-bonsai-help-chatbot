@@ -60,9 +60,29 @@ with Chad's four decisions (pairings, IFC schemas, review packets, drafting; quo
 - Assistant lanes draft each reference answer only from the pinned sections it cites; a
   deterministic check verifies every cited section, quote and operator name; Chad
   approves, edits or rejects.
-- Not yet built: the gold set (50 development and 25 held-out questions on the assessed
-  profiles, 15 multi-part requests, 10 injection cases), the packets, the import and the
-  answer check.
+- The gold-set tooling is built (`bonsai-help gold ...`, see README): the slot plan
+  `reference/gold/slots.json`, lane batches and their ingest, the checker, review packets,
+  import, publish and the pattern score. No gold item is drafted, reviewed or published
+  yet. Drafting waits for Chad's answers on the two count questions in `docs/DECISIONS.md`
+  (whether multi-part requests count inside the 75 questions; the development and
+  held-out split of multi-part and injection items).
+- Gold rules:
+  - Only Chad writes a packet's `DECISION:` and `NOTE:` lines and its edit JSON, and only
+    Chad runs `gold packet import` (interactive terminal, typed confirmation). An
+    assistant never fills, edits or imports a packet, never runs the import through a
+    pseudo-terminal, and never writes `data/gold/imports/`.
+  - Lanes write batches in the lane form and ingest them; they never supply derived
+    fields, never pad an unsupportable slot, and draft each reference answer only from
+    the pinned sections it cites. A slot that cannot be supported gets a recorded
+    substitution in `reference/gold/slot-substitutions.json` (then `gold slots --write`)
+    or stays empty and is reported.
+  - `reference/gold/slots.json`, `development.json` and `held-out.json` are tool-written:
+    regenerate them only with `gold slots --write` and `gold publish --write`, never by
+    hand. NOTE text and `data/gold/` never enter Git.
+  - Held-out items are public but held out from development decisions: load them only
+    through `gold.load_held_out` (checker, publish, packets; later the assessed runs).
+    Prompts, few-shot examples and judge-v2 examples use development items only, and
+    `gold score` scores development items only.
 
 Then B4 (rubric, prompts, checks
 and the first ported modules), and B5–B10 as the plan's §9 describes. B3, B6 and B8 need
