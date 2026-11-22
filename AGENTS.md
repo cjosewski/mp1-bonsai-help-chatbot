@@ -60,8 +60,8 @@ Recorded as owner-reported, in Chad's words where given. Details in `docs/DECISI
 - Never commit private details: IP addresses, NAS or network paths, hostnames, SSH
   details, local usernames or home paths, email addresses other than the commit
   identity, credentials, private repository contents, course notebook or course data
-  content, or human review notes. One exception, the assistant's call pending Chad's
-  confirmation (`docs/DECISIONS.md`, November 22, 2026): unmodified upstream fixture
+  content, or human review notes. One exception, confirmed by Chad on November 22,
+  2026 (`docs/DECISIONS.md`): unmodified upstream fixture
   pages may contain public example home paths only through the hash-pinned
   `privacy_allowlist` in `config/doc-sources.json`.
 - Only licensed open sources enter the repository. Public access is not permission to

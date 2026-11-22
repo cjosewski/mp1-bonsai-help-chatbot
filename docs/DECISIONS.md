@@ -150,8 +150,8 @@ Chad's review.
   names a Bonsai maintainer's public handle). They are public upstream text, not the
   owner's details, and stay unmodified. The privacy check allows them only by file
   hash and match count; every file this repository writes must have no match at all.
-  `AGENTS.md` states this as an exception to the public-repository rule, pending Chad's
-  confirmation; if he declines, the slice needs other pages.
+  `AGENTS.md` states this as an exception to the public-repository rule. Chad confirmed
+  it on November 22, 2026: "Keep verbatim and push".
 - **Git 2.44 or newer.** The builder relies on `--no-lazy-fetch` so that a missing file
   is an error, never a silent download. It probes for that option instead of checking
   a version number.
