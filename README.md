@@ -21,14 +21,16 @@ and setup facts) are done.** Install, the offline tests, the documentation corpu
 rebuild, the section index, the lexicons and the setup-fact checks run today; every
 pipeline step below is marked *not yet implemented* and will be filled in when its
 milestone lands. The B2 setup profiles and fact rows are drafts by the assistant,
-pending Chad's review at B3.
+pending Chad's review at B3. B3 has started: Chad's November 22, 2026 decisions on the
+version pairings, the IFC schemas, review packets and drafting are applied
+(see [`docs/DECISIONS.md`](docs/DECISIONS.md)); the gold set itself does not exist yet.
 
 | Milestone | What it delivers | Status |
 | --- | --- | --- |
 | B0 | Repository, licenses, decision log, porting map, packaging | Done |
 | B1 | Pinned, hashed documentation snapshots; fixture slice | Done |
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (rows await Chad's review at B3) |
-| B3 | Gold set and multi-part and injection requests | Not yet implemented |
+| B3 | Gold set and multi-part and injection requests | Started: Chad's decisions applied; gold set not yet built |
 | B4 | Rubric, prompts, deterministic checks; generation, gate and collection modules ported | Not yet implemented |
 | B5 | Baseline run | Not yet implemented |
 | B6 | Baseline human labels | Not yet implemented |
@@ -99,13 +101,17 @@ left alone, and an invalid one is refused (exit 5) for inspection.
 | Source | Pin | Pages | Bytes |
 | --- | --- | ---: | ---: |
 | Bonsai documentation, `src/bonsai/docs` in [IfcOpenShell](https://github.com/IfcOpenShell/IfcOpenShell) | tag `bonsai-0.9.0post1` (lightweight tag), commit `2744f8426bdef98a486406628a121298a5479690` | 95 | 363,783 |
-| [Blender Manual](https://projects.blender.org/blender/blender-manual) source, `manual/` | commit `3481be3f6163a7c34e317b685f09fe67ca1057f0` on branch `blender-v5.3-release` | 2,450 | 5,961,691 |
+| [Blender Manual](https://projects.blender.org/blender/blender-manual) 5.2 source, `manual/` | commit `4a3be8f9ed3b66b24913e0a0d491d3429a70ea08` on branch `blender-v5.2-release` | 2,358 | 5,745,382 |
 | Bonsai documentation, older release (`bonsai-docs-0-8-5-post1`) | tag `bonsai-0.8.5-post1` (lightweight tag), commit `e6258ab4a8e8c76d18b743ea80a6f7699809319b` | 95 | 361,583 |
+| Blender Manual 4.5 source (`blender-manual-4-5`), `manual/` | commit `c2b171709bbca119846f1cd8cda70ad719cf6296` on branch `blender-v4.5-release` | 2,072 | 5,182,293 |
 | Bonsai add-on source (`bonsai-source`), every `.py` file under `src/bonsai/bonsai` | tag `bonsai-0.9.0post1`, commit `2744f842…` (as above) | 447 | 7,738,049 |
 | Bonsai add-on source, older release (`bonsai-source-0-8-5-post1`) | tag `bonsai-0.8.5-post1`, commit `e6258ab4…` (as above) | 425 | 6,593,423 |
 
-The older-release pins are the O-3 default (Blender 4.2 LTS with Bonsai 0.8.5-post1 as the
-older-release contrast). The two add-on sources are read only by the operator lexicon; no
+Each version line has its own Bonsai docs, add-on source and matching Manual (Chad's
+decision of November 22, 2026): Blender 5.2 with Bonsai 0.9.0-post1, and Blender 4.5 with
+Bonsai 0.8.5-post1 as the older-release contrast. The Blender 5.3 Manual pin
+(`blender-v5.3-release`, commit `3481be3f`) was replaced by the 5.2 pin; nothing cites it
+any more, and its record is in `docs/DECISIONS.md`. The two add-on sources are read only by the operator lexicon; no
 Bonsai source file is committed, because their headers carry contributors' contact
 addresses.
 
@@ -115,7 +121,7 @@ the rest) live in the config and are not part of a snapshot's identity. Images, 
 Manual's source code and other files that are not pages are never fetched, with one
 exception: the license evidence files (Bonsai's `src/bonsai/COPYING` and
 `src/bonsai/docs/conf.py`, the Manual's `LICENSE` and `manual/copyright.rst`; the B2 sources cite the same
-`src/bonsai/COPYING` blob, committed once) are
+`src/bonsai/COPYING` blob, and the 4.5 Manual the same two Manual blobs, each committed once) are
 fetched, checked by blob id and stored in the snapshot even when they are not pages.
 The deny lists govern page selection only. Bonsai's `conf.py` stays out of Git. The
 manifest's `not_selected` counts, by file type, the files under each root that are not
@@ -126,14 +132,14 @@ record, and a build into an empty data root compares it with upstream.
 
 What a rebuild needs: Git 2.44 or newer (the build probes for `--no-lazy-fetch` and
 stops with exit 3 without it), network access to github.com and projects.blender.org
-over HTTPS, and about 37 MB under `data/` (30 MB of snapshots and a 7 MB git cache),
-plus 16 MB for the section index (`docs index build`). Proxy and CA settings
+over HTTPS, and about 49 MB under `data/` (40 MB of snapshots and a 9 MB git cache),
+plus 28 MB for the section index (`docs index build`). Proxy and CA settings
 (`HTTPS_PROXY`, `NO_PROXY`, `SSL_CERT_FILE`, `GIT_SSL_CAINFO` and similar) are passed
 through to git; user and system git configuration is not used. Measured on November
-22, 2026: all five sources rebuilt from an empty `data/` in about 8 seconds; a plain
-build into a second empty data root matched the manifest written from that rebuild,
-writing it again from a third empty root gave identical bytes, and the two B1 entries
-were unchanged by the B2 sources. Do not
+22, 2026, after the Manual pin change: all six sources rebuilt from an empty data root in
+about 11 seconds; a plain build into a second empty data root matched the manifest
+written from that rebuild, writing it again from a third empty root gave identical bytes,
+and the four Bonsai entries were unchanged by the Manual pins. Do not
 run two builds into the same data root at once. They share the git cache under
 `data/git/`, so the second usually stops with exit 3 (a git lock or setup conflict in
 that cache), or with exit 5 if it reaches the point of moving its snapshot into place;
@@ -153,8 +159,8 @@ each on stderr, without tracebacks or absolute paths. A failed build leaves its
 staging directory for inspection; `snapshot check` lists it as a warning.
 
 The fixture slice in `tests/fixtures/docs/` (27 Bonsai 0.9.0-post1 pages, 8 Bonsai
-0.8.5-post1 pages, 22 Manual pages, the license texts and `fixtures.json`) covers every
-plan §5 category and every page a setup fact cites, so offline tests and the later
+0.8.5-post1 pages, 22 Blender 5.2 Manual pages, 1 Blender 4.5 Manual page, the license
+texts and `fixtures.json`) covers every plan §5 category and every page a setup fact cites, so offline tests and the later
 replay demo need no network. Its pages link to pages outside the slice, so nothing
 offline may require those links to resolve.
 
@@ -183,9 +189,9 @@ uv run --locked bonsai-help setup check
 A section record is one heading's span of a page: source, pin, path, heading path (titles
 with RST backslash escapes rendered), line and byte span and the SHA-256 of its bytes. The records of a page concatenate to the page
 exactly; directives (`include`, `toctree`) are recorded, not expanded. Measured on the
-pins: 463 records for the Bonsai 0.9.0-post1 docs, 464 for 0.8.5-post1 and 9,367 for the
-Manual (199 Manual pages are include stubs with no heading). Building the index takes
-about a second.
+pins: 463 records for the Bonsai 0.9.0-post1 docs, 464 for 0.8.5-post1, 8,997 for the 5.2
+Manual and 8,245 for the 4.5 Manual (159 and 72 Manual pages are include stubs with no
+heading). Building the index takes about a second per Manual.
 
 The lexicons in `reference/lexicons/` (measured on the pins; the scope is stated
 because the plan's 1,311 ids and 1,559 labels match no scope that could be reproduced):
@@ -194,28 +200,33 @@ because the plan's 1,311 ids and 1,559 labels match no scope that could be repro
 | --- | --- |
 | `bonsai-source.json` | Operators, macros, workspace tools, panels and menus of the whole add-on, read by AST (never imported): 1,317 unique `bim.*` operator ids (1,305 `bl_idname` constants plus 12 built by `build_edit_lifecycle`; 1,086 of them in `bim/module/*/operator.py`), 1,280 distinct labels, 208 panels, 13 menus, 30 tools, 233 button texts that `layout.operator(..., text=...)` shows, 23 labels shared by several ids, and the values that could not be resolved (listed, never guessed) |
 | `bonsai-source-0-8-5-post1.json` | The same for 0.8.5-post1: 1,246 `bim.*` operator ids. 77 ids exist only at 0.9.0-post1 and 6 only at 0.8.5-post1 |
-| `blender-manual.json` | 1,443 Blender operator ids from `.. _bpy.ops.*:` targets at any indent (every `:ref:` to one resolves), 1,550 menu paths, 397 hotkeys, 214 `:guilabel:` texts and the fields of 1,547 `.. reference::` blocks, each with the section records that hold it; markup inside inline literals and literal or code blocks is an example, not UI, and is skipped. An operator label never shows a cross-reference target: a `:ref:`/`:doc:` term gives its title, and the 3 with a bare target give no label. A term's `:kbd:` roles are removed with the separators between them, and the 3 menu paths that begin with `-->` continue a menu opened another way (counted as `menu_paths_continued`) |
+| `blender-manual.json`, `blender-manual-4-5.json` | 5.2 Manual: 1,410 Blender operator ids from `.. _bpy.ops.*:` targets at any indent (every `:ref:` to one resolves), 1,500 menu paths, 397 hotkeys, 206 `:guilabel:` texts and the fields of 1,517 `.. reference::` blocks; 4.5 Manual: 1,311 operator ids, 1,417 menu paths, 391 hotkeys, 117 `:guilabel:` texts and 1,417 `.. reference::` blocks. Every entry lists the section records that hold it; markup inside inline literals and literal or code blocks is an example, not UI, and is skipped. An operator label never shows a cross-reference target: a `:ref:`/`:doc:` term gives its title, and the 3 with a bare target (in each Manual) give no label. A term's `:kbd:` roles are removed with the separators between them, and the 3 menu paths (in each Manual) that begin with `-->` continue a menu opened another way (counted as `menu_paths_continued`) |
 | `bonsai-docs.json`, `bonsai-docs-0-8-5-post1.json` | Menu paths, hotkeys (63 written as `:kbd:` roles joined by `+`) and UI paths written as `` `A > B` `` in the Bonsai docs |
 
 Not extracted in B2: Bonsai keymap hotkeys (only the docs' `:kbd:` roles), settings
 (`bpy.props` names) and `bpy.types` targets. The lexicons are deterministic heuristics
 for the B4 checks; they never decide a dimension.
 
-`reference/setup-profiles.json` holds two version lines and 18 setup profiles. `VL-current`
-is the plan's Blender 5.3 with Bonsai 0.9.0-post1; `VL-older` is the O-3 default, Blender
-4.2 LTS with Bonsai 0.8.5-post1. Neither pairing is stated in pinned text: each pin's
-docs list supported Blender versions that leave the line's Blender out, so both carry
-`pairing_status` `conflict` and are not scored as facts. No Blender 4.2 Manual is pinned,
-so `VL-older` has no Manual source: its `version_claim` and `doc_conflict` rows (e.g.
-SF-016) are pairing evidence and may cite any docs pin, and every other row
-(`schema_dependent`, `version_dependent`, `doc_absence`) needs a 0.8.5-post1 docs
-citation. The `ifc_schema` values are `partly cited`: SF-007 supports them for
-`new_project` only (`cited_for`). The profiles are a
+`reference/setup-profiles.json` holds two version lines and 18 setup profiles, with the
+pairings Chad chose on November 22, 2026 (origin `Chad, 2026-11-22`). `VL-current` is
+Blender 5.2 with Bonsai 0.9.0-post1 and the 5.2 Manual; `VL-older` is Blender 4.5 with
+Bonsai 0.8.5-post1 and the 4.5 Manual. Both carry `pairing_status` `cited`: each line's own
+Bonsai docs list its Blender release (SF-012 lists 5.1 or 5.2, SF-013 lists 4.3, 4.4 or
+4.5), and `setup check` requires a `cited` line to list such a `version_claim` row among its
+claims, citing the line's own Bonsai docs pin, with a key term that names the release on
+token boundaries. `VL-current` also lists SF-015, the same pin's troubleshooting page that
+says Blender 4.5. The pairing itself is evidence, not a scored fact. A line's
+`version_claim` and `doc_conflict` rows may cite any docs pin; every other row
+(`schema_dependent`, `version_dependent`, `doc_absence`) needs a citation from the line's
+own Bonsai docs or Manual, so the 5.2 Manual does not stand in for `VL-older`. The
+`ifc_schema` values are `partly cited`: SF-007 supports them for `new_project` only
+(`cited_for`); for opened and federated models all three are a stated default that Chad
+kept, and schema facts are scored only where a row cites them. The profiles are a
 full IFC schema × model state factorial per line, with disciplines rotated as a Latin
 square; the 6 diagonal profiles are the assessed split and the other 12 the development
 split, and each split covers every schema, model state, discipline and version line.
 
-`reference/setup-facts.json` holds 19 fact rows and 11 claims left out because no pinned
+`reference/setup-facts.json` holds 19 fact rows and 10 claims left out because no pinned
 text supports them. Every row cites pinned sections with short verbatim quotes;
 `setup check` proves each quote occurs exactly once, on token boundaries and outside RST
 comments, in the cited section, and that every key term is in a quote, on token boundaries

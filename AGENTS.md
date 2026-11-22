@@ -18,19 +18,18 @@ skeleton, decision log, porting map, packaging and package-level behavioural tes
 
 As of November 22, 2026, **B1 (documentation snapshots) is done**:
 `bonsai-help snapshot build` rebuilds the pinned Bonsai documentation (IfcOpenShell tag
-`bonsai-0.9.0post1`, commit `2744f842`, 95 pages) and Blender Manual (branch
-`blender-v5.3-release`, commit `3481be3f`, 2,450 pages) into git-ignored `data/` and
-checks them against `config/doc-manifest.json`; `snapshot check` verifies the committed
+`bonsai-0.9.0post1`, commit `2744f842`, 95 pages) and Blender Manual into git-ignored
+`data/` and checks them against `config/doc-manifest.json`; `snapshot check` verifies the committed
 files and the snapshots. The pins live in `config/doc-sources.json`, attribution in
 `NOTICE.md`, and the fixture slice in `tests/fixtures/docs/`. Change a pin only with
 `snapshot build --write-manifest`, never by editing the manifest; never edit fixture
 files by hand (use `snapshot fixtures`). Section records (cutting pages at headings) are
-B2's `docs_index`, not part of the snapshot. No pipeline code exists yet.
+B2's `docs_index`, not part of the snapshot. No pipeline code exists yet. B1 pinned the
+Blender 5.3 Manual (`blender-v5.3-release`, commit `3481be3f`); B3 replaced it (below).
 
 As of November 22, 2026, **B2 (lexicons and setup facts) is done** as assistant drafts:
 - Three more sources are pinned through the B1 machinery: the Bonsai 0.8.5-post1 docs
-  (the O-3 default, applied as a default) and the Bonsai add-on source at both tags, read
-  only by AST.
+  and the Bonsai add-on source at both tags, read only by AST.
 - `docs index build` cuts docs pages into section records under `data/index/`; its digest
   is `reference/docs-index.json`.
 - `lexicon build --write` writes `reference/lexicons/`.
@@ -45,7 +44,27 @@ As of November 22, 2026, **B2 (lexicons and setup facts) is done** as assistant 
   quotes. A claim with no pinned
   support goes to `not_citable`, never into `rows`.
 
-Next is B3 (gold set and Chad's review of the B2 drafts), then B4 (rubric, prompts, checks
+As of November 22, 2026, **B3 (gold set and Chad's review of the B2 drafts) has started**
+with Chad's four decisions (pairings, IFC schemas, review packets, drafting; quoted in
+`docs/DECISIONS.md`):
+- Version lines: `VL-current` is Blender 5.2 with Bonsai 0.9.0-post1, `VL-older` Blender
+  4.5 with Bonsai 0.8.5-post1. Each line's Blender steps come from its matching Manual:
+  `blender-manual` (branch `blender-v5.2-release`, commit `4a3be8f9`, 2,358 pages) and
+  `blender-manual-4-5` (branch `blender-v4.5-release`, commit `c2b17170`, 2,072 pages).
+  The 5.3 Manual pin is removed from active use. Both pairings are `cited` (SF-012,
+  SF-013), which `setup check` verifies against the line's own Bonsai docs pin.
+- `ifc_schema` keeps IFC2X3, IFC4 and IFC4X3 for opened and federated models as a stated
+  default; schema facts are scored only where a row cites them.
+- Review is by Markdown packets of about 25 items outside Git under `data/`; decisions
+  are imported append-only, and free-text reviewer notes never enter Git.
+- Assistant lanes draft each reference answer only from the pinned sections it cites; a
+  deterministic check verifies every cited section, quote and operator name; Chad
+  approves, edits or rejects.
+- Not yet built: the gold set (50 development and 25 held-out questions on the assessed
+  profiles, 15 multi-part requests, 10 injection cases), the packets, the import and the
+  answer check.
+
+Then B4 (rubric, prompts, checks
 and the first ported modules), and B5–B10 as the plan's §9 describes. B3, B6 and B8 need
 Chad's review and labels.
 
@@ -69,8 +88,9 @@ Recorded as owner-reported, in Chad's words where given. Details in `docs/DECISI
 - O-5: "Yes, submission/ only (plan default)". Only the curated set under `submission/`
   is committed; raw attempt logs, scratch runs and all earlier evidence stay outside Git.
 - Repository name: `mp1-bonsai-help-chatbot`.
-- Not yet decided (plan defaults apply as defaults): O-2 categories, O-3 setup profiles,
-  O-6 recheck of unpublished course units, O-7 distribution reference.
+- Not yet decided (plan defaults apply as defaults): O-2 categories, O-6 recheck of
+  unpublished course units, O-7 distribution reference. O-3 was settled on November 22,
+  2026 by the pairing decision above.
 
 ## Public repository rules
 
@@ -174,8 +194,10 @@ uv run --locked ruff check .
 uv run --locked ruff format --check .
 ```
 
-After a pin change, run `snapshot build --write-manifest` on an empty data root, then
-`docs index build --write-digest`, `lexicon build --write` and `setup check`. A cited
+After a pin change, run `snapshot build --write-manifest` on an empty data root, check
+that a plain `snapshot build` into a second empty root reproduces the manifest, then run
+`snapshot fixtures --replace`, `docs index build --write-digest`, `lexicon build --write`
+and `setup check`. A cited
 section whose bytes changed fails `setup check` until its row is redrafted.
 
 Tests exercise behaviour: invalid or malformed outputs, retry exhaustion, transport
