@@ -294,11 +294,13 @@ These were made by the assistant while building B2 and are open to Chad's review
   rows. This is still an assistant reading, checked by Chad at B3, not by a machine.
 - **Profile values and split.** `ifc_schema` values are cited (SF-007) for a new project
   only, so the enum's basis is `partly cited` with `cited_for: ["new_project"]`, a basis
-  value that must name its fact rows, its cited model states and a note; for opened and
-  federated models IFC4X3 is an assistant default (the quickstart
-  names IFC2X3 and IFC4 as the commonly seen schemas, SF-009). `model_state` values are
-  the plan §4 wording, and `discipline` values (architecture, structure,
-  building services) are an assistant default: the plan names the field, not its values.
+  value that must name its fact rows, its cited model states and a note. For opened and
+  federated models all three values are an assistant default: SF-009 (not one of the
+  enum's facts) names IFC2X3 and IFC4 as the two commonly seen schemas of a loaded model,
+  no fact row cites IFC4X3 for an opened model, and none cites any schema for a federated
+  model. `model_state` values are the plan §4 wording, and `discipline` values
+  (architecture, structure, building services) are an assistant default: the plan names
+  the field, not its values.
   Each version line has the full schema × model-state factorial (9 profiles), with
   disciplines rotated as a Latin square so discipline is not tied to model state. The 3
   diagonal profiles per line are the assessed split; each split covers every schema, model
@@ -317,8 +319,9 @@ These were made by the assistant while building B2 and are open to Chad's review
 - **Observations.** The `VERSION` file at the `bonsai-0.8.5-post1` tag reads `0.8.6`. The
   Manual's history ends at 4.3, so "5.2 LTS" cannot be cited.
 - **IFC4X3 for opened and federated models.** SF-007 cites the schema choice for a new
-  project only. Keep IFC4X3 in the `opened_ifc` and `large_federated_model` profiles
-  (SP-08, SP-09, SP-17, SP-18) as an assistant default, or drop it there?
+  project only, and no row cites any schema for a federated model. Keep IFC4X3 in the
+  `opened_ifc` and `large_federated_model` profiles (SP-08, SP-09, SP-17, SP-18) as an
+  assistant default, or drop it there?
 - **A Blender 4.2 Manual pin** (`blender-v4.2-release`) would make Blender-side facts for
   `VL-older` citable. It is an option, not a default.
 - **Bonsai keymap hotkeys.** The docs' `:kbd:` roles cover some shortcuts only. Extract

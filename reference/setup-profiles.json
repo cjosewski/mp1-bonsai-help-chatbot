@@ -1,5 +1,5 @@
 {
-  "digest": "bb8920024759f8973872a1eb787614d038857d708bbcb2ab6cac67198714a279",
+  "digest": "0bb13e3f962c321dabbb42e5ac88494d9e68e084dcd711b0e886a3e276272c2a",
   "drafted_on": "2026-11-22",
   "enums": {
     "discipline": {
@@ -12,7 +12,7 @@
       "basis": "partly cited",
       "cited_for": ["new_project"],
       "facts": ["SF-007"],
-      "note": "SF-007 cites the schema choice when creating a new project only. For opened_ifc and large_federated_model profiles the three values are an assistant default: the quickstart names IFC2X3 and IFC4 as the two commonly seen schemas (SF-009), and no fact row cites IFC4X3 for an opened or federated model.",
+      "note": "SF-007 cites the schema choice when creating a new project only. For opened_ifc and large_federated_model profiles all three values are an assistant default: SF-009 (not one of this enum's facts) names IFC2X3 and IFC4 as the two commonly seen schemas of a loaded model, no fact row cites IFC4X3 for an opened model, and none cites any schema for a federated model.",
       "values": ["IFC2X3", "IFC4", "IFC4X3"]
     },
     "model_state": {
@@ -64,7 +64,7 @@
       "claims": ["SF-013", "SF-016"],
       "id": "VL-older",
       "origin": "O-3 default",
-      "pairing_note": "Blender 4.2 is not in the 0.8.5-post1 docs' supported list (Blender 4.3, 4.4, or 4.5, SF-013). No Blender 4.2 Manual is pinned (blender_manual is null), so this line's schema- and version-dependent rows need a 0.8.5-post1 docs citation; version_claim and doc_conflict rows are pairing evidence and may cite any docs pin (SF-016 cites the Blender 5.3 Manual's history of 4.2 LTS). The 0.9.0-post1 maintenance page's 0.8.5-post1 values are only an example (not_citable). Kept as the O-3 default; not scored as a fact.",
+      "pairing_note": "Blender 4.2 is not in the 0.8.5-post1 docs' supported list (Blender 4.3, 4.4, or 4.5, SF-013). No Blender 4.2 Manual is pinned (blender_manual is null), so this line's version_claim and doc_conflict rows are pairing evidence and may cite any docs pin, and every other row (schema_dependent, version_dependent, doc_absence) needs a 0.8.5-post1 docs citation (SF-016 cites the Blender 5.3 Manual's history of 4.2 LTS). The 0.9.0-post1 maintenance page's 0.8.5-post1 values are only an example (not_citable). Kept as the O-3 default; not scored as a fact.",
       "pairing_status": "conflict",
       "review": null,
       "sources": {"blender_manual": null, "bonsai_docs": "bonsai-docs-0-8-5-post1", "bonsai_source": "bonsai-source-0-8-5-post1"},
