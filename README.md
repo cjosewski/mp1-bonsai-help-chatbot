@@ -152,7 +152,7 @@ failure; 4 upstream differs from the pins; 5 refused to write. Errors are one li
 each on stderr, without tracebacks or absolute paths. A failed build leaves its
 staging directory for inspection; `snapshot check` lists it as a warning.
 
-The fixture slice in `tests/fixtures/docs/` (27 Bonsai 0.9.0-post1 pages, 7 Bonsai
+The fixture slice in `tests/fixtures/docs/` (27 Bonsai 0.9.0-post1 pages, 8 Bonsai
 0.8.5-post1 pages, 22 Manual pages, the license texts and `fixtures.json`) covers every
 plan §5 category and every page a setup fact cites, so offline tests and the later
 replay demo need no network. Its pages link to pages outside the slice, so nothing
@@ -194,7 +194,7 @@ because the plan's 1,311 ids and 1,559 labels match no scope that could be repro
 | --- | --- |
 | `bonsai-source.json` | Operators, macros, workspace tools, panels and menus of the whole add-on, read by AST (never imported): 1,317 unique `bim.*` operator ids (1,305 `bl_idname` constants plus 12 built by `build_edit_lifecycle`; 1,086 of them in `bim/module/*/operator.py`), 1,280 distinct labels, 208 panels, 13 menus, 30 tools, 233 button texts that `layout.operator(..., text=...)` shows, 23 labels shared by several ids, and the values that could not be resolved (listed, never guessed) |
 | `bonsai-source-0-8-5-post1.json` | The same for 0.8.5-post1: 1,246 `bim.*` operator ids. 77 ids exist only at 0.9.0-post1 and 6 only at 0.8.5-post1 |
-| `blender-manual.json` | 1,443 Blender operator ids from `.. _bpy.ops.*:` targets at any indent (every `:ref:` to one resolves), 1,551 menu paths, 397 hotkeys, 214 `:guilabel:` texts and the fields of 1,548 `.. reference::` blocks, each with the section records that hold it |
+| `blender-manual.json` | 1,443 Blender operator ids from `.. _bpy.ops.*:` targets at any indent (every `:ref:` to one resolves), 1,550 menu paths, 397 hotkeys, 214 `:guilabel:` texts and the fields of 1,547 `.. reference::` blocks, each with the section records that hold it; markup inside inline literals and literal or code blocks is an example, not UI, and is skipped |
 | `bonsai-docs.json`, `bonsai-docs-0-8-5-post1.json` | Menu paths, hotkeys (63 written as `:kbd:` roles joined by `+`) and UI paths written as `` `A > B` `` in the Bonsai docs |
 
 Not extracted in B2: Bonsai keymap hotkeys (only the docs' `:kbd:` roles), settings
@@ -204,17 +204,19 @@ for the B4 checks; they never decide a dimension.
 `reference/setup-profiles.json` holds two version lines and 18 setup profiles. `VL-current`
 is the plan's Blender 5.3 with Bonsai 0.9.0-post1; `VL-older` is the O-3 default, Blender
 4.2 LTS with Bonsai 0.8.5-post1. Neither pairing is stated in pinned text, so they carry
-`pairing_status` `uncited` and `conflict` and are not scored as facts. The profiles are a
+`pairing_status` `uncited` and `conflict` and are not scored as facts. No Blender 4.2
+Manual is pinned, so `VL-older` has no Manual source and its rows need a 0.8.5-post1 docs
+citation. The profiles are a
 full IFC schema × model state factorial per line, with disciplines rotated as a Latin
 square; the 6 diagonal profiles are the assessed split and the other 12 the development
 split, and each split covers every schema, model state, discipline and version line.
 
-`reference/setup-facts.json` holds 20 fact rows and 10 claims left out because no pinned
+`reference/setup-facts.json` holds 19 fact rows and 11 claims left out because no pinned
 text supports them. Every row cites pinned sections with short verbatim quotes;
-`setup check` proves each quote occurs exactly once, outside RST comments, in the cited
-section, and that every key term is in a quote. Whether a claim says no more than its
-quotes is not machine-checked: every row and profile is `assistant_drafted` until Chad
-reviews it at B3, and uncited rows cannot exist.
+`setup check` proves each quote occurs exactly once, on token boundaries and outside RST
+comments, in the cited section, and that every key term is in a quote. Whether a claim
+says no more than its quotes is not machine-checked: every row, profile and version line
+is `assistant_drafted` until Chad reviews it at B3, and uncited rows cannot exist.
 
 ## Run each step
 

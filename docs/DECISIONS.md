@@ -221,11 +221,16 @@ These were made by the assistant while building B2 and are open to Chad's review
   Menu or Shortcut field that only holds `:menuselection:` or `:kbd:` roles is counted, not
   repeated, because the roles are entries already. This keeps the committed file at
   856 KB, under the 1 MB size gate.
+- **RST examples are not UI.** Roles, targets and `.. reference::` blocks inside inline
+  literals or literal blocks (a `::` paragraph's indented body, or a `code-block`, `code`,
+  `sourcecode` or `literalinclude` body) are markup shown as an example, as on the Manual's
+  contribute pages, and are skipped (extractor `rst-roles-v2`). A definition term that is a
+  lone field marker (`:Material:`) gives its name as the operator label.
 - **Hotkey normalization.** Adjacent `:kbd:` roles joined by `+` are one hotkey; inside a
   role, `-` and `+` join keys of one chord and spaces separate a key sequence. The verbatim
   text is kept beside the parsed form.
-- **Facts cite only the fixture slice**, so the offline tests prove every row. Ten pages
-  were added to the slice. The 0.8.5-post1 `project_info` and `troubleshooting` pages are
+- **Facts cite only the fixture slice**, so the offline tests prove every row. Eleven
+  pages were added to the slice. The 0.8.5-post1 `project_info` and `troubleshooting` pages are
   not cited, because their upstream home-path examples would need a new privacy allowance,
   which Chad has not confirmed; those claims are listed as `not_citable`.
 - **Fact kinds and absences.** Rows are `schema_dependent`, `version_dependent`,
@@ -234,16 +239,28 @@ These were made by the assistant while building B2 and are open to Chad's review
   <page>". No row says a feature is missing from a release; the operator differences
   between the two source pins (77 and 6 ids) are lexicon evidence for D3, not fact rows.
 - **Version rows may cite another release's docs.** A `version_claim` or `doc_conflict`
-  row may cite any docs pin (the 0.9.0-post1 maintenance page gives the 0.8.5-post1
-  example). Every other row needs a citation from each version line it applies to.
+  row is evidence for a line's pairing, which is not scored as a fact: it must be listed in
+  the `claims` of every line it applies to (and a line's claims must apply to it), and it
+  may cite any docs pin (SF-016 cites the 5.3 Manual's history for 4.2 LTS). Every other
+  row needs a citation from a pinned source of each version line it applies to. No Blender
+  4.2 Manual is pinned, so `VL-older` has `blender_manual: null` and the 5.3 Manual does
+  not stand in for it: a `VL-older` row needs a 0.8.5-post1 docs citation.
+- **SF-014 withdrawn.** The only text about 0.8.5-post1's Python and maximum Blender
+  version is the 0.9.0-post1 maintenance page's hypothetical workaround example ("e.g."),
+  not a statement of what 0.8.5-post1 is, so the row moved to `not_citable`. Row ids are
+  not renumbered.
 - **Quote rules.** A quote is compared after collapsing runs of ASCII space, tab and line
   feed, with case and punctuation kept. It must have at least 20 characters, occur exactly
-  once in the cited section and lie outside RST comments. Collapsing can join two list
-  items into one line of text. Whether a claim says no more than its quotes, and whether
+  once in the cited section, start and end on token boundaries (only punctuation may sit
+  between a match and the surrounding whitespace, so `supported` never matches inside
+  `unsupported`, nor `Blender 4` inside `Blender 4.2`) and lie outside RST comments.
+  Collapsing can join two list items into one line of text. Whether a claim says no more than its quotes, and whether
   the key terms are the right ones, is not machine-checked: those are Chad's B3 review
   items.
-- **Profile values and split.** `ifc_schema` values are cited (SF-007), `model_state`
-  values are the plan §4 wording, and `discipline` values (architecture, structure,
+- **Profile values and split.** `ifc_schema` values are cited (SF-007) for a new project
+  only; for opened and federated models IFC4X3 is an assistant default (the quickstart
+  names IFC2X3 and IFC4 as the commonly seen schemas, SF-009). `model_state` values are
+  the plan §4 wording, and `discipline` values (architecture, structure,
   building services) are an assistant default: the plan names the field, not its values.
   Each version line has the full schema × model-state factorial (9 profiles), with
   disciplines rotated as a Latin square so discipline is not tied to model state. The 3
@@ -262,12 +279,16 @@ These were made by the assistant while building B2 and are open to Chad's review
   0.9.0-post1 and Blender 4.5 with 0.8.5-post1?
 - **Observations.** The `VERSION` file at the `bonsai-0.8.5-post1` tag reads `0.8.6`. The
   Manual's history ends at 4.3, so "5.2 LTS" cannot be cited.
+- **IFC4X3 for opened and federated models.** SF-007 cites the schema choice for a new
+  project only. Keep IFC4X3 in the `opened_ifc` and `large_federated_model` profiles
+  (SP-08, SP-09, SP-17, SP-18) as an assistant default, or drop it there?
 - **A Blender 4.2 Manual pin** (`blender-v4.2-release`) would make Blender-side facts for
   `VL-older` citable. It is an option, not a default.
 - **Bonsai keymap hotkeys.** The docs' `:kbd:` roles cover some shortcuts only. Extract
   the keymaps for D3?
-- **Review** every fact row and profile (all `assistant_drafted`) and the `not_citable`
-  list.
+- **Review** every fact row, profile and version line (all `assistant_drafted`; for a
+  line, its source mapping, `pairing_status`, `pairing_note` and `claims`) and the
+  `not_citable` list.
 
 ## Open items (not yet decided)
 

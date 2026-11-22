@@ -35,12 +35,14 @@ As of November 22, 2026, **B2 (lexicons and setup facts) is done** as assistant 
   is `reference/docs-index.json`.
 - `lexicon build --write` writes `reference/lexicons/`.
 - `reference/setup-profiles.json` and `reference/setup-facts.json` hold two version lines,
-  18 profiles and 20 cited fact rows. Every row and profile is `assistant_drafted` until
-  Chad reviews it at B3. Never mark one reviewed without Chad's own words in `review`.
+  18 profiles and 19 cited fact rows. Every row, profile and version line is
+  `assistant_drafted` until Chad reviews it at B3. Never mark one reviewed without Chad's
+  own words in `review`.
 - Regenerate the tool-written files only with their commands, never by hand. Edit the
   setup files by hand, then run `setup format` and `setup check`.
-- A fact row may cite only fixture-slice pages. Every quote must be verbatim and occur
-  once in its section. A claim says no more than its quotes. A claim with no pinned
+- A fact row may cite only fixture-slice pages. Every quote must be verbatim, start and
+  end on token boundaries and occur once in its section. A claim says no more than its
+  quotes. A claim with no pinned
   support goes to `not_citable`, never into `rows`.
 
 Next is B3 (gold set and Chad's review of the B2 drafts), then B4 (rubric, prompts, checks
