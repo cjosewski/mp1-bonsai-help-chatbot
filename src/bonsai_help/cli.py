@@ -1,4 +1,4 @@
-"""Command line: `bonsai-help snapshot | docs | lexicon | setup`.
+"""Command line: `bonsai-help snapshot | docs | lexicon | setup | gold`.
 
 Exit codes: 0 success; 1 check failed; 2 usage or invalid config; 3 git or network
 failure; 4 upstream differs from the pins; 5 refused to write.
@@ -7,6 +7,7 @@ failure; 4 upstream differs from the pins; 5 refused to write.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import secrets
@@ -15,7 +16,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from bonsai_help import doc_snapshot, docs_index, lexicons, setup
+from bonsai_help import doc_snapshot, docs_index, gold, gold_review, lexicons, setup
 from bonsai_help.doc_sources import ConfigError, SnapshotError, load_config
 from bonsai_help.git_fetch import Git, Runner, subprocess_runner
 
@@ -28,6 +29,7 @@ DOCS_INDEX = Path("reference/docs-index.json")
 LEXICONS = Path("reference/lexicons")
 PROFILES = Path("reference/setup-profiles.json")
 FACTS = Path("reference/setup-facts.json")
+GOLD = Path("reference/gold")
 
 
 def repository_root(start: Path) -> Path | None:
@@ -131,6 +133,54 @@ def _parser() -> argparse.ArgumentParser:
             sub.add_argument("--source", action="append", help="limit to a source id")
         if name == "check":
             committed(sub)
+
+    gold_parser = commands.add_parser("gold", help="gold set: slots, drafts, review, publish")
+    actions = gold_parser.add_subparsers(dest="action", required=True)
+
+    def gold_paths(sub: argparse.ArgumentParser, *, data: bool = True) -> None:
+        paths(sub, data=data, fixtures=True)
+        sub.add_argument("--gold", type=Path, help=f"published gold files (default {GOLD})")
+        sub.add_argument("--profiles", type=Path, help=f"setup profiles (default {PROFILES})")
+        sub.add_argument("--facts", type=Path, help=f"setup facts (default {FACTS})")
+        sub.add_argument("--lexicons", type=Path, help=f"committed lexicons (default {LEXICONS})")
+        sub.add_argument("--digest", type=Path, help=f"docs-index digest (default {DOCS_INDEX})")
+
+    sub = actions.add_parser("slots", help="regenerate the slot plan and compare or write it")
+    gold_paths(sub, data=False)
+    sub.add_argument("--write", action="store_true", help="write reference/gold/slots.json")
+    sub = actions.add_parser("ingest", help="validate a lane batch and write its drafts")
+    gold_paths(sub)
+    sub.add_argument("batch", type=Path)
+    sub.add_argument(
+        "--supersede-accepted",
+        action="store_true",
+        help="replace a head Chad accepted (the item returns to pending)",
+    )
+    sub = actions.add_parser("check", help="check the published files (and drafts)")
+    gold_paths(sub)
+    committed(sub)
+    sub.add_argument("--complete", action="store_true", help="every slot published (B3 acceptance)")
+    sub.add_argument("--drafts", action="store_true", help="also check every draft head")
+    sub = actions.add_parser("status", help="per slot: head, check, decision, published")
+    gold_paths(sub)
+    packet = actions.add_parser("packet", help="review packets for Chad")
+    steps = packet.add_subparsers(dest="step", required=True)
+    sub = steps.add_parser("export", help="write packets of pending items")
+    gold_paths(sub)
+    sub.add_argument("--split", required=True, choices=("development", "held_out"))
+    sub.add_argument("--size", type=int, default=gold_review.DEFAULT_SIZE)
+    sub.add_argument("--items", nargs="+", help="re-export these items for a re-decision")
+    sub = steps.add_parser("import", help="record Chad's decisions (interactive terminal only)")
+    gold_paths(sub)
+    sub.add_argument("packet", help="GP-NNN or its .md file")
+    sub.add_argument("--decided-on", help="decision date, YYYY-MM-DD (default today)")
+    sub.add_argument("--skip-stale", action="store_true", help="import the blocks that are current")
+    sub = actions.add_parser("publish", help="build reference/gold from Chad's decisions")
+    gold_paths(sub)
+    sub.add_argument("--write", action="store_true", help="write the published files")
+    sub = actions.add_parser("score", help="pattern scores of development items (JSON lines)")
+    gold_paths(sub, data=False)
+    sub.add_argument("answers", type=Path, help='JSON lines: {"item_id": ..., "fields": {...}}')
     return parser
 
 
@@ -182,9 +232,11 @@ def main(
             problems = doc_snapshot.check_manifest(config, manifest, problems)
             if problems or manifest is None:
                 raise doc_snapshot.CheckFailed("; ".join(map(str, problems[:3])))
-            command = {"docs": _docs, "lexicon": _lexicon, "setup": _setup}[args.command]
-            report = command(args, config, manifest, data_root, base)
+            command = {"docs": _docs, "lexicon": _lexicon, "setup": _setup, "gold": _gold}
+            report = command[args.command](args, config, manifest, data_root, base)
     except SnapshotError as error:
+        for problem in getattr(error, "problems", []):
+            print(f"problem: {_redact(problem, shown_roots)}", file=sys.stderr)
         print(f"error: {_redact(str(error), shown_roots)}", file=sys.stderr)
         return error.exit_code
     for warning in report.warnings:
@@ -380,3 +432,124 @@ def _check(
     scope = "committed files" if data_root is None else "committed files and snapshots"
     report.lines.append(f"check passed: {scope} for {len(config.sources)} sources")
     return report
+
+
+def _interactive_confirm(packet_id: str):
+    """Import records Chad's decisions, so it runs only from his own interactive terminal and
+    after he types the confirmation; agent shells are not interactive."""
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        raise ConfigError(
+            "packet import needs an interactive terminal: Chad runs it himself (AGENTS.md)"
+        )
+
+    def confirm(summary: str) -> bool:
+        print(summary)
+        wanted = f"import {packet_id}"
+        return input(f'Type "{wanted}" to record these decisions as yours: ').strip() == wanted
+
+    return confirm
+
+
+def _load_reference(path: Path, schema: str, model):
+    document, problems = doc_snapshot.load_canonical(path, schema, "digest", "setup")
+    if document is None:
+        raise doc_snapshot.CheckFailed(f"{path.name}: missing or unreadable")
+    if problems:
+        raise doc_snapshot.CheckFailed("; ".join(map(str, problems[:3])))
+    try:
+        return model.model_validate(document)
+    except ValidationError as error:
+        raise doc_snapshot.CheckFailed(f"{path.name}: invalid: {gold.validation_message(error)}")
+
+
+def _gold_context(args, config, manifest, data_root, base, *, offline: bool) -> gold.Context:
+    profiles = _load_reference(
+        _resolve(args.profiles, PROFILES, base), setup.PROFILES_SCHEMA, setup.SetupProfiles
+    )
+    facts = _load_reference(_resolve(args.facts, FACTS, base), setup.FACTS_SCHEMA, setup.SetupFacts)
+    gold_dir = _resolve(args.gold, GOLD, base)
+    slots, problems = gold.check_slots(gold_dir, profiles)
+    _fail(problems)
+    lexicon_dir = _resolve(args.lexicons, LEXICONS, base)
+    _fail(
+        lexicons.check_committed(
+            config, manifest, lexicon_dir, _resolve(args.fixtures, FIXTURES, base)
+        )
+    )
+    documents = {
+        source.id: json.loads((lexicon_dir / f"{source.id}.json").read_bytes())
+        for source in config.sources
+    }
+    digests = gold.current_digests(
+        config, manifest, lexicon_dir, _resolve(args.digest, DOCS_INDEX, base), slots
+    )
+    if offline:
+        read, index = setup.page_bytes_offline(_resolve(args.fixtures, FIXTURES, base)), None
+    else:
+        records = docs_index.load_index(config, manifest, data_root)
+        index = {r["id"]: r["sha256"] for r in records}
+        read = _snapshot_reader(config, manifest, data_root)
+    return gold.Context(
+        config=config,
+        manifest=manifest,
+        profiles=profiles,
+        facts=facts,
+        slots={slot["id"]: slot for slot in slots["slots"]},
+        lexicons=gold.gp.Lexicons(documents),
+        read=read,
+        digests=digests,
+        index=index,
+    )
+
+
+def _gold(args, config, manifest, data_root, base) -> doc_snapshot.Report:
+    gold_dir = _resolve(args.gold, GOLD, base)
+    if args.action == "slots":
+        profiles = _load_reference(
+            _resolve(args.profiles, PROFILES, base), setup.PROFILES_SCHEMA, setup.SetupProfiles
+        )
+        return gold.write_slots(gold_dir, profiles, write=args.write)
+    confirm = None
+    if args.action == "packet" and args.step == "import":
+        confirm = _interactive_confirm(Path(args.packet).name.removesuffix(".md"))
+    _fail(_committed_files(args, config, base))
+    offline = data_root is None
+    ctx = _gold_context(args, config, manifest, data_root, base, offline=offline)
+    if args.action == "score":
+        return gold.score_file(gold_dir, ctx, args.answers)
+    if args.action == "check":
+        problems, warnings = gold.check_committed_set(gold_dir, ctx, complete=args.complete)
+        if args.drafts:
+            store = gold_review.Store(data_root / "gold")
+            heads = store.head_items(store.heads())
+            problems += gold_review.check_heads(heads, heads, ctx)
+        _fail(problems)
+        report = doc_snapshot.Report(warnings=warnings)
+        scope = "fixture slice" if offline else "snapshots and built index"
+        drafts = " and every draft head" if args.drafts else ""
+        report.lines.append(
+            f"check passed: slot plan and published gold items{drafts} against the {scope}"
+        )
+        return report
+    store = gold_review.Store(data_root / "gold")
+    if args.action == "ingest":
+        return gold_review.ingest(
+            store, ctx, args.batch.absolute(), supersede_accepted=args.supersede_accepted
+        )
+    if args.action == "status":
+        return gold_review.status(store, ctx, gold_dir)
+    if args.action == "publish":
+        return gold_review.publish(store, ctx, gold_dir, write=args.write)
+    today = datetime.date.today().isoformat()
+    if args.step == "export":
+        return gold_review.export_packets(
+            store, ctx, args.split, size=args.size, items=args.items, exported_on=today
+        )
+    return gold_review.import_packet(
+        store,
+        ctx,
+        Path(args.packet).name.removesuffix(".md"),
+        decided_on=args.decided_on or today,
+        skip_stale=args.skip_stale,
+        confirm=confirm,
+    )

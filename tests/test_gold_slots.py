@@ -9,7 +9,7 @@ from collections import Counter
 import pytest
 from gold_support import GOLD, PROFILES
 
-from bonsai_help import gold
+from bonsai_help import cli, gold
 from bonsai_help.doc_snapshot import CheckFailed, dump_json
 from bonsai_help.doc_sources import CATEGORIES, canonical, sha256_hex
 
@@ -129,3 +129,8 @@ def test_a_substitution_keeps_kind_split_category_and_line(tmp_path, profile, me
         s["category"] for s in SLOTS
     )
 
+
+def test_gold_slots_cli_compares_without_writing(capsys, monkeypatch):
+    monkeypatch.chdir(GOLD.parents[1] / "tests")
+    assert cli.main(["gold", "slots"]) == 0
+    assert "slots.json: unchanged (100 slots)" in capsys.readouterr().out

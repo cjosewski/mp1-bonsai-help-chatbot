@@ -30,6 +30,7 @@ def lexicon(name: str) -> dict:
         ["docs", "index", "check", "--committed"],
         ["lexicon", "check", "--committed"],
         ["setup", "check", "--committed"],
+        ["gold", "check", "--committed"],
     ],
 )
 def test_committed_checks_pass_through_the_cli_without_a_data_root(argv, capsys, monkeypatch):
