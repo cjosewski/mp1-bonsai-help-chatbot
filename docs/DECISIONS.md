@@ -104,6 +104,57 @@ These were made by the assistant during B0 and are open to Chad's review.
 - **Human label notes stay out of `submission/`.** Labels in `submission/` carry the
   decisions and IDs only; free-text reviewer notes stay outside Git.
 
+## November 22, 2026
+
+### Assistant's calls during B1 (not owner decisions)
+
+These were made by the assistant while building the B1 snapshots and are open to
+Chad's review.
+
+- **Manual scope: every page.** The Manual snapshot keeps all 2,450 reStructuredText
+  pages under `manual/`, not a subset. The 484 pages in the areas plan §2 and §5 name
+  (interface, 3D viewport, outliner, preferences, properties editor, scene layout, mesh
+  modeling, modifiers, files, getting started, troubleshooting, glossary) are tagged
+  `core`, the rest `other`. The B2 Manual lexicon needs full coverage, or a real menu
+  from an uncovered area would be flagged as invented. The `core` list is the
+  assistant's reading of the plan and can follow O-2 without a new snapshot.
+- **Snapshot identity covers only what selects the bytes.** A pin id is per source
+  and hashes the URL, commit, root, include and exclude rules and license evidence.
+  Retrieval tags, deny lists, attribution and notes are metadata, so editing them
+  changes no pin id or source digest and later citations stay valid. B2's operator
+  source on the same IfcOpenShell pin leaves the B1 ids unchanged.
+- **Section records move to B2.** Cutting pages at headings (plan §4 row 1) is done by
+  B2's `docs_index`. The B1 acceptance is about pages; section ids depend on the
+  heading parser, and they can be recomputed from the verified page bytes.
+- **Tag `bonsai-0.9.0post1` is a lightweight tag.** It points straight at commit
+  `2744f842`, so the config records `tag_object: null`; annotated tags are also
+  supported.
+- **Ref drift.** When a pin is first written (`--write-manifest`), a tag that does not
+  point at the pinned commit stops the build (exit 4). A plain rebuild only warns and
+  records the observation, as for a moved branch, because the commit pin governs and
+  the one-command rebuild should keep working. Chad may prefer a hard failure.
+- **Bonsai `conf.py` stays out of Git.** It carries the GPL-3.0-or-later header and is
+  recorded in the manifest by its blob id, but its header also names a contributor's
+  personal contact address. `src/bonsai/COPYING` is committed as the license text.
+- **Upstream example paths in two fixture pages.** `guides/troubleshooting.rst` and
+  `reference/project_overview/project_info.rst` contain example home-folder paths (one
+  names a Bonsai maintainer's public handle). They are public upstream text, not the
+  owner's details, and stay unmodified. The privacy check allows them only by file
+  hash and match count; every file this repository writes must have no match at all.
+- **Git 2.44 or newer.** The builder relies on `--no-lazy-fetch` so that a missing file
+  is an error, never a silent download. It probes for that option instead of checking
+  a version number.
+- **Explicit blob fetch, no sparse checkout.** After a trees-only fetch the selected
+  blobs are fetched by id in one request and read from the object store, so there is
+  one path matcher and no working tree.
+- **Fixture slice bias.** The slice holds the plan §5 main pages and the Manual pages
+  for the Blender actions they rely on, plus license texts. It has no developer page, no
+  stub and few pages with the "incomplete" notice, so B2 tests for tag filtering and the
+  heading parser need synthetic RST as well.
+- **Packaging note.** A source distribution includes `tests/fixtures/docs/`, so it carries
+  CC BY-SA 4.0 Manual pages next to the GPL package code (stated in `NOTICE.md`). This
+  does not gate anything (see "Licensing stance").
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

@@ -14,12 +14,23 @@ every change and every departure from it as a dated entry in `docs/DECISIONS.md`
 ## Current boundary
 
 As of November 21, 2026, **B0 (repository readiness) is done**: licenses, README
-skeleton, decision log, porting map, packaging and package-level behavioural tests. No pipeline code exists yet. Next is **B1**: pinned, hashed, one-command-rebuildable snapshots of the
-Bonsai documentation (IfcOpenShell tag `bonsai-0.9.0post1`) and the Blender Manual (5.3
-branch), with license and attribution notices and a small committed fixture slice. Then
-B2 (lexicons and cited setup facts), B3 (gold set), B4 (rubric, prompts, checks and the
-first ported modules), and B5–B10 as
-the plan's §9 describes. B3, B6 and B8 need Chad's review and labels.
+skeleton, decision log, porting map, packaging and package-level behavioural tests.
+
+As of November 22, 2026, **B1 (documentation snapshots) is done**:
+`bonsai-help snapshot build` rebuilds the pinned Bonsai documentation (IfcOpenShell tag
+`bonsai-0.9.0post1`, commit `2744f842`, 95 pages) and Blender Manual (branch
+`blender-v5.3-release`, commit `3481be3f`, 2,450 pages) into git-ignored `data/` and
+checks them against `config/doc-manifest.json`; `snapshot check` verifies the committed
+files and the snapshots. The pins live in `config/doc-sources.json`, attribution in
+`NOTICE.md`, and the fixture slice in `tests/fixtures/docs/`. Change a pin only with
+`snapshot build --write-manifest`, never by editing the manifest; never edit fixture
+files by hand (use `snapshot fixtures`). Section records (cutting pages at headings) are
+B2's `docs_index`, not part of the snapshot. No pipeline code exists yet.
+
+Next is **B2** (lexicons and cited setup facts; the operator lexicon reuses the
+`ifcopenshell` repository pin as a new source), then B3 (gold set), B4 (rubric, prompts,
+checks and the first ported modules), and B5–B10 as the plan's §9 describes. B3, B6 and
+B8 need Chad's review and labels.
 
 B0 scope is the assistant's call, not Chad's: earlier pipeline modules were not copied.
 B4 ports them module by module, each with its tests, following `docs/PORTING-MAP.md`. The
@@ -147,5 +158,7 @@ Tests exercise behaviour: invalid or malformed outputs, retry exhaustion, transp
 failure and unknown outcomes, trace lineage, duplicate and category gates, denominator
 accounting, CLI failures and exit codes, no-overwrite and resume hash checks, credential
 redaction and each deterministic check. Do not write tests that merely repeat
-implementation details. Fixtures are clearly synthetic and never submitted as model
-evidence. Run a real smoke test only against an endpoint that is already reachable.
+implementation details. Model-output and test-remote fixtures are clearly synthetic
+and never submitted as model evidence. Documentation fixtures in `tests/fixtures/docs/`
+are unmodified, attributed copies of the pinned upstream files, not synthetic. Run a
+real smoke test only against an endpoint that is already reachable.

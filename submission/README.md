@@ -23,8 +23,8 @@ The generated datasets (the baseline and corrected JSONL files) are licensed und
 [Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/).
 They will be derived in part from the Blender Manual (Blender Documentation Team,
 CC BY-SA 4.0) and the Bonsai documentation (IfcOpenShell contributors,
-GPL-3.0-or-later). Full source attribution arrives with the documentation
-fixtures at milestone B1.
+GPL-3.0-or-later). Full source attribution is in the repository's
+[`NOTICE.md`](../NOTICE.md).
 
 Verbatim text quoted from the Bonsai documentation or the Blender Manual, wherever
 it appears in this folder (including inside the datasets, and cited sections inside
