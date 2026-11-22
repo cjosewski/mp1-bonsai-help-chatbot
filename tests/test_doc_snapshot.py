@@ -10,7 +10,7 @@ import pytest
 from doc_remotes import FILES, make_remote, source_config, write_config
 
 from bonsai_help import cli
-from bonsai_help.doc_snapshot import build_manifest, dump_json, source_digest
+from bonsai_help.doc_snapshot import _write_new, build_manifest, dump_json, source_digest
 from bonsai_help.doc_sources import Source, glob_match, tag_for
 from bonsai_help.git_fetch import Result, git_blob_id, subprocess_runner
 
@@ -273,6 +273,84 @@ def test_lfs_pointer_selected_is_exit_4(ws):
     write_config(ws.config, remote)
     code, _, err = ws.run("build", "--write-manifest")
     assert code == 4 and "LFS" in err
+
+
+def hooked(after):
+    """A real git runner whose result for selected calls is replaced by after(argv, result)."""
+
+    def runner(argv, cwd, env, stdin, timeout):
+        return after(argv, subprocess_runner(argv, cwd, env, stdin, timeout))
+
+    return runner
+
+
+def test_blob_bytes_that_do_not_hash_to_their_id_are_exit_4(ws):
+    remote = make_remote(ws.tmp)
+    write_config(ws.config, remote)
+
+    def corrupt(argv, result):
+        if argv[-2:] != ["cat-file", "--batch"]:
+            return result
+        out = bytearray(result.stdout)
+        out[out.index(b"\n") + 1] ^= 1
+        return Result(result.returncode, bytes(out), result.stderr)
+
+    code, _, err = ws.run("build", "--write-manifest", runner=hooked(corrupt))
+    assert code == 4 and "do not hash" in err
+    assert not (ws.data / "snapshots").exists() and not ws.manifest.exists()
+
+
+def test_fetch_that_gives_another_commit_is_exit_4(ws):
+    remote = make_remote(ws.tmp)
+    write_config(ws.config, remote)
+
+    def other_commit(argv, result):
+        if argv[-3:] == ["rev-parse", "--verify", "FETCH_HEAD^{commit}"]:
+            return Result(0, b"1" * 40 + b"\n", b"")
+        return result
+
+    code, _, err = ws.run("build", "--write-manifest", runner=hooked(other_commit))
+    assert code == 4 and "gave" in err
+    assert not (ws.data / "snapshots").exists()
+
+
+def test_hand_edit_outside_the_source_digest_fails_the_rebuild(ws):
+    remote = make_remote(ws.tmp)
+    write_config(ws.config, remote)
+    assert ws.run("build", "--write-manifest")[0] == 0
+    edit_manifest(ws.manifest, lambda e: e["not_selected"].update(png=99))
+    fresh = ws.tmp / "fresh"
+    code, _, err = ws.run("build", data=fresh)
+    assert code == 4 and "differs from the committed manifest" in err
+    assert not (fresh / "snapshots").exists()
+
+
+def test_snapshot_that_appears_during_the_build_is_not_replaced(ws):
+    remote = make_remote(ws.tmp)
+    write_config(ws.config, remote)
+    assert ws.run("build", "--write-manifest")[0] == 0
+    pin = json.loads(ws.manifest.read_bytes())["sources"]["fake-docs"]["pin_id"]
+    fresh = ws.tmp / "fresh"
+    rival = fresh / "snapshots" / "fake-docs" / pin
+
+    def concurrent_build(argv, result):
+        if argv[-2:] == ["cat-file", "--batch"]:
+            rival.mkdir(parents=True)
+        return result
+
+    code, _, err = ws.run("build", data=fresh, runner=hooked(concurrent_build))
+    assert code == 5 and "appeared during the build" in err
+    assert rival.is_dir() and not any(rival.iterdir())
+    (staging,) = rival.parent.glob(".staging-*")
+    assert (staging / "receipt.json").is_file()
+
+
+def test_snapshot_files_are_created_exclusively(tmp_path):
+    target = tmp_path / "page.rst"
+    target.write_bytes(b"first\n")
+    with pytest.raises(FileExistsError):
+        _write_new(target, b"second\n")
+    assert target.read_bytes() == b"first\n"
 
 
 def tamper_flip(files: Path) -> str:
