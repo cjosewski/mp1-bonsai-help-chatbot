@@ -227,6 +227,14 @@
         {
           "path": "src/bonsai/docs/_incomplete_message.rst",
           "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/guides/development/installation.rst",
+          "categories": []
+        },
+        {
+          "path": "src/bonsai/docs/guides/development/maintenance.rst",
+          "categories": []
         }
       ],
       "fixture_min_per_category": 2,
@@ -444,6 +452,10 @@
           "categories": [
             "files_versions_troubleshooting"
           ]
+        },
+        {
+          "path": "manual/getting_started/about/history.rst",
+          "categories": []
         }
       ],
       "fixture_min_per_category": 1,
@@ -499,7 +511,48 @@
       ],
       "attribution": "Bonsai documentation by the IfcOpenShell contributors (https://github.com/IfcOpenShell/IfcOpenShell, src/bonsai/docs at tag bonsai-0.8.5-post1, commit e6258ab4a8e8c76d18b743ea80a6f7699809319b), licensed under the GNU General Public License v3.0 or later. Copied unmodified.",
       "permitted_use": "Redistribution and modification under GPL-3.0-or-later. Used as the older-release contrast for setup facts (O-3 default), retrieval grounding, judging and offline test fixtures.",
-      "fixture_pages": [],
+      "fixture_pages": [
+        {
+          "path": "src/bonsai/docs/guides/authoring/starting_new_project.rst",
+          "categories": [
+            "bonsai_project_setup"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst",
+          "categories": [
+            "bonsai_project_setup"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/basic_modeling/creating_walls.rst",
+          "categories": [
+            "bonsai_modeling"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/authoring/advanced_modeling/material_assignment.rst",
+          "categories": [
+            "ifc_data_and_materials"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/quickstart/explore_model.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/viewing/dealing_with_large_models.rst",
+          "categories": [
+            "model_exploration"
+          ]
+        },
+        {
+          "path": "src/bonsai/docs/guides/development/installation.rst",
+          "categories": []
+        }
+      ],
       "fixture_min_per_category": 0,
       "fixture_forbid_python": false
     },
