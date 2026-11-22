@@ -618,12 +618,12 @@ def check_snapshots(config: DocSources, manifest: dict, data_root: Path) -> list
 # --- build -----------------------------------------------------------------------------
 
 
-def _write_new(path: Path, data: bytes) -> None:
+def write_new(path: Path, data: bytes) -> None:
     with open(path, "xb") as handle:
         handle.write(data)
 
 
-def _fsync_dir(path: Path) -> None:
+def fsync_dir(path: Path) -> None:
     descriptor = os.open(path, os.O_RDONLY)
     try:
         os.fsync(descriptor)
@@ -645,11 +645,11 @@ def write_snapshot(
         for path, data in sorted(files.items()):
             target = staging / "files" / path
             target.parent.mkdir(parents=True, exist_ok=True)
-            _write_new(target, data)
-        _write_new(staging / "manifest.json", dump_json(entry))
+            write_new(target, data)
+        write_new(staging / "manifest.json", dump_json(entry))
         os.sync()
-        _write_new(staging / "receipt.json", dump_json(receipt))
-        _fsync_dir(staging)
+        write_new(staging / "receipt.json", dump_json(receipt))
+        fsync_dir(staging)
     except OSError as error:
         raise Refused(
             f"{source_id}: writing {shown} failed ({error.strerror}); inspect it"
@@ -664,7 +664,7 @@ def write_snapshot(
         raise Refused(
             f"{source_id}: could not move {shown} into place ({error.strerror})"
         ) from None
-    _fsync_dir(parent)
+    fsync_dir(parent)
 
 
 def _selection_differences(source: Source, selection: Selection, entry: dict) -> list[str]:
@@ -855,7 +855,7 @@ def build(
         else:
             temporary = manifest_path.with_name(f".{manifest_path.name}.{secrets.token_hex(4)}")
             manifest_path.parent.mkdir(parents=True, exist_ok=True)
-            _write_new(temporary, data)
+            write_new(temporary, data)
             os.replace(temporary, manifest_path)
             report.lines.append(
                 f"{manifest_path.name} written: {manifest['totals']['pages']} pages"
@@ -909,7 +909,7 @@ def export_fixtures(
         target = fixtures_dir / path
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_name(f".{target.name}.{secrets.token_hex(4)}")
-        _write_new(temporary, data)
+        write_new(temporary, data)
         os.replace(temporary, target)
         written += 1
     return Report(

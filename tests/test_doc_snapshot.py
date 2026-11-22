@@ -12,10 +12,10 @@ from doc_remotes import FILES, make_remote, source_config, write_config
 from bonsai_help import cli
 from bonsai_help.doc_snapshot import (
     _with_digest,
-    _write_new,
     build_manifest,
     dump_json,
     source_digest,
+    write_new,
 )
 from bonsai_help.doc_sources import CATEGORIES, Source, glob_match, tag_for
 from bonsai_help.git_fetch import Result, git_blob_id, subprocess_runner
@@ -381,7 +381,7 @@ def test_snapshot_files_are_created_exclusively(tmp_path):
     target = tmp_path / "page.rst"
     target.write_bytes(b"first\n")
     with pytest.raises(FileExistsError):
-        _write_new(target, b"second\n")
+        write_new(target, b"second\n")
     assert target.read_bytes() == b"first\n"
 
 
