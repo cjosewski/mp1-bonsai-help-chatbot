@@ -447,7 +447,8 @@ def test_a_fake_excerpt_that_is_real_doc_text_is_refused():
 def test_a_rejected_fact_row_cannot_back_an_item():
     raw = FACTS.model_dump(by_alias=True)
     row = next(r for r in raw["rows"] if r["id"] == "SF-007")
-    row.update(status="chad_rejected", review={"decided_on": "2026-11-23", "words": "reject"})
+    review = {"decided_on": "2026-11-23", "words": "reject", "decision_id": "SR-001.01"}
+    row.update(status="chad_rejected", review={**review, "content_sha256": "0" * 64})
     ctx = context(facts=type(FACTS).model_validate(raw))
     found = problems_of(change(single(), "setup_facts", ["SF-007"]), ctx)
     assert any("SF-007 was rejected by Chad" in p for p in found), found

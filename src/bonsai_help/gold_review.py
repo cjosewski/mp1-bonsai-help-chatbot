@@ -43,9 +43,14 @@ IMPORT_SCHEMA = "gold-import-v1"
 EDIT_LANE = "chad-edit"
 DEFAULT_SIZE = 25
 WORDS = ("approve", "edit", "reject")
-PACKET_MARK = re.compile(r"<!-- gold:packet (?P<id>GP-\d{3}) v1 sha256=(?P<sha>[0-9a-f]{64}) -->")
+# One packet format for both record types: gold items (GP packets) and the B2 setup records,
+# fact rows, profiles and version lines (SR packets, `setup_review`).
+PACKET_MARK = re.compile(
+    r"<!-- gold:packet (?P<id>(?:GP|SR)-\d{3}) v1 sha256=(?P<sha>[0-9a-f]{64}) -->"
+)
 ITEM_MARK = re.compile(
-    r"<!-- gold:item (?P<id>GS-[SMIC][DH]-\d{3}) draft=(?P<sha>[0-9a-f]{64}) -->"
+    r"<!-- gold:item (?P<id>GS-[SMIC][DH]-\d{3}|SF-\d{3}|SP-\d{2}|VL-[a-z]+) "
+    r"draft=(?P<sha>[0-9a-f]{64}) -->"
 )
 DECIDE_MARK = "<!-- gold:decide {} -->"
 END_MARK = "<!-- gold:end {} -->"

@@ -591,10 +591,9 @@ the end of this entry. No gold item has been drafted, reviewed or published.
   necessarily reads held-out reference answers in review; he labels chatbot answers blind
   to the arm (B6).
 - **Chad's review of the B2 drafts (fact rows, profiles, version lines)** follows the
-  packet method too. The closure plan: before B3 acceptance, the same packet and import
-  machinery gains a second record type for those drafts. Until then they stay
-  `assistant_drafted`, and the gold checker already refuses an item that depends on a
-  `chad_rejected` row.
+  packet method too: the second record type is built (`setup review`, next entry). The
+  records stay `assistant_drafted` until Chad imports his decisions, and the gold checker
+  refuses an item that depends on a `chad_rejected` row.
 
 **Critic findings declined**
 
@@ -634,6 +633,40 @@ It now binds each source's pin id and lexicon digest as well, and a test repins 
 under its id after review. The other two were tests only: `gold status` warns of an amended
 head (Chad's edit) whose setup changed, not just an accepted one, and a change of the line's
 sources between export and import makes the block stale.
+
+**The B2 review record type (assistant's calls, open to Chad's review)**
+
+- **Same packets, second record type.** `setup review export` writes `SR-NNN` packets
+  with the gold block markers, normalized hashes, decision region and tamper checks;
+  `setup review import` is the gold import's rules (all or nothing, append-only,
+  interactive terminal and typed confirmation, a filled block of an already decided
+  record refused unless exported as a re-decision, `--skip-stale`). They live under
+  `data/setup-review/`, apart from the gold store, so neither state can affect the other.
+- **A decision binds to the record's content**, everything but `status` and `review`
+  (`setup.record_sha`). `Review` now holds `decided_on`, Chad's literal word (`approve`,
+  `edit` or `reject`, which must fit the status), the decision id and that content hash,
+  and `setup check` reports a reviewed record whose content changed. The status is left
+  out of the hash, so writing a decision never makes the gold slot plan or a gold review
+  stale; an edited fact claim does make the gold items that cite the row stale.
+- **Staleness is by re-rendering**: a block is stale when the record's content or anything
+  its block shows (a cited section, the claims a version line lists, the enum bases a
+  profile shows) changed since export.
+- **The import writes `data/` only; `setup review apply --write` writes the setup files.**
+  Apply is the only writer of `status` and `review`: it sets them from the latest decision
+  on each record's content, writes an edit's result (checked against its recorded hash),
+  returns a record changed since its decision to `assistant_drafted`, and runs the whole
+  setup check on the result before writing. Without `--write` it compares, so a hand-set
+  status is found. A hand edit of the setup files stays allowed (and `setup format`); it
+  takes the record out of review.
+- **What an edit may change.** A fact row's kind, topic, applies-to, claim, key terms,
+  citations, absences, conflicts and candidate rule; a profile's schema, discipline and
+  model state; a version line's releases, tag, sources, pairing status and note and
+  claims. Ids, a profile's version line and split (the gold slot plan depends on them), a
+  row's drafting date and the assistant's `note` are fixed, so reviewer text reaches Git
+  only as a reviewed field's new value. An edited citation is a record id and a verbatim
+  quote; the other fields are derived again with `setup.make_citation`.
+- **Export needs the whole setup check to pass**, against the snapshots and the built index.
+  Nothing has been exported, decided or applied: every record is still `assistant_drafted`.
 
 ### Open questions for Chad (B3 gold set)
 

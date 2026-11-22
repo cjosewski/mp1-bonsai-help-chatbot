@@ -16,7 +16,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from bonsai_help import doc_snapshot, docs_index, gold, gold_review, lexicons, setup
+from bonsai_help import doc_snapshot, docs_index, gold, gold_review, lexicons, setup, setup_review
 from bonsai_help.doc_sources import ConfigError, SnapshotError, load_config
 from bonsai_help.git_fetch import Git, Runner, subprocess_runner
 
@@ -133,6 +133,30 @@ def _parser() -> argparse.ArgumentParser:
             sub.add_argument("--source", action="append", help="limit to a source id")
         if name == "check":
             committed(sub)
+    review = actions.add_parser(
+        "review", help="Chad's review of the fact rows, profiles and version lines (packets)"
+    )
+    steps = review.add_subparsers(dest="step", required=True)
+    for name, text in (
+        ("export", "write packets of pending records"),
+        ("import", "record Chad's decisions (interactive terminal only)"),
+        ("apply", "write Chad's decisions into the setup files (compare unless --write)"),
+    ):
+        sub = steps.add_parser(name, help=text)
+        paths(sub, fixtures=True)
+        sub.add_argument("--profiles", type=Path, help=f"setup profiles (default {PROFILES})")
+        sub.add_argument("--facts", type=Path, help=f"setup facts (default {FACTS})")
+        if name == "export":
+            sub.add_argument("--size", type=int, default=setup_review.DEFAULT_SIZE)
+            sub.add_argument("--records", nargs="+", help="re-export these records")
+        if name == "import":
+            sub.add_argument("packet", help="SR-NNN or its .md file")
+            sub.add_argument("--decided-on", help="decision date, YYYY-MM-DD (default today)")
+            sub.add_argument(
+                "--skip-stale", action="store_true", help="import the blocks that are current"
+            )
+        if name == "apply":
+            sub.add_argument("--write", action="store_true", help="write the setup files")
 
     gold_parser = commands.add_parser("gold", help="gold set: slots, drafts, review, publish")
     actions = gold_parser.add_subparsers(dest="action", required=True)
@@ -367,6 +391,8 @@ def _setup(args, config, manifest, data_root, base) -> doc_snapshot.Report:
             else:
                 report.lines.append(f"{path.name}: unchanged")
         return report
+    if args.action == "review":
+        return _setup_review(args, config, manifest, data_root, base, profiles, facts)
     if args.action == "candidates":
         records = docs_index.load_index(config, manifest, data_root)
         for row in setup.candidates(records, args.source):
@@ -384,6 +410,38 @@ def _setup(args, config, manifest, data_root, base) -> doc_snapshot.Report:
     scope = "fixture slice" if data_root is None else "snapshots and built index"
     report.lines.append(f"check passed: profiles and every fact citation against the {scope}")
     return report
+
+
+def _setup_review(args, config, manifest, data_root, base, profiles_path, facts_path):
+    confirm = None
+    if args.step == "import":
+        confirm = _interactive_confirm(Path(args.packet).name.removesuffix(".md"))
+    _fail(_committed_files(args, config, base))
+    records = docs_index.load_index(config, manifest, data_root)
+    state = setup_review.SetupState(
+        config=config,
+        manifest=manifest,
+        profiles=_load_reference(profiles_path, setup.PROFILES_SCHEMA, setup.SetupProfiles),
+        facts=_load_reference(facts_path, setup.FACTS_SCHEMA, setup.SetupFacts),
+        read=_snapshot_reader(config, manifest, data_root),
+        index={r["id"]: r["sha256"] for r in records},
+    )
+    store = gold_review.Store(data_root / "setup-review")
+    today = datetime.date.today().isoformat()
+    if args.step == "export":
+        return setup_review.export_packets(
+            store, state, size=args.size, records=args.records, exported_on=today
+        )
+    if args.step == "import":
+        return setup_review.import_packet(
+            store,
+            state,
+            Path(args.packet).name.removesuffix(".md"),
+            decided_on=args.decided_on or today,
+            skip_stale=args.skip_stale,
+            confirm=confirm,
+        )
+    return setup_review.apply(store, state, profiles_path, facts_path, write=args.write)
 
 
 def _committed_files(args, config, base) -> list:

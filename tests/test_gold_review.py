@@ -216,7 +216,8 @@ def test_an_item_failing_the_check_is_skipped(tmp_path):
     ingest(tmp_path, single(setup_facts=["SF-007"]))
     raw = FACTS.model_dump(by_alias=True)
     row = next(r for r in raw["rows"] if r["id"] == "SF-007")
-    row.update(status="chad_rejected", review={"decided_on": "2026-11-23", "words": "reject"})
+    review = {"decided_on": "2026-11-23", "words": "reject", "decision_id": "SR-001.01"}
+    row.update(status="chad_rejected", review={**review, "content_sha256": "0" * 64})
     ctx = context(facts=type(FACTS).model_validate(raw))
     report = export(tmp_path, ctx=ctx)
     assert report.lines[0].startswith("GS-SD-901: skipped, fails the check")

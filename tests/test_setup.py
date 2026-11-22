@@ -22,6 +22,14 @@ FACTS = ROOT / "reference/setup-facts.json"
 READ = setup.page_bytes_offline(FIXTURES)
 
 
+REVIEW = {
+    "decided_on": "2026-11-22",
+    "words": "approve",
+    "decision_id": "SR-001.01",
+    "content_sha256": "0" * 64,
+}
+
+
 def load(path: Path) -> dict:
     return json.loads(path.read_bytes())
 
@@ -451,21 +459,54 @@ def test_absence_claim_must_say_not_documented_on_that_page(tmp_path):
         (lambda r: r.update(citations=[]), "citations"),
         (lambda r: r.update(claim=""), "claim"),
         (lambda r: r.update(status="chad_accepted"), "needs a review"),
+        (lambda r: r.update(review=REVIEW), "has no review"),
         (
-            lambda r: r.update(review={"decided_on": "2026-11-22", "words": "ok"}),
-            "has no review",
+            lambda r: r.update(status="chad_accepted", review={**REVIEW, "words": "reject"}),
+            "needs Chad's word 'approve'",
+        ),
+        (
+            lambda r: r.update(status="chad_accepted", review={**REVIEW, "words": "fine by me"}),
+            "words",
         ),
         (lambda r: r.update(kind="doc_absence"), "absent_in is required"),
         (lambda r: r.update(kind="doc_conflict"), "conflicts_with is required"),
         (lambda r: r.update(extra="x"), "Extra inputs"),
     ],
-    ids=["no-citations", "empty-claim", "status", "review", "absence", "conflict", "extra"],
+    ids=[
+        "no-citations",
+        "empty-claim",
+        "status",
+        "review",
+        "review-word",
+        "review-free-text",
+        "absence",
+        "conflict",
+        "extra",
+    ],
 )
 def test_rows_that_cannot_exist(tmp_path, change, message):
     facts = copy.deepcopy(load(FACTS))
     change(facts["rows"][0])
     found = problems(tmp_path, facts=facts)
     assert any("invalid" in p and message in p for p in found), found
+
+
+def test_a_review_binds_to_the_records_content(tmp_path):
+    facts, profiles = copy.deepcopy(load(FACTS)), copy.deepcopy(load(PROFILES))
+    for record, model in (
+        (row(facts, "SF-001"), setup.FactRow),
+        (profiles["profiles"][0], setup.Profile),
+        (profiles["version_lines"][0], setup.VersionLine),
+    ):
+        sha = setup.record_sha(model.model_validate(record))
+        record.update(status="chad_accepted", review={**REVIEW, "content_sha256": sha})
+    assert problems(tmp_path, facts=facts, profiles=profiles) == []
+    # A status change alone changes nothing Chad reviewed; a content change does.
+    row(facts, "SF-001")["topic"] += " (edited)"
+    profiles["profiles"][0]["discipline"] = "structure"
+    found = problems(tmp_path, facts=facts, profiles=profiles)
+    changed = [p for p in found if "changed since Chad's decision SR-001.01" in p]
+    assert [p.split(":")[1].strip() for p in changed] == ["SP-01", "SF-001"], found
 
 
 def test_non_canonical_or_redigested_files_are_detected(tmp_path):

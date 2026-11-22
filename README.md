@@ -245,6 +245,27 @@ too. Whether a claim
 says no more than its quotes is not machine-checked: every row, profile and version line
 is `assistant_drafted` until Chad reviews it at B3, and uncited rows cannot exist.
 
+### Chad's review of the setup drafts (B3)
+
+Chad reviews the version lines, profiles and fact rows through the same Markdown packets as
+the gold items (about 25 records each), outside Git under `data/setup-review/`:
+
+```bash
+uv run --locked bonsai-help setup review export
+uv run --locked bonsai-help setup review import SR-NNN   # Chad, interactive terminal only
+uv run --locked bonsai-help setup review apply --write
+```
+
+| Command | Does | Writes |
+| --- | --- | --- |
+| `setup review export [--size 25] [--records ID ...]` | Packets `SR-NNN.md` of every record no decision settles, after the whole setup check passes. A block shows the record and what it rests on: a fact row's claim, key terms and the full text of every cited section with its quotes; a profile's values and the basis of each enum; a version line's releases, pins and the claims it lists. `--records` re-exports records for a re-decision, refused for one in a packet not yet imported | `data/setup-review/packets/` |
+| `setup review import SR-NNN [--decided-on D] [--skip-stale]` | Record Chad's approve, edit or reject, all or nothing, append-only; interactive terminal and typed confirmation only. A changed fixed region is tampering; a record whose content, or anything its block shows, changed since export is stale; edits are checked together by the whole setup check. A fact row's edited citations are a record id and a verbatim quote, and the other fields are derived again | `data/setup-review/imports/` |
+| `setup review apply [--write]` | Set every record's `status` and `review` (`decided_on`, Chad's word, decision id, content hash) from the imported decisions and write an edit's result; a record whose content changed since its decision returns to `assistant_drafted`. Compare (exit 1 on a difference) or write | `reference/setup-*.json` |
+
+A review binds to the record's content (everything but its status and review), so
+`setup check` reports a reviewed record whose content changed since the decision. NOTE text
+stays in `data/setup-review/imports/`.
+
 ## Gold set (B3)
 
 The gold set is 110 slots (Chad's decisions of November 22, 2026): 50 development and 25

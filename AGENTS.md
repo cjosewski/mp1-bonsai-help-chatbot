@@ -36,7 +36,10 @@ As of November 22, 2026, **B2 (lexicons and setup facts) is done** as assistant 
 - `reference/setup-profiles.json` and `reference/setup-facts.json` hold two version lines,
   18 profiles and 19 cited fact rows. Every row, profile and version line is
   `assistant_drafted` until Chad reviews it at B3. Never mark one reviewed without Chad's
-  own words in `review`.
+  own words in `review`: Chad reviews them through `setup review` packets (the gold packet
+  format; the same rules below apply to `setup review import` and
+  `data/setup-review/imports/`), and only `setup review apply --write` writes a record's
+  `status` and `review`, from his imported decisions. Never set them by hand.
 - Regenerate the tool-written files only with their commands, never by hand. Edit the
   setup files by hand, then run `setup format` and `setup check`.
 - A fact row may cite only fixture-slice pages. Every quote must be verbatim, start and
@@ -71,7 +74,8 @@ with Chad's four decisions (pairings, IFC schemas, review packets, drafting; quo
   - Only Chad writes a packet's `DECISION:` and `NOTE:` lines and its edit JSON, and only
     Chad runs `gold packet import` (interactive terminal, typed confirmation). An
     assistant never fills, edits or imports a packet, never runs the import through a
-    pseudo-terminal, and never writes `data/gold/imports/`.
+    pseudo-terminal, and never writes `data/gold/imports/`. The same holds for setup review
+    packets (`setup review import`, `data/setup-review/`).
   - Lanes write batches in the lane form and ingest them; they never supply derived
     fields, never pad an unsupportable slot, and draft each reference answer only from
     the pinned sections it cites. A slot that cannot be supported gets a recorded

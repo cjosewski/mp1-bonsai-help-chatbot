@@ -26,6 +26,8 @@ from bonsai_help.docs_index import Diagnostics, docname, split_lines, split_page
 
 PROFILES_SCHEMA = "setup-profiles-v1"
 FACTS_SCHEMA = "setup-facts-v1"
+PROFILES_FILE = "setup-profiles.json"
+FACTS_FILE = "setup-facts.json"
 MIN_QUOTE = 20
 IfcSchema = Literal["IFC2X3", "IFC4", "IFC4X3"]
 Discipline = Literal["architecture", "structure", "building_services"]
@@ -53,9 +55,18 @@ class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+REVIEW_WORDS = {"chad_accepted": "approve", "chad_amended": "edit", "chad_rejected": "reject"}
+
+
 class Review(_Model):
+    """Chad's decision on a fact row, profile or version line, written only by
+    `setup review apply` from an imported packet (`setup_review`). `words` is his literal
+    decision token; `content_sha256` binds the decision to the record's content."""
+
     decided_on: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    words: str = Field(min_length=1)
+    words: Literal["approve", "edit", "reject"]
+    decision_id: str = Field(pattern=r"^SR-\d{3}\.\d{2}$")
+    content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 def _reviewed(status: str, review: Review | None) -> None:
@@ -63,6 +74,20 @@ def _reviewed(status: str, review: Review | None) -> None:
         raise ValueError("an assistant_drafted item has no review")
     if status != "assistant_drafted" and review is None:
         raise ValueError(f"status {status} needs a review with Chad's own words")
+    if review is not None and review.words != REVIEW_WORDS[status]:
+        raise ValueError(f"status {status} needs Chad's word {REVIEW_WORDS[status]!r}")
+
+
+def record_content(record: BaseModel) -> dict:
+    """A fact row, profile or version line without its status and review: what Chad reviews."""
+    data = record.model_dump(mode="json", by_alias=True)
+    data.pop("status")
+    data.pop("review")
+    return data
+
+
+def record_sha(record: BaseModel) -> str:
+    return sha256_hex(canonical(record_content(record)))
 
 
 class EnumBasis(_Model):
@@ -605,9 +630,22 @@ def check_setup(
     profiles, facts = documents.get(PROFILES_SCHEMA), documents.get(FACTS_SCHEMA)
     if profiles is None or facts is None:
         return problems
+    return problems + check_documents(config, manifest, profiles, facts, read, index)
+
+
+def check_documents(
+    config: DocSources,
+    manifest: Mapping,
+    profiles: SetupProfiles,
+    facts: SetupFacts,
+    read: Callable[[str, str], bytes | None],
+    index: Mapping[str, str] | None = None,
+) -> list[Problem]:
+    """Every check of two parsed setup documents (`check_setup` loads them first)."""
+    problems: list[Problem] = []
     row_ids = [row.id for row in facts.rows]
     if len(row_ids) != len(set(row_ids)):
-        problems.append(Problem("setup", facts_path.name, "fact row ids are not unique"))
+        problems.append(Problem("setup", FACTS_FILE, "fact row ids are not unique"))
     lines = {line.id: line for line in profiles.version_lines}
     for row in facts.rows:
         problems += verify_fact(row, config, manifest, lines, read)
@@ -619,6 +657,16 @@ def check_setup(
         for other in row.conflicts_with:
             if other not in row_ids:
                 problems.append(Problem("setup", row.id, f"conflicts_with names unknown {other}"))
+    for record in (*profiles.version_lines, *profiles.profiles, *facts.rows):
+        if record.review is not None and record.review.content_sha256 != record_sha(record):
+            problems.append(
+                Problem(
+                    "setup",
+                    record.id,
+                    f"changed since Chad's decision {record.review.decision_id}; run setup "
+                    "review apply (it returns to assistant_drafted) and export it again",
+                )
+            )
     return problems + check_profiles(profiles, facts, config)
 
 

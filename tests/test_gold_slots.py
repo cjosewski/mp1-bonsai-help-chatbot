@@ -81,7 +81,13 @@ def test_the_plan_is_deterministic_and_ignores_review_status():
     assert gold.plan_slots(PROFILES) == gold.plan_slots(PROFILES)
     raw = json.loads((GOLD.parent / "setup-profiles.json").read_bytes())
     raw["profiles"][0].update(
-        status="chad_accepted", review={"decided_on": "2026-11-23", "words": "approve"}
+        status="chad_accepted",
+        review={
+            "decided_on": "2026-11-23",
+            "words": "approve",
+            "decision_id": "SR-001.01",
+            "content_sha256": "0" * 64,
+        },
     )
     reviewed = type(PROFILES).model_validate(raw)
     assert gold.profiles_digest(reviewed) == gold.profiles_digest(PROFILES)

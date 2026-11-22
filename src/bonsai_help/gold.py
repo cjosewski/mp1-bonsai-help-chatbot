@@ -608,29 +608,10 @@ class Context:
         return self._pages[key]
 
     def _load_page(self, source_id: str, path: str) -> tuple[bytes | None, list[dict] | str]:
-        source = next((s for s in self.config.sources if s.id == source_id), None)
-        if source is None or source.role != "docs":
-            return None, f"unknown docs source {source_id}"
-        entry = self.manifest["sources"][source_id]
-        page = next((p for p in entry["pages"] if p["path"] == path), None)
-        data = self.read(source_id, path)
-        if page is None or data is None or sha256_hex(data) != page["sha256"]:
-            return None, f"{source_id}:{path}: page missing or its hash differs from the manifest"
-        pages = frozenset(p["path"] for p in entry["pages"])
-        records = split_page(
-            source, entry["pin_id"], entry["repository"]["commit"], path, data, pages, Diagnostics()
-        )
-        return data, records
+        return load_page(self.config, self.manifest, self.read, source_id, path)
 
     def record(self, record_id: str) -> dict | str:
-        match = RECORD_ID.fullmatch(record_id)
-        if match is None:
-            return f"malformed record id {record_id}"
-        _, records = self.page(match["source"], match["path"])
-        if isinstance(records, str):
-            return records
-        found = next((r for r in records if r["id"] == record_id), None)
-        return found if found is not None else f"no such section {record_id}"
+        return find_record(self.page, record_id)
 
     def corpus(self, source_id: str) -> list[str]:
         """Collapsed, casefolded text of every readable page of a docs source."""
@@ -649,6 +630,43 @@ class Context:
             text = record["text"] if isinstance(record, dict) else ""
             self._grams[record_id] = ngrams(g5_tokens(text))
         return self._grams[record_id]
+
+
+def load_page(
+    config: DocSources,
+    manifest: Mapping,
+    read: Callable[[str, str], bytes | None],
+    source_id: str,
+    path: str,
+) -> tuple[bytes | None, list[dict] | str]:
+    """Hash-verified bytes and section records of one pinned docs page, or a problem."""
+    source = next((s for s in config.sources if s.id == source_id), None)
+    if source is None or source.role != "docs":
+        return None, f"unknown docs source {source_id}"
+    entry = manifest["sources"][source_id]
+    page = next((p for p in entry["pages"] if p["path"] == path), None)
+    data = read(source_id, path)
+    if page is None or data is None or sha256_hex(data) != page["sha256"]:
+        return None, f"{source_id}:{path}: page missing or its hash differs from the manifest"
+    pages = frozenset(p["path"] for p in entry["pages"])
+    records = split_page(
+        source, entry["pin_id"], entry["repository"]["commit"], path, data, pages, Diagnostics()
+    )
+    return data, records
+
+
+def find_record(
+    page: Callable[[str, str], tuple[bytes | None, list[dict] | str]], record_id: str
+) -> dict | str:
+    """One section record by id, read through a (cached) page loader, or a problem."""
+    match = RECORD_ID.fullmatch(record_id)
+    if match is None:
+        return f"malformed record id {record_id}"
+    _, records = page(match["source"], match["path"])
+    if isinstance(records, str):
+        return records
+    found = next((r for r in records if r["id"] == record_id), None)
+    return found if found is not None else f"no such section {record_id}"
 
 
 def line_sources(line: VersionLine, kind: str) -> list[str]:
