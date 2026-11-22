@@ -1,5 +1,5 @@
 {
-  "digest": "c32f8b16ef7eef92bdb33d40502600e33d36f7ca80583bebd9cc502ddc7357ab",
+  "digest": "bb8920024759f8973872a1eb787614d038857d708bbcb2ab6cac67198714a279",
   "drafted_on": "2026-11-22",
   "enums": {
     "discipline": {
@@ -9,7 +9,8 @@
       "values": ["architecture", "structure", "building_services"]
     },
     "ifc_schema": {
-      "basis": "cited",
+      "basis": "partly cited",
+      "cited_for": ["new_project"],
       "facts": ["SF-007"],
       "note": "SF-007 cites the schema choice when creating a new project only. For opened_ifc and large_federated_model profiles the three values are an assistant default: the quickstart names IFC2X3 and IFC4 as the two commonly seen schemas (SF-009), and no fact row cites IFC4X3 for an opened or federated model.",
       "values": ["IFC2X3", "IFC4", "IFC4X3"]
@@ -50,8 +51,8 @@
       "claims": ["SF-012", "SF-015"],
       "id": "VL-current",
       "origin": "plan §2",
-      "pairing_note": "No pinned text pairs Blender 5.3 with Bonsai 0.9.0-post1: the developer installation page lists Blender 5.1 or 5.2 (SF-012), and the troubleshooting page says Blender 4.5 (SF-015, a conflict within the pin). Kept as the plan's pairing; not scored as a fact.",
-      "pairing_status": "uncited",
+      "pairing_note": "Blender 5.3 is not in the 0.9.0-post1 docs' supported list (Blender 5.1 or 5.2, SF-012), and the troubleshooting page says Blender 4.5 (SF-015, a conflict within the pin). No pinned text pairs Blender 5.3 with Bonsai 0.9.0-post1. Kept as the plan's pairing; not scored as a fact.",
+      "pairing_status": "conflict",
       "review": null,
       "sources": {"blender_manual": "blender-manual", "bonsai_docs": "bonsai-docs", "bonsai_source": "bonsai-source"},
       "status": "assistant_drafted"
@@ -63,7 +64,7 @@
       "claims": ["SF-013", "SF-016"],
       "id": "VL-older",
       "origin": "O-3 default",
-      "pairing_note": "Blender 4.2 is not in the 0.8.5-post1 docs' supported list (Blender 4.3, 4.4, or 4.5, SF-013). No Blender 4.2 Manual is pinned (blender_manual is null), so a VL-older row needs a 0.8.5-post1 docs citation; the Blender 5.3 Manual's history describes 4.2 LTS (SF-016). The 0.9.0-post1 maintenance page's 0.8.5-post1 values are only an example (not_citable). Kept as the O-3 default; not scored as a fact.",
+      "pairing_note": "Blender 4.2 is not in the 0.8.5-post1 docs' supported list (Blender 4.3, 4.4, or 4.5, SF-013). No Blender 4.2 Manual is pinned (blender_manual is null), so this line's schema- and version-dependent rows need a 0.8.5-post1 docs citation; version_claim and doc_conflict rows are pairing evidence and may cite any docs pin (SF-016 cites the Blender 5.3 Manual's history of 4.2 LTS). The 0.9.0-post1 maintenance page's 0.8.5-post1 values are only an example (not_citable). Kept as the O-3 default; not scored as a fact.",
       "pairing_status": "conflict",
       "review": null,
       "sources": {"blender_manual": null, "bonsai_docs": "bonsai-docs-0-8-5-post1", "bonsai_source": "bonsai-source-0-8-5-post1"},

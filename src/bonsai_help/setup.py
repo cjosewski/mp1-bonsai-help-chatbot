@@ -66,15 +66,24 @@ def _reviewed(status: str, review: Review | None) -> None:
 
 
 class EnumBasis(_Model):
+    """Where an enum's values come from. `partly cited`: the fact rows support the values
+    only for the model states in `cited_for`; the note says what the rest rests on."""
+
     values: list[str] = Field(min_length=1)
-    basis: Literal["cited", "plan §4 wording", "assistant default"]
+    basis: Literal["cited", "partly cited", "plan §4 wording", "assistant default"]
     facts: list[str] = []
+    cited_for: list[ModelState] = []
     note: str | None = None
 
     @model_validator(mode="after")
     def _cited(self) -> EnumBasis:
-        if (self.basis == "cited") != bool(self.facts):
-            raise ValueError("a cited enum names its fact rows; other bases name none")
+        if (self.basis in ("cited", "partly cited")) != bool(self.facts):
+            raise ValueError("a cited or partly cited enum names its fact rows; others name none")
+        partly = self.basis == "partly cited"
+        if partly != bool(self.cited_for):
+            raise ValueError("cited_for is required for a partly cited enum and only for it")
+        if partly and (not self.note or set(self.cited_for) >= set(MODEL_STATES)):
+            raise ValueError("a partly cited enum needs a note and leaves some model state out")
         return self
 
 

@@ -251,7 +251,13 @@ These were made by the assistant while building B2 and are open to Chad's review
   may cite any docs pin (SF-016 cites the 5.3 Manual's history for 4.2 LTS). Every other
   row needs a citation from a pinned source of each version line it applies to. No Blender
   4.2 Manual is pinned, so `VL-older` has `blender_manual: null` and the 5.3 Manual does
-  not stand in for it: a `VL-older` row needs a 0.8.5-post1 docs citation.
+  not stand in for it: a `VL-older` row of any other kind needs a 0.8.5-post1 docs citation.
+- **One rule for `pairing_status`.** `conflict` when the line's own Bonsai docs pin lists
+  supported Blender versions that leave out the line's Blender version; `uncited` only when
+  nothing in the pin addresses it; `cited` or `partly_cited` when pinned text states the
+  pairing in full or in part. Both lines are `conflict` (SF-012 lists 5.1 or 5.2 for
+  `VL-current`, SF-013 lists 4.3, 4.4 or 4.5 for `VL-older`); `VL-current` was `uncited`
+  before this rule was applied. Whether to keep either pairing is Chad's B3 question.
 - **SF-014 withdrawn.** The only text about 0.8.5-post1's Python and maximum Blender
   version is the 0.9.0-post1 maintenance page's hypothetical workaround example ("e.g."),
   not a statement of what 0.8.5-post1 is, so the row moved to `not_citable`. Row ids are
@@ -273,7 +279,9 @@ These were made by the assistant while building B2 and are open to Chad's review
   large filesize" sentence), or the claim was reworded to its quote (SF-011). This is still
   an assistant reading, checked by Chad at B3, not by a machine.
 - **Profile values and split.** `ifc_schema` values are cited (SF-007) for a new project
-  only; for opened and federated models IFC4X3 is an assistant default (the quickstart
+  only, so the enum's basis is `partly cited` with `cited_for: ["new_project"]`, a basis
+  value that must name its fact rows, its cited model states and a note; for opened and
+  federated models IFC4X3 is an assistant default (the quickstart
   names IFC2X3 and IFC4 as the commonly seen schemas, SF-009). `model_state` values are
   the plan §4 wording, and `discipline` values (architecture, structure,
   building services) are an assistant default: the plan names the field, not its values.

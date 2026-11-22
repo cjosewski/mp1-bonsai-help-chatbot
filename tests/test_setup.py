@@ -60,8 +60,15 @@ def test_version_lines_carry_their_defaults_and_pairing_status():
     assert lines["VL-older"]["origin"] == "O-3 default"
     assert lines["VL-older"]["sources"]["bonsai_docs"] == "bonsai-docs-0-8-5-post1"
     assert lines["VL-older"]["sources"]["blender_manual"] is None  # no 4.2 Manual pinned
-    assert lines["VL-current"]["pairing_status"] == "uncited"
+    # Each pin's docs list supported Blender versions that leave the line's Blender out.
+    assert lines["VL-current"]["pairing_status"] == "conflict"
     assert lines["VL-older"]["pairing_status"] == "conflict"
+
+
+def test_the_schema_enum_is_cited_for_new_projects_only():
+    basis = load(PROFILES)["enums"]["ifc_schema"]
+    assert basis["basis"] == "partly cited" and basis["facts"] == ["SF-007"]
+    assert basis["cited_for"] == ["new_project"]
 
 
 def test_profiles_split_without_leakage():
@@ -97,6 +104,16 @@ def test_profiles_split_without_leakage():
         (lambda p: p["version_lines"][0]["claims"].append("SF-013"), "does not apply to it"),
         (lambda p: p["version_lines"][0]["claims"].remove("SF-015"), "not in VL-current's claims"),
         (lambda p: p["version_lines"][0].update(status="chad_accepted"), "needs a review"),
+        (lambda p: p["enums"]["ifc_schema"].update(cited_for=[]), "cited_for is required"),
+        (
+            lambda p: p["enums"]["ifc_schema"].update(cited_for=list(setup.MODEL_STATES)),
+            "leaves some model state out",
+        ),
+        (lambda p: p["enums"]["ifc_schema"].update(note=None), "needs a note"),
+        (
+            lambda p: p["enums"]["discipline"].update(cited_for=["new_project"]),
+            "cited_for is required",
+        ),
     ],
     ids=[
         "factorial",
@@ -109,6 +126,10 @@ def test_profiles_split_without_leakage():
         "claim-line",
         "unlisted-version-row",
         "line-status",
+        "partly-cited-without-states",
+        "partly-cited-all-states",
+        "partly-cited-without-note",
+        "cited-for-on-a-default",
     ],
 )
 def test_profile_rules(tmp_path, change, message):

@@ -203,10 +203,13 @@ for the B4 checks; they never decide a dimension.
 
 `reference/setup-profiles.json` holds two version lines and 18 setup profiles. `VL-current`
 is the plan's Blender 5.3 with Bonsai 0.9.0-post1; `VL-older` is the O-3 default, Blender
-4.2 LTS with Bonsai 0.8.5-post1. Neither pairing is stated in pinned text, so they carry
-`pairing_status` `uncited` and `conflict` and are not scored as facts. No Blender 4.2
-Manual is pinned, so `VL-older` has no Manual source and its rows need a 0.8.5-post1 docs
-citation. The profiles are a
+4.2 LTS with Bonsai 0.8.5-post1. Neither pairing is stated in pinned text: each pin's
+docs list supported Blender versions that leave the line's Blender out, so both carry
+`pairing_status` `conflict` and are not scored as facts. No Blender 4.2 Manual is pinned,
+so `VL-older` has no Manual source and its schema- and version-dependent rows need a
+0.8.5-post1 docs citation; `version_claim` and `doc_conflict` rows (e.g. SF-016) are
+pairing evidence and may cite any docs pin. The `ifc_schema` values are `partly cited`:
+SF-007 supports them for `new_project` only (`cited_for`). The profiles are a
 full IFC schema × model state factorial per line, with disciplines rotated as a Latin
 square; the 6 diagonal profiles are the assessed split and the other 12 the development
 split, and each split covers every schema, model state, discipline and version line.
