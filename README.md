@@ -103,7 +103,10 @@ exception: the license evidence files (Bonsai's `src/bonsai/COPYING` and
 fetched, checked by blob id and stored in the snapshot even when they are not pages.
 The deny lists govern page selection only. Bonsai's `conf.py` stays out of Git. The
 manifest's `not_selected` counts, by file type, the files under each root that are not
-pages, so it still counts `conf.py` (`py`).
+pages, so it still counts `conf.py` (`py`). `not_selected` is outside `source_digest`, so
+`snapshot check --committed` cannot detect a hand edit to it once the digests are
+recomputed; `snapshot check` and `snapshot build` compare it with a built snapshot's own
+record, and a build into an empty data root compares it with upstream.
 
 What a rebuild needs: Git 2.44 or newer (the build probes for `--no-lazy-fetch` and
 stops with exit 3 without it), network access to github.com and projects.blender.org
@@ -112,7 +115,10 @@ CA settings (`HTTPS_PROXY`, `NO_PROXY`, `SSL_CERT_FILE`, `GIT_SSL_CAINFO` and si
 are passed through to git; user and system git configuration is not used. Measured on
 November 22, 2026: both sources rebuilt from an empty `data/` in about 4 seconds, and
 the manifest written from that rebuild was byte-identical to the committed one. Do not
-run two builds into the same data root at once; the second stops with exit 5.
+run two builds into the same data root at once. They share the git cache under
+`data/git/`, so the second usually stops with exit 3 (a git lock or setup conflict in
+that cache), or with exit 5 if it reaches the point of moving its snapshot into place;
+the first build's snapshot is unaffected.
 
 | Command | Does | Network |
 | --- | --- | --- |

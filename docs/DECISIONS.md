@@ -141,7 +141,10 @@ Chad's review.
   include selects a denied file as a page stops with a config error. License evidence
   is declared by path and blob id and is not subject to it, so `conf.py` is fetched
   although `**/*.py` is denied. `not_selected` counts the files
-  under the root that are not pages, license evidence included.
+  under the root that are not pages, license evidence included. It is outside
+  `source_digest`, so `snapshot check --committed` alone cannot catch a hand edit to it;
+  `snapshot check` and `snapshot build` compare every field of a built snapshot's own
+  record (except the config-derived repository block) with the committed entry.
 - **Upstream example paths in two fixture pages.** `guides/troubleshooting.rst` and
   `reference/project_overview/project_info.rst` contain example home-folder paths (one
   names a Bonsai maintainer's public handle). They are public upstream text, not the
