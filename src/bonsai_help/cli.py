@@ -1,7 +1,9 @@
-"""Command line: `bonsai-help snapshot | docs | lexicon | setup | gold`.
+"""Command line: `bonsai-help snapshot | docs | lexicon | setup | gold`, and the
+generation commands `generate | gate | collect | collection-status | cohort | cohort-status`.
 
 Exit codes: 0 success; 1 check failed; 2 usage or invalid config; 3 git or network
-failure; 4 upstream differs from the pins; 5 refused to write.
+failure; 4 upstream differs from the pins; 5 refused to write. The generation commands
+use 3 for controlled exhaustion instead (see `collection_cli`).
 """
 
 from __future__ import annotations
@@ -14,9 +16,19 @@ import secrets
 import sys
 from pathlib import Path
 
+import httpx
 from pydantic import ValidationError
 
-from bonsai_help import doc_snapshot, docs_index, gold, gold_review, lexicons, setup, setup_review
+from bonsai_help import (
+    collection_cli,
+    doc_snapshot,
+    docs_index,
+    gold,
+    gold_review,
+    lexicons,
+    setup,
+    setup_review,
+)
 from bonsai_help.doc_sources import ConfigError, SnapshotError, load_config
 from bonsai_help.git_fetch import Git, Runner, subprocess_runner
 
@@ -207,6 +219,7 @@ def _parser() -> argparse.ArgumentParser:
     sub = actions.add_parser("score", help="pattern scores of development items (JSON lines)")
     gold_paths(sub, data=False)
     sub.add_argument("answers", type=Path, help='JSON lines: {"item_id": ..., "fields": {...}}')
+    collection_cli.add_commands(commands)
     return parser
 
 
@@ -234,9 +247,15 @@ def _redact(text: str, roots: list[tuple[Path, str]]) -> str:
 
 
 def main(
-    argv: list[str] | None = None, *, allow_file_urls: bool = False, runner: Runner | None = None
+    argv: list[str] | None = None,
+    *,
+    allow_file_urls: bool = False,
+    runner: Runner | None = None,
+    transport: httpx.BaseTransport | None = None,
 ) -> int:
     args = _parser().parse_args(argv)
+    if args.command in collection_cli.COMMANDS:
+        return collection_cli.run(args, transport=transport)
     root = repository_root(Path.cwd())
     base = root or Path.cwd()
     shown_roots: list[tuple[Path, str]] = []
