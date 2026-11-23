@@ -1,0 +1,306 @@
+"""One audited model attempt; the generation stage owns the retry budget."""
+
+from __future__ import annotations
+
+import logging
+import math
+import re
+import traceback
+from copy import deepcopy
+from dataclasses import dataclass
+from typing import Any, Callable
+
+import httpx
+import instructor
+from openai import OpenAI
+from pydantic import BaseModel
+
+
+@dataclass(frozen=True)
+class AttemptResult:
+    item: BaseModel | None
+    raw_response: dict[str, Any] | str | None
+    error: str | None
+    error_type: str | None
+    response_model: str | None = None
+
+
+class _CredentialLogFilter(logging.Filter):
+    """Redact provider-echoed credentials without suppressing diagnostic logs."""
+
+    def __init__(self, redact: Callable[[str], str]) -> None:
+        super().__init__()
+        self._redact = redact
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.msg = self._redact(record.getMessage())
+        record.args = ()
+        if record.exc_info:
+            record.exc_text = self._redact("".join(traceback.format_exception(*record.exc_info)))
+            record.exc_info = None
+        elif record.exc_text:
+            record.exc_text = self._redact(record.exc_text)
+        return True
+
+
+class InstructorClient:
+    """Synchronous Chat Completions adapter without hidden request retries.
+
+    Instructor 1.17's v2 path counts retries after the initial attempt, so both
+    Instructor and the OpenAI SDK use ``max_retries=0``. Failed model
+    output is returned to the caller so it can be retained before any retry.
+    """
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        model: str,
+        api_key: str,
+        mode: str = "json",
+        timeout_seconds: float = 60,
+        max_tokens: int = 1200,
+        temperature: float = 0.6,
+        response_model: type[BaseModel],
+        _transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        modes = {"json": instructor.Mode.JSON, "tools": instructor.Mode.TOOLS}
+        if mode not in modes:
+            raise ValueError("mode must be 'json' or 'tools'")
+        if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be finite and positive")
+        if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or max_tokens <= 0:
+            raise ValueError("max_tokens must be a positive integer")
+        if not math.isfinite(temperature) or not 0 <= temperature <= 2:
+            raise ValueError("temperature must be finite and between 0 and 2")
+        if not api_key or not api_key.strip():
+            raise ValueError("api_key must be supplied explicitly")
+        if not model or not model.strip():
+            raise ValueError("model must be supplied explicitly")
+
+        self._api_key = api_key
+        self._output_type = response_model
+        self._model = model
+        self._max_tokens = max_tokens
+        self._temperature = temperature
+        self._timeout_seconds = timeout_seconds
+        self._last_http_body: dict[str, Any] | str | None = None
+        self._sdk = OpenAI(
+            base_url=base_url,
+            api_key=api_key,
+            max_retries=0,
+            timeout=timeout_seconds,
+            http_client=httpx.Client(
+                transport=_transport,
+                timeout=timeout_seconds,
+                follow_redirects=False,
+                trust_env=False,
+                event_hooks={"response": [self._capture_response]},
+            ),
+        )
+        self._client = instructor.from_openai(self._sdk, mode=modes[mode])
+
+    def _capture_response(self, response: httpx.Response) -> None:
+        # Capture the body before SDK/Instructor parsing, including malformed
+        # completion envelopes. Request/response headers are never recorded.
+        response.read()
+        try:
+            body = response.json()
+        except ValueError:
+            body = response.text
+        self._last_http_body = self._raw(body)
+
+    def _redact(self, value: Any) -> Any:
+        """Retain response structure without credential values or auth fields."""
+        if isinstance(value, str):
+            return value.replace(self._api_key, "[REDACTED]")
+        if isinstance(value, dict):
+            result = {}
+            for key, entry in value.items():
+                normalized = str(key).lower().replace("_", "-")
+                safe_key = self._redact(str(key))
+                if normalized in {
+                    "authorization",
+                    "proxy-authorization",
+                    "api-key",
+                    "x-api-key",
+                    "cookie",
+                    "set-cookie",
+                }:
+                    result[safe_key] = "[REDACTED]"
+                else:
+                    result[safe_key] = self._redact(entry)
+            return result
+        if isinstance(value, (list, tuple)):
+            return [self._redact(entry) for entry in value]
+        return value
+
+    def _raw(self, completion: Any) -> dict[str, Any] | str | None:
+        if completion is None:
+            return None
+        if hasattr(completion, "model_dump"):
+            completion = completion.model_dump(mode="json")
+        if isinstance(completion, (dict, str)):
+            return self._redact(completion)
+        if isinstance(completion, (list, tuple)):
+            return {"body": self._redact(completion)}
+        return self._redact(str(completion))
+
+    def _diagnostic(self, message: str) -> str:
+        # Pydantic abbreviates long input values before rendering diagnostics.
+        # Exact-key replacement cannot catch those exposed credential fragments.
+        # Keep field/type/error details; sanitized raw responses remain separate.
+        return re.sub(
+            r"input_value=.*?(?=,\s*input_type=)",
+            "input_value=[REDACTED]",
+            self._redact(message),
+            flags=re.DOTALL,
+        )
+
+    def _response_model(self, completion: Any) -> str | None:
+        model = getattr(completion, "model", None)
+        return self._redact(model) if isinstance(model, str) else None
+
+    def generate(self, messages: list[dict[str, str]]) -> AttemptResult:
+        # Instructor emits validation details before returning its exception.
+        # Scope redaction to this call and retain the log level and diagnostics.
+        logger = logging.getLogger("instructor.v2.retry")
+        credential_filter = _CredentialLogFilter(self._diagnostic)
+        logger.addFilter(credential_filter)
+        try:
+            return self._generate_once(messages)
+        finally:
+            logger.removeFilter(credential_filter)
+
+    def _generate_once(self, messages: list[dict[str, str]]) -> AttemptResult:
+        self._last_http_body = None
+        completion = None
+        try:
+            item, completion = self._client.create_with_completion(
+                model=self._model,
+                response_model=self._output_type,
+                messages=deepcopy(messages),
+                max_retries=0,
+                max_tokens=self._max_tokens,
+                temperature=self._temperature,
+                timeout=self._timeout_seconds,
+            )
+            # A server can echo a credential in its content. Protect the parsed
+            # payload as well as the raw response before either is persisted.
+            item = self._output_type.model_validate(self._redact(item.model_dump(mode="json")))
+            return AttemptResult(
+                item=item,
+                raw_response=self._last_http_body
+                if self._last_http_body is not None
+                else self._raw(completion),
+                error=None,
+                error_type=None,
+                response_model=self._response_model(completion),
+            )
+        except Exception as error:
+            # This is the external-provider boundary: preserve failures, including
+            # unexpected malformed completion shapes, for the caller's audit log.
+            # KeyboardInterrupt and other BaseExceptions still propagate.
+            cause = error
+            completion = getattr(error, "last_completion", completion)
+            # Instructor's legacy and current provider paths use different
+            # wrapper classes. Read their evidence rather than importing a
+            # private exception type; the HTTP hook retains the body either way.
+            failed_attempts = getattr(error, "failed_attempts", None)
+            last_attempt = failed_attempts[-1] if failed_attempts else None
+            nested = getattr(last_attempt, "exception", None)
+            if nested is None:
+                nested = getattr(error, "last_exception", None)
+            if nested is None:
+                nested = error.__cause__
+            if isinstance(nested, Exception):
+                cause = nested
+            if completion is None:
+                completion = getattr(last_attempt, "completion", None)
+            if completion is None:
+                completion = getattr(cause, "raw_response", None)
+            if completion is None:
+                completion = getattr(cause, "body", None)
+            return AttemptResult(
+                item=None,
+                raw_response=self._last_http_body
+                if self._last_http_body is not None
+                else self._raw(completion),
+                error=self._diagnostic(str(cause)),
+                error_type=type(cause).__name__,
+                response_model=self._response_model(completion),
+            )
+
+    def close(self) -> None:
+        self._sdk.close()
+
+    def __enter__(self) -> InstructorClient:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
+
+
+class EmbeddingError(RuntimeError):
+    """The embedding call failed or returned vectors of an unusable shape."""
+
+
+class EmbeddingClient:
+    """Embeddings from the configured endpoint: one request per call, no retries."""
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        model: str,
+        api_key: str,
+        timeout_seconds: float = 60,
+        _transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be finite and positive")
+        if not api_key or not api_key.strip():
+            raise ValueError("api_key must be supplied explicitly")
+        if not model or not model.strip():
+            raise ValueError("model must be supplied explicitly")
+        self._api_key = api_key
+        self._model = model
+        self._sdk = OpenAI(
+            base_url=base_url,
+            api_key=api_key,
+            max_retries=0,
+            timeout=timeout_seconds,
+            http_client=httpx.Client(
+                transport=_transport,
+                timeout=timeout_seconds,
+                follow_redirects=False,
+                trust_env=False,
+            ),
+        )
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        try:
+            response = self._sdk.embeddings.create(
+                model=self._model, input=list(texts), encoding_format="float"
+            )
+            vectors = [list(entry.embedding) for entry in response.data]
+        except Exception as error:  # provider boundary: type every failure
+            message = str(error).replace(self._api_key, "[REDACTED]")
+            raise EmbeddingError(f"{type(error).__name__}: {message}") from None
+        if len(vectors) != len(texts):
+            raise EmbeddingError(f"expected {len(texts)} vectors, received {len(vectors)}")
+        width = len(vectors[0])
+        if width == 0 or any(len(vector) != width for vector in vectors):
+            raise EmbeddingError("embedding vectors are empty or have ragged dimensions")
+        return vectors
+
+    def close(self) -> None:
+        self._sdk.close()
+
+    def __enter__(self) -> EmbeddingClient:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
