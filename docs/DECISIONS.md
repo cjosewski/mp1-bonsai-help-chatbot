@@ -1078,7 +1078,8 @@ Assistant's calls (not owner decisions):
   though, although and whether, so "Click Unload Project since/as nothing is removed.", "...
   because it was removed." and "Use Unload Project while nothing is removed." count again, as
   under v4. The November 23 v5 entry's "coordinator or subordinator" wording overstated the v5
-  list; this list is the one in force.
+  list; this list is the one in force. This went beyond the approved single ", which" fix;
+  asked whether to keep it, Chad answered on November 23, 2026: "Keep it (Recommended)".
 - **Review validity.** A packet's freshness binds to its drafts (content hash), their setups
   (`setup_sha256`), the lexicon, docs index, slot and pin digests, and `gold.REVIEW_CHECKER`,
   the last checker whose change could alter an item's content or derived fields
