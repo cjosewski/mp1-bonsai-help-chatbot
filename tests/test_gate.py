@@ -353,3 +353,81 @@ def test_gate_module_has_no_domain_leftovers():
     source = Path(gate.__file__).read_text()
     for word in ("benchmark", "_repair_checks", "_HAZARD", "home-diy"):
         assert word not in source
+
+
+def rehash(directory):
+    from bonsai_help.tracing import artifact_hashes
+
+    manifest = json.loads((directory / "manifest.json").read_text())
+    manifest["artifacts_sha256"] = artifact_hashes(directory)
+    (directory / "manifest.json").write_text(json.dumps(manifest))
+
+
+def test_interrupted_run_is_refused(config):
+    with pytest.raises(KeyboardInterrupt):
+        execute(config, FakeClient(interrupt_call=3))
+    with pytest.raises(GateError, match="interrupted"):
+        run_gate(config)
+    assert not (run_dir(config) / "gate-report.json").exists()
+
+
+def test_deleted_item_row_is_refused_even_when_rehashed(config):
+    execute(config, GoodClient())
+    directory = run_dir(config)
+    lines = (directory / "items.jsonl").read_text().splitlines()
+    (directory / "items.jsonl").write_text("\n".join(lines[1:]) + "\n")
+    rehash(directory)
+    with pytest.raises(ValueError, match="disagree"):
+        run_gate(config)
+
+
+def test_incomplete_run_is_gated_and_discloses_exhausted_slots(config):
+    client = GoodClient()
+    inner = client.generate
+
+    def flaky(messages):
+        if re.search(r"slot \S+, attempt", messages[-1]["content"]) and client.calls == 0:
+            client.calls += 1
+            return AttemptResult(None, "{broken", "invalid JSON", "ValidationError")
+        return inner(messages)
+
+    client.generate = flaky
+    manifest = execute(config, client)
+    report = run_gate(config)
+    assert report["run_status"] == manifest["status"]
+    assert report["slot_count"] == 5
+    assert report["gate_pass_rate_denominator"] == "schema-valid items entering the gate"
+    assert report["input_count"] == len(report["per_item"])
+    assert len(report["exhausted_slots"]) == 5 - report["input_count"]
+
+
+def test_exhausted_slots_are_recorded(config):
+    execute(config, FakeClient(fail=lambda slot, attempt: True))
+    report = run_gate(config)
+    assert report["run_status"] == "incomplete"
+    assert len(report["exhausted_slots"]) == 5
+    assert report["input_count"] == 0 and report["gate_pass_rate"] is None
+
+
+def test_edited_unoffered_citations_are_refused(config):
+    execute(config, GoodClient(cite=lambda ids: ["bonsai-docs:nowhere#L1-L2"]))
+    directory = run_dir(config)
+    lines = (directory / "attempts.jsonl").read_text().splitlines()
+    edited = []
+    for line in lines:
+        row = json.loads(line)
+        row["unoffered_citations"] = []
+        edited.append(json.dumps(row))
+    (directory / "attempts.jsonl").write_text("\n".join(edited) + "\n")
+    rehash(directory)
+    with pytest.raises(ValueError, match="unoffered_citations"):
+        run_gate(config)
+
+
+def test_mismatched_embedding_dimensions_are_controlled():
+    class Ragged(FakeEmbedder):
+        def embed(self, texts):
+            return [[1.0] * (i + 1) for i in range(len(texts))]
+
+    with pytest.raises(GateError, match="dimensions"):
+        evaluate([record(0), record(1)], Ragged())

@@ -16,9 +16,9 @@ from typing import Protocol
 
 from bonsai_help.checks import Lexicons, normalize, run_checks
 from bonsai_help.doc_sources import CATEGORIES
-from bonsai_help.generate import ITEMS, LEDGERS
+from bonsai_help.generate import ITEMS, LEDGERS, split_citations
 from bonsai_help.model_client import EmbeddingError
-from bonsai_help.schemas import GeneratedItem
+from bonsai_help.schemas import CitedSection, GeneratedItem
 from bonsai_help.tracing import (
     artifact_hashes,
     exclusive,
@@ -31,6 +31,8 @@ from bonsai_help.tracing import (
 REPORT = "gate-report.json"
 DEFAULT_THRESHOLD = 0.92
 DEFAULT_MIN_SHARE = 0.18
+GATEABLE = ("complete", "incomplete")
+DENOMINATOR = "schema-valid items entering the gate"
 EXACT, NEAR = "exact_duplicate", "near_duplicate"
 
 
@@ -102,6 +104,8 @@ def evaluate_gate(
             raise GateError(f"embedding failed: {error}") from None
         if len(vectors) != len(texts):
             raise GateError(f"expected {len(texts)} vectors, received {len(vectors)}")
+        if len({len(v) for v in vectors}) != 1:
+            raise GateError("embedding vectors have mismatched dimensions")
         kept: list[tuple[str, Sequence[float]]] = []
         for record, vector in zip(candidates, vectors, strict=True):
             best = max(((_cosine(vector, v), k) for k, v in kept), default=None)
@@ -144,22 +148,23 @@ def evaluate_gate(
     }
 
 
-def _load_run(directory: Path) -> tuple[list[GeneratedItem], dict[str, list[str]]]:
-    """The run's items and each item's unoffered citations, after verifying the evidence."""
+def _load_run(directory: Path) -> tuple[list[GeneratedItem], dict[str, list[str]], dict]:
+    """Items, each item's recomputed unoffered citations and run facts, after verification."""
     try:
         manifest = read_json(directory / "manifest.json")
     except FileNotFoundError:
         raise GateError(f"no run at {directory.name!r}") from None
+    if manifest.get("status") not in GATEABLE:
+        raise GateError(f"run status {manifest.get('status')!r} cannot be gated")
     recorded = manifest.get("artifacts_sha256", {})
     actual = artifact_hashes(directory)
     for name in LEDGERS:
         if name not in recorded or actual.get(name) != recorded[name]:
             raise ValueError(f"changed or missing {name}; preserve the run for inspection")
-    successful = {
-        a["record"]["item_id"]: a
-        for a in read_records(directory / "attempts.jsonl")
-        if a.get("schema_valid") is True
-    }
+    successful: dict[str, dict] = {}
+    for a in read_records(directory / "attempts.jsonl"):
+        if a.get("schema_valid") is True:
+            successful[a["record"]["item_id"]] = a
     items: list[GeneratedItem] = []
     unoffered: dict[str, list[str]] = {}
     for raw in read_records(directory / ITEMS):
@@ -167,9 +172,22 @@ def _load_run(directory: Path) -> tuple[list[GeneratedItem], dict[str, list[str]
         attempt = successful.get(item.item_id)
         if attempt is None or attempt["record"] != item.model_dump(mode="json"):
             raise ValueError(f"item {item.item_id} differs from its successful attempt")
+        offered = [CitedSection.model_validate(s) for s in attempt["record"]["offered_sections"]]
+        _, computed = split_citations(offered, attempt.get("cited_section_ids") or [])
+        if attempt.get("unoffered_citations") != computed:
+            raise ValueError(f"item {item.item_id} has inconsistent unoffered_citations")
         items.append(item)
-        unoffered[item.item_id] = list(attempt.get("unoffered_citations") or [])
-    return items, unoffered
+        unoffered[item.item_id] = computed
+    if {i.item_id for i in items} != set(successful) or len(items) != len(successful):
+        raise ValueError("successful attempts and items.jsonl disagree; inspect the run")
+    slots = manifest.get("slots") or []
+    done = {i.slot_id for i in items}
+    facts = {
+        "run_status": manifest["status"],
+        "slot_count": len(slots),
+        "exhausted_slots": [s["slot_id"] for s in slots if s["slot_id"] not in done],
+    }
+    return items, unoffered, facts
 
 
 def gate_run(
@@ -192,7 +210,7 @@ def gate_run(
         with exclusive(directory / ".gate.lock"):
             if (directory / ".generation.lock").exists():
                 raise GateError("generation lock present; inspect before gating")
-            items, unoffered = _load_run(directory)
+            items, unoffered, facts = _load_run(directory)
             report = evaluate_gate(
                 items,
                 lexicons=lexicons,
@@ -201,7 +219,7 @@ def gate_run(
                 threshold=threshold,
                 min_share=min_share,
                 unoffered_citations=unoffered,
-            ) | {"run_id": run_id}
+            ) | {"run_id": run_id, **facts, "gate_pass_rate_denominator": DENOMINATOR}
             if (directory / REPORT).exists():
                 raise GateError(f"{REPORT} already exists; a run is gated once")
             write_checkpoint(directory / REPORT, report)

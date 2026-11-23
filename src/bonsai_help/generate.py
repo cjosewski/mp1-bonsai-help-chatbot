@@ -170,6 +170,9 @@ def _cited(offered: list[CitedSection], listed: list[str]) -> tuple[list[CitedSe
     return [s for s in offered if s.id in wanted], unoffered
 
 
+split_citations = _cited  # public alias: (cited sections, unoffered ids)
+
+
 def _expected_start(
     run_id: str, config: RunConfig, prompt: str, prompt_sha256: str, entry: dict, number: int
 ) -> dict:
