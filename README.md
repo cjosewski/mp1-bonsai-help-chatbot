@@ -24,10 +24,10 @@ edits Chad directed for this public copy are recorded in
 **Milestones B0 (repository readiness), B1 (documentation snapshots) and B2 (lexicons
 and setup facts) are done. B3 (gold set) was withdrawn from MP1 on November 23, 2026**
 and moves to Mini Project 4; its tooling and the 6 published items stay here, frozen, and
-the paused review packets stay unimported. B4 is next. The B3 history below is kept as a
+the paused review packets stay unimported. B4 is done (no model run yet). The B3 history below is kept as a
 record. Install, the offline tests, the documentation corpus
-rebuild, the section index, the lexicons and the setup-fact checks run today; every
-pipeline step below is marked *not yet implemented* and will be filled in when its
+rebuild, the section index, the lexicons and the setup-fact checks run today; steps 1 and 2 of the pipeline run offline against fake endpoints;
+every other step below is marked *not yet implemented* and will be filled in when its
 milestone lands. Chad's decisions on the B2 setup records (packet SR-001) are applied: 38
 accepted and fact row SF-001 rejected. **B3 is in progress**: Chad's November 22, 2026 decisions on
 the version pairings, the IFC schemas, review packets and drafting are applied (see
@@ -58,7 +58,7 @@ Older packets remain as records. No new review decisions were imported.
 | B1 | Pinned, hashed documentation snapshots; fixture slice | Done |
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (Chad's SR-001 decisions applied) |
 | B3 | Gold set and multi-part and injection requests | Withdrawn from MP1 (moves to Mini Project 4); 6 of 110 items published and frozen; 104 drafts unreviewed |
-| B4 | Rubric, section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Not yet implemented |
+| B4 | Rubric, section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet) |
 | B5 | Baseline run | Not yet implemented |
 | B6 | Baseline human labels | Not yet implemented |
 | B7 | Judge and Phase A calibration | Not yet implemented |
@@ -110,6 +110,11 @@ Bonsai source file is in the repository. The gold tests use clearly synthetic it
 injected slot plan, built on real fixture-slice sections: every checker rule, the pattern
 matcher, ingest, packet export and import (tampering, stale blocks, re-decisions, edits),
 publish, the interactive-terminal gate on import and the held-out loading rule.
+The B4 tests use clearly synthetic model outputs and fake transports: trace files and
+no-overwrite rules, the seven-field schema, run config and credential rules, the section
+sampler, the model client (retries, timeouts, redaction), generation (resume, exhaustion,
+unknown outcomes), each deterministic check, the gate, collections, cohorts and the
+generation commands with their exit codes.
 
 ## Rebuild the documentation corpus
 
@@ -414,13 +419,64 @@ Layout outside Git, under `data/gold/`: `drafts/` (content-addressed), `ingests/
 append-only), `.tmp/` and `.lock`. NOTE text never enters Git and publish never reads it.
 The published files are CC BY-SA 4.0 data; quotes keep their source license (`NOTICE.md`).
 
+## Generate and gate (B4)
+
+No live run has happened yet. B5 needs a reachable local endpoint and Chad's go-ahead;
+until then the commands are exercised only by the offline tests. Copy
+`config/run.example.json` to a git-ignored local file and fill in the endpoint (`base_url`
+ending in `/v1`, served model id, timeout, attempts) and one credential source. Raw runs
+go under `runs/` (git-ignored) or a path outside the repository.
+
+```text
+bonsai-help generate --config CONFIG --run-id RUN_ID [--count COUNT] [--resume]
+                     [--fixtures-dir FIXTURES_DIR] [--reference-dir REFERENCE_DIR]
+bonsai-help gate --config CONFIG --run-id RUN_ID [--reference-dir REFERENCE_DIR]
+bonsai-help collect --config CONFIG --collection-id COLLECTION_ID
+                    [--target-retained TARGET_RETAINED] [--batch-count BATCH_COUNT]
+                    [--max-batches MAX_BATCHES] [--resume]
+                    [--fixtures-dir FIXTURES_DIR] [--reference-dir REFERENCE_DIR]
+bonsai-help collection-status --collection-id COLLECTION_ID [--artifact-root ARTIFACT_ROOT]
+bonsai-help cohort --collection-id COLLECTION_ID --cohort-id COHORT_ID
+                   [--artifact-root ARTIFACT_ROOT]
+bonsai-help cohort-status --cohort-id COHORT_ID [--artifact-root ARTIFACT_ROOT]
+```
+
+Defaults: `--count` 5 (a multiple of 5), `--target-retained` 50, `--batch-count` 70,
+`--max-batches` 3, fixtures `tests/fixtures/docs`, reference `reference`, artifact root
+`runs`. `uv run --locked bonsai-help <command> --help` prints the full text.
+
+| Command | What it does and writes |
+| --- | --- |
+| `generate` | Plans balanced slots, offers each slot pinned sections from the fixture slice, and calls the configured model once per slot (with bounded retries). Writes a new run: manifest, prompt copy, `starts.jsonl` (a durable start before each call), `attempts.jsonl` (every completion, valid or not, raw), `items.jsonl` (schema-valid items in an envelope with the setup id, category, citations, prompt version, model, timestamp and trace id). `--resume` keeps the original settings, prompt and code identity and verifies hashes. |
+| `gate` | Runs the first-pass gate on a saved run: schema, deterministic checks, exact and near-duplicate removal, category balance. Writes `gate-report.json` and `gate-items.jsonl` next to the run. Checks are heuristics that drop obvious defects and feed the judge; they never replace a human or judge decision. |
+| `collect` | Runs generate and gate in batches until enough items are retained (at least 10 per category) or the batch budget is spent. Each batch has its own derived seed, and retained items are screened for near-duplicates across batches. |
+| `collection-status` | Reads a collection and reports its batches, retained counts per category and whether it is ready. |
+| `cohort` | Freezes 10 retained items per category (seeded) from a ready collection into a new cohort. |
+| `cohort-status` | Reads a frozen cohort and verifies its hashes. |
+
+Runs, gate reports, collections and cohorts are never overwritten; a new experiment gets
+a new ID. After a hard kill between a ledger append and its checkpoint, resume refuses the
+run: inspect it, do not repair it.
+
+Exit codes: 0 done; 1 a check failed or the evidence is not ready; 2 usage or config
+error; 3 controlled exhaustion (attempt or batch budget spent, or an unfinished run).
+
+Three denominators are reported separately and never mixed:
+
+- **Initial-attempt schema validity**: valid initial responses over all initial slots. The
+  95% structural target is judged on this figure.
+- **Retry recovery**: schema-valid results that came from a retry (attempt 2 or later),
+  counted apart from the initial figure and never added to it.
+- **Gate retention**: items retained by the gate over the schema-valid items that entered
+  it. Retained items are never compared against filtered ones.
+
 ## Run each step
 
-*Not yet implemented (B4 to B9).* Each step will run on its own against saved
-artifacts:
+Each step runs on its own against saved artifacts. Steps 1 and 2 exist (B4); the rest are
+not yet implemented (B6 to B9):
 
-1. Generate: one prompt per category and setup profile writes each item from pinned doc sections (B4, B5, B8).
-2. First-pass gate: schema, deterministic checks, duplicates, category balance (B4, B5).
+1. Generate: one prompt per category and setup profile writes each item from pinned doc sections (B4, B5, B8). Implemented.
+2. First-pass gate: schema, deterministic checks, duplicates, category balance (B4, B5). Implemented.
 3. Human labels: blind, resumable labeling (B6).
 4. Judge: independent prompt at a lower temperature than the generator (B7).
 5. Analyze: pass rates, agreement, intervals and five charts (B9).

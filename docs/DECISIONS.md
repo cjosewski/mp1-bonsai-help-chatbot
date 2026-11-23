@@ -1142,6 +1142,61 @@ requests option.") and then said: "This plan is approved. Modify MP1 as needed."
   the instructor in Chad's project map. New O-8: the repository name still says "chatbot";
   it stays until Chad decides, because renaming changes the public URL.
 
+### November 23, 2026: B4 generation and gate (assistant's calls)
+
+These are the assistant's engineering calls, not owner decisions. They are heuristics and
+defaults; Chad can overrule any of them, and a change is a new dated entry.
+
+Plan decisions:
+
+1. **Sampling source.** The sampler draws only from committed fixture-slice pages tagged
+   with the slot's category, from the sources of the slot's version line. Generation,
+   tests and the replay demo then run offline, and the judge and Chad can always see the
+   cited text. The slice grows only through `snapshot fixtures`.
+2. **Sections per slot.** Two Bonsai docs sections and at most one Blender Manual section,
+   at most 1,200 words in total, chosen by a seeded RNG keyed on the run seed and the slot
+   id. Developer and fragment tags are excluded.
+3. **Citations outside the payload.** The model returns the item and the cited section
+   ids; the envelope stores the citations and the payload stays exactly seven fields.
+   Citing a section that was not offered is a D3 pre-check failure, not a schema failure.
+4. **Embedding duplicates.** Embeddings come from the same configured endpoint with one
+   recorded embedding model for every vector. A cosine of 0.92 or more drops the later
+   item. The threshold is configurable and recorded in the gate report.
+5. **Pre-check values.** D1: answer of at least 60 words. D2: `safety_info` of at least 80
+   characters and no generic phrase. D3: every `bim.*` id exists in the version line's
+   Bonsai-source lexicon and every cited section was offered. D4: no refusal boilerplate.
+   D5: question of at least 6 words and `equipment_problem` of at least 3. D6: every tip at
+   least 30 characters, none generic, none a near-copy of a step (token Jaccard 0.8 or
+   more). Unknown Blender operators or menu paths are recorded as evidence, never a drop.
+6. **Category balance.** The slot plan is exactly balanced. The gate passes a batch when
+   every category is at least 18% of the retained items.
+7. **Slots and profiles.** A run of `count` items (a multiple of 5) gives each category
+   `count/5` slots. Profiles come from the run's split (`development` or `assessed`), so
+   no profile crosses splits.
+
+Rulings made while building:
+
+- **Profile cycling.** Profiles cycle through all profiles of the split within each
+  category, so no category is tied to a fixed subset.
+- **Generic phrases.** Phrases match on word boundaries. A field counts as generic only
+  when fewer than 5 words remain after the phrases are removed, so specific text that
+  contains a stock phrase is not dropped. The cost if wrong is that a few generic items
+  reach the judge.
+- **Gate input.** The gate accepts only complete or incomplete runs, requires the items
+  to match the successful attempts exactly, and recomputes unoffered citations from the
+  attempts, refusing a disagreement.
+- **Collection seeds.** Each collection batch gets its own derived sampler seed, so
+  batches do not repeat requests, and retained items are screened for near-duplicates
+  across batches. Both are recorded in the manifest.
+- **VL-older slots.** The fixture slice has no Blender 4.5 Manual pages for
+  `bonsai_project_setup`, `bonsai_modeling` and `ifc_data_and_materials`, so those slots
+  offer Bonsai sections only. The slice grows only through `snapshot fixtures`.
+- **Hard kill.** A hard kill between a ledger append and its checkpoint leaves a run that
+  resume refuses. Inspect it; never repair it (the `AGENTS.md` rule on leftover locks and
+  tails).
+
+No live model run has happened. B5 needs a reachable local endpoint and Chad's go-ahead.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

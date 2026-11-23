@@ -129,8 +129,14 @@ and the gold rules above still bind anything touching `reference/gold/` or `data
 The paused gold packets GP-021 to GP-025 stay unimported; do not ask Chad to review them for
 MP1. Setup review SR-003 (fact row SF-021) stays an MP1 item, still pending.
 
-Next is B4 (rubric, section sampler, generation prompt v1, checks and the first ported
-modules), then B5–B10 as the plan's §9 describes. B6 and B8 need Chad's labels.
+As of November 23, 2026, **B4 (generation and the first-pass gate) is done**, with no model
+run yet. `bonsai-help generate`, `gate`, `collect`, `collection-status`, `cohort` and
+`cohort-status` exist, backed by the modules `tracing`, `schemas`, `config`, `sampler`,
+`model_client`, `generate`, `checks`, `gate`, `collection` and `cohort`, the prompt
+`prompts/generator-v1.md` and `config/run.example.json`. The assistant's calls are in
+`docs/DECISIONS.md` (November 23, 2026: B4 generation and gate). Next is B5, the baseline
+run: it needs a reachable local endpoint and Chad's go-ahead. Then B6–B10 as the plan's §9
+describes. B6 and B8 need Chad's labels.
 
 B0 scope is the assistant's call, not Chad's: earlier pipeline modules were not copied.
 B4 ports them module by module, each with its tests, following `docs/PORTING-MAP.md`. The
