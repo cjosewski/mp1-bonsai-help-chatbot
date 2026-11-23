@@ -36,7 +36,10 @@ ordered, clause-scoped and affirmative matching; on November 23, 2026 Chad chose
 scoring flaws before reviewing, so checker `gold-check-v4` tightens negation in affirmative
 matching and lets answers explain a docs-versus-code difference, and 7 drafts were redrafted;
 `gold-check-v5` then keeps the forbidden negation rule for the stale-docs guards and credits
-a few correct phrasings again, with no draft changed.
+a few correct phrasings again, with no draft changed. Chad then chose to stop patching
+(November 23, 2026): `gold-check-v6` narrows the ", which" contrast, a scoring-only checker
+change no longer makes packets stale, and pattern checks are reported as heuristics while
+meaning is graded by Chad's blind labels and the LLM judge.
 All 110 heads pass a complete-mode check with the fixture-slice rule. The 104 pending drafts
 await Chad's decisions in replacement packets GP-021 to GP-025; fact row SF-021 is in SR-003.
 Older packets remain as records. No new review decisions were imported.
@@ -307,7 +310,7 @@ with verbatim quotes, optional code citations of the line's pinned add-on source
 patterns (operator, panel, Blender operator, menu path, hotkey, UI label, phrase, `tokens`,
 `any_of`, regex, planted text) and an optional unusual flag.
 
-Patterns (`gold-check-v5`): `any_of` accepts any of 2 to 8 alternatives (a tool by id,
+Patterns (`gold-check-v6`): `any_of` accepts any of 2 to 8 alternatives (a tool by id,
 label, button text, menu route or hotkey; a phrase; tokens), and at least one alternative of
 a required group must be tied to the sources (a phrase in its quote, tokens from its quotes,
 or a tool named in a cited section); the rest may be paraphrases that Chad's review judges.
@@ -317,7 +320,8 @@ Patterns and alternatives may opt into `ordered` (token entry order), `clause` (
 inside one clause; a colon does not end one), and `affirmative` (reject a governing negation
 of a positive claim: "does not A or B", "neither ... nor", "no longer", "does not mean you
 will", a "? No," rebuttal, and descriptive negation such as "is not available", "does not
-exist", "was removed" or a docs claim contrasted with "but" or ", which ... no longer"; a
+exist", "was removed" or a docs claim contrasted with "but" or with ", which" when the code,
+docs or product is the negated subject (", which the pinned code no longer draws"); a
 forbidden pattern keeps the forbidden negation rule, so an unrelated "Don't X and" does not
 hide a stale instruction). The checker accepts `ordered` only on tokens and `clause` not
 on tool kinds or on a phrase that crosses a clause. The packet displays these controls.
@@ -364,8 +368,10 @@ How an item gets in:
    profile, version line or cited fact claims changed since export is stale
    (`--skip-stale` imports the rest); an edit runs the whole checker, and the packet's
    edits are checked together too. A packet is imported once; export its pending items
-   again. A packet with obsolete checker, source or lexicon digests remains on disk but
-   does not block a replacement export. Its stale decisions cannot settle a current review.
+   again. A packet with obsolete review-checker (`gold.REVIEW_CHECKER`), source, index,
+   slot or lexicon digests remains on disk but does not block a replacement export. A
+   scoring-only checker change (`gold.CHECKER`) leaves packets current; the import still
+   reruns the current check, and a draft that fails it is stale. Its stale decisions cannot settle a current review.
    A profile, version line or fact claim changed after a decision makes publish
    refuse the item until it is decided again with `--items`.
 4. `gold publish --write` writes the reviewed items, which `gold check --committed`
@@ -383,7 +389,8 @@ slot, not to a partial publish); multi-part, injection and control rules (a genu
 section; another look-alike must carry a word an injection filter keys on); cited setup facts (a row Chad rejected
 cannot back an item); duplicates and cross-split leakage; privacy; and packet markers. They
 are heuristics that catch defects before Chad reads an item; the pattern score never
-decides a rubric dimension.
+decides a rubric dimension. Meaning-level grading belongs to Chad's blind labels and the LLM
+judge; pattern checks are reported as heuristics (Chad, November 23, 2026).
 
 Held-out items are committed with the rest because the review record and the grader need
 them, so anyone can read them. They are held out from development decisions, not secret:

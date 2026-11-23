@@ -1,4 +1,5 @@
-"""Synthetic review packets can be replaced after their checking context becomes stale."""
+"""Synthetic review packets can be replaced after their checking context becomes stale, and stay
+current across a scoring-only checker change."""
 
 import copy
 
@@ -6,18 +7,48 @@ import pytest
 from gold_support import context, single
 from test_gold_review import decide, export, import_, ingest, packet_path, store
 
-from bonsai_help import gold_review
+from bonsai_help import gold, gold_review
 from bonsai_help.doc_sources import ConfigError
 
 
-def test_changed_checker_allows_new_packet_without_recording_a_review(tmp_path):
+def test_scoring_only_checker_change_keeps_the_packet_current(tmp_path):
+    old = context()
+    ingest(tmp_path, single(), ctx=old)
+    export(tmp_path, ctx=old)
+    new = context()
+    new.digests = copy.deepcopy(old.digests)
+    new.digests["checker"] = old.digests["checker"] + "-updated"
+    assert not any(line.startswith("GP-002") for line in export(tmp_path, ctx=new).lines)
+    warnings = gold_review.status(store(tmp_path), new, tmp_path / "gold").warnings
+    assert "GP-001 exported, not yet imported" in warnings
+    assert not any("obsolete" in warning for warning in warnings)
+    decide(tmp_path, "GS-SD-901", "approve")
+    import_(tmp_path, ctx=new)
+    assert [d["packet_id"] for d in store(tmp_path).decisions()] == ["GP-001"]
+
+
+def test_changed_evidence_still_makes_the_packet_stale(tmp_path):
+    old = context()
+    ingest(tmp_path, single(), ctx=old)
+    export(tmp_path, ctx=old)
+    new = context()
+    new.digests = copy.deepcopy(old.digests)
+    new.digests["docs_index"] = "changed-index"
+    assert export(tmp_path, ctx=new).lines == [
+        "GP-002: 1 development item(s) in gold/packets/GP-002.md"
+    ]
+    assert "GP-001 uses an obsolete checking context; retained as a record" in (
+        gold_review.status(store(tmp_path), new, tmp_path / "gold").warnings
+    )
+
+
+def test_changed_review_checker_allows_new_packet_without_recording_a_review(tmp_path, monkeypatch):
     old = context()
     ingest(tmp_path, single(), ctx=old)
     export(tmp_path, ctx=old)
     original = packet_path(tmp_path).read_bytes()
-    new = context()
-    new.digests = copy.deepcopy(old.digests)
-    new.digests["checker"] = old.digests["checker"] + "-updated"
+    monkeypatch.setattr(gold, "REVIEW_CHECKER", gold.REVIEW_CHECKER + "-updated")
+    new = old
     report = export(tmp_path, ctx=new)
     assert report.lines == ["GP-002: 1 development item(s) in gold/packets/GP-002.md"]
     assert packet_path(tmp_path).read_bytes() == original

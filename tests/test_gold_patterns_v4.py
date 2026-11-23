@@ -1,4 +1,4 @@
-"""gold-check-v4 and v5 regressions on synthetic patterns and items: negation governance in
+"""gold-check-v4 to v6 regressions on synthetic patterns and items: negation governance in
 affirmative mode (required and forbidden), descriptive negation of stale-docs routes, the
 clause/ordered fixes and the v3 control rules. The probe sentences come from the round-3 and
 round-4 scoring reviews; the patterns are synthetic stand-ins of the same shapes, not draft
@@ -74,6 +74,10 @@ GREEN = claim("green + new|added", window=4)
         (GREEN, "Green means new? No, blue means new.", False),
         (GREEN, "Blue means new, green means changed.", False),
         (GREEN, "Green: changed objects. Blue: new ones.", False),
+        # ", which" negates a docs claim only when the code, docs or product is its subject (v6).
+        (GREEN, "The docs say green means new, which is not obvious at first.", True),
+        (GREEN, "The manual says green means new, which you should not ignore.", True),
+        (GREEN, "The docs say green means new, which the pinned code no longer does.", False),
     ],
 )
 def test_affirmative_governance(pattern, text, expected):
@@ -126,6 +130,7 @@ EXPLANATIONS = [
         UNLOAD,
         "The tutorial mentions an Unload Project button, which the pinned code no longer draws.",
     ),
+    (UNLOAD, "The docs mention Unload Project, which Bonsai 0.9 does not have."),
     (SIDEBAR, "The object history is no longer in the Bonsai sidebar."),
     (
         SIDEBAR,
@@ -156,6 +161,16 @@ def test_docs_versus_code_explanations_are_not_compliance(pattern, text, field):
         (SIDEBAR, "Don't use the Git panel and open the Bonsai sidebar instead."),
         (UNLOAD, "Don't save first and click Unload Project to close it."),
         (UNLOAD, "You don't need the wizard and can just use Unload Project."),
+        # A relative clause about the step or its effect endorses the docs claim (v6).
+        (UNLOAD, "The docs say to click Unload Project, which never loses data, so do it."),
+        (UNLOAD, "The guide says to use Unload Project, which is not risky."),
+        (UNLOAD, "The docs say to click Unload Project, which you should not skip."),
+        (UNLOAD, "The tutorial says to use Unload Project, which won't lose your work."),
+        # A subordinate clause is not descriptive negation of the route (v6).
+        (UNLOAD, "Click Unload Project since nothing is removed."),
+        (UNLOAD, "Click Unload Project as nothing is removed."),
+        (UNLOAD, "Click Unload Project because it was removed."),
+        (UNLOAD, "Use Unload Project while nothing is removed."),
     ],
 )
 @pytest.mark.parametrize("field", ["answer", "tips"])

@@ -180,9 +180,11 @@ AFFIRMING = re.compile(
 REBUTTAL_AFTER = re.compile(r"\?\s*(?:no|nope|false|wrong|incorrect)\b", re.IGNORECASE)
 # Descriptive negation in affirmative mode: "the Unload Project button is not available".
 # Also "does not exist", "no longer exists" and "was removed/dropped/gone". The words between
-# the match and the negation are never a coordinator or a subordinator ("... and it is removed").
+# the match and the negation are never a coordinator or a subordinator ("... and it is removed",
+# "... since nothing is removed").
 DESCRIPTIVE_AFTER = re.compile(
-    r"^\W{0,3}\s*(?:(?!(?:and|or|nor|so|yet|if|when|once|until|after|before|unless)\b)"
+    r"^\W{0,3}\s*(?:(?!(?:and|or|nor|so|yet|if|when|whenever|once|until|after|before|unless|"
+    r"since|as|because|while|where|wherever|though|although|whether)\b)"
     r"[a-z]+\s+){0,2}?(?:"
     r"(?:(?:is|are|was|were)\s+(?:not|no\s+longer)|isn't|aren't|wasn't|weren't)\s+"
     r"(?:available|drawn|shown|present|there|offered|supported|provided|listed|included|"
@@ -201,9 +203,23 @@ ATTRIBUTION = re.compile(
     r"suggests?|suggested)\b",
     re.IGNORECASE,
 )
-# Or a relative clause that negates it ("..., which the pinned code no longer draws").
+# Or a relative clause whose negation is predicated of the code, the docs or the product
+# ("..., which the pinned code no longer draws", "..., which Bonsai 0.9 does not have"), not
+# one about the step or its effect ("..., which never loses data", "..., which is not risky",
+# "..., which you should not skip"): those endorse the claim (gold-check-v6).
+WHICH_SUBJECT = (
+    r"(?:the\s+)?(?:(?:pinned|current|installed|older|newer)\s+)?"
+    r"(?:bonsai|blender|add-?on|code|source|docs|documentation|manual|guide|tutorial|version|"
+    r"release|ui|interface)"
+    r"(?:\s+(?:v?\d[\w.-]*|add-?on|code|source|docs|documentation|manual|ui|interface|"
+    r"version|release|itself|still|now|actually)){0,2}"
+)
+WHICH_NEGATION = (
+    r"(?:no\s+longer|never|(?:do|does|did|is|are|was|were|has|have|can|will)\s+not|don't|"
+    r"doesn't|didn't|isn't|aren't|wasn't|weren't|hasn't|haven't|can't|cannot|won't)"
+)
 CONTRAST = re.compile(
-    r"\b(?:but|however|whereas)\b|,\s*which\b[^.;!?|]*?(?:\bno\s+longer\b|\bnot\b|\bnever\b|n't\b)",
+    rf"\b(?:but|however|whereas)\b|,\s*which\s+{WHICH_SUBJECT}\s+{WHICH_NEGATION}\b",
     re.IGNORECASE,
 )
 

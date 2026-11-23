@@ -769,7 +769,10 @@ def _write_packet(
 
 
 def _staleness_digests(ctx: Context) -> dict:
-    return {key: ctx.digests[key] for key in ("checker", "lexicons", "docs_index", "slots", "pins")}
+    """What a packet's freshness binds to besides its drafts and setups: the evidence (lexicons,
+    docs index, slots, pins) and `gold.REVIEW_CHECKER`, not the scoring checker version."""
+    digests = {key: ctx.digests[key] for key in ("lexicons", "docs_index", "slots", "pins")}
+    return {"checker": gold.REVIEW_CHECKER, **digests}
 
 
 # ------------------------------------------------------------------ import

@@ -69,7 +69,12 @@ SLOTS_SCHEMA = "gold-slots-v1"
 SUBSTITUTIONS_SCHEMA = "gold-slot-substitutions-v1"
 SET_SCHEMA = "gold-set-v1"
 BATCH_SCHEMA = "gold-draft-batch-v1"
-CHECKER = "gold-check-v5"
+CHECKER = "gold-check-v6"
+# What a review packet and its decisions bind to: the last checker whose change could alter an
+# item's content or derived fields. A scoring-only change (how patterns match answers) bumps
+# CHECKER and leaves this, so exported packets stay current (Chad, November 23, 2026). Import
+# still reruns the current check on every block, so a draft the new check fails is stale.
+REVIEW_CHECKER = "gold-check-v5"
 INPUT_RENDERING = "gold-input-v1"
 SET_LICENSE = (
     "CC BY-SA 4.0 (generated data); quoted Bonsai or Blender Manual text keeps its source license"

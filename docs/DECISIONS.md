@@ -1037,6 +1037,67 @@ Assistant's calls (not owner decisions):
   GP-016 to GP-020, which remain as obsolete records; they hold the same 104 drafts. SR-003
   stays current.
 
+### November 23, 2026: narrow the ", which" contrast, stop patching, review
+
+An independent assistant review of the `gold-check-v5` commit (no decisions entered or
+imported) found that the new ", which ..." contrast accepted any negation in the relative
+clause, so an answer that repeats the stale docs and endorses them ("The docs say to click
+Unload Project, which never loses data, so do it.") no longer counted, and two correct
+required claims ("The docs say green means new, which is not obvious at first.") were no
+longer credited. It also found that the descriptive "is removed/gone" forms allowed a
+subordinate clause before them ("Click Unload Project since nothing is removed."). Asked how to
+handle the remaining ", which" flaw after four patch rounds, Chad chose "Narrow it, stop
+patching, review (Recommended)": one small fix where the ", which" exemption applies only when
+the negation is about the code or docs; review decisions stay valid across later scoring-only
+checker changes, so there is no more re-export churn; meaning-level grading is left to Chad's
+blind labels and the LLM judge, with pattern checks reported as heuristics; then the round-4
+review starts. This accepts no draft.
+
+Owner decision (Chad):
+
+- Pattern checks are reported as heuristics; meaning-level grading is left to Chad's blind
+  labels and the LLM judge. Patching stops after the one narrowing fix below ("stop
+  patching"), and review decisions stay valid across later scoring-only checker changes.
+
+Assistant's calls (not owner decisions):
+
+- **`gold-check-v6`.** After a docs claim, ", which ..." negates the claim only when its
+  subject is the code, the docs or the product: an optional "the" and "pinned", "current",
+  "installed", "older" or "newer", then Bonsai, Blender, add-on, code, source, docs,
+  documentation, manual, guide, tutorial, version, release, UI or interface, at most two
+  further words of that kind or a version number ("Bonsai 0.9", "the Bonsai 0.9 add-on"),
+  then "no longer", "never", "does/is/has/can/will not" or a contraction. "..., which the
+  pinned code no longer draws" and "..., which Bonsai 0.9 does not have" explain the stale
+  docs; "..., which never loses data", "..., which is not risky", "..., which you should not
+  skip" and "..., which won't lose your work" count as following them, as under v4. "The docs
+  say green means new, which is not obvious at first." and "..., which you should not
+  ignore." are credited again. Known limit: other explanations in a relative clause ("...,
+  which no longer exists in Bonsai 0.9") still count; the judge handles them.
+- **Descriptive negation gap words.** The words between a match and "is/was removed", "is
+  gone" or "does not exist" also exclude since, as, because, while, whenever, where, wherever,
+  though, although and whether, so "Click Unload Project since/as nothing is removed.", "...
+  because it was removed." and "Use Unload Project while nothing is removed." count again, as
+  under v4. The November 23 v5 entry's "coordinator or subordinator" wording overstated the v5
+  list; this list is the one in force.
+- **Review validity.** A packet's freshness binds to its drafts (content hash), their setups
+  (`setup_sha256`), the lexicon, docs index, slot and pin digests, and `gold.REVIEW_CHECKER`,
+  the last checker whose change could alter an item's content or derived fields
+  (`gold-check-v5`). `gold.CHECKER` (now `gold-check-v6`) is the scoring version recorded in the
+  published files' headers; changing it alone no longer makes a packet obsolete. The import
+  still reruns the current check on every block, so a draft that the new check fails is
+  stale, and a changed draft, setup or evidence digest stays stale. Decisions already bound to
+  the draft and setup hashes, not to the checker. Bump `REVIEW_CHECKER` only for a check change
+  that alters an item's content or derived fields. GP-006 to GP-020 stay obsolete records.
+- **Items, packets and checks.** No draft changed, and the six accepted items are
+  byte-identical; only the published files' `checker` and `digest` headers changed. GP-021 to
+  GP-025 (104 drafts) and SR-003 stay current without re-export: `gold status` lists them as
+  exported, not yet imported, and a read-only replay of the import's validation (tamper, stale
+  digests, draft and setup hashes, current check) finds 0 stale blocks. The verifier's probes
+  (the four endorsing relative clauses, the two required claims, the four subordinate
+  "removed" clauses) and the intended explanations are regression tests
+  (`tests/test_gold_patterns_v4.py`, `tests/test_gold_stale_export.py`). The complete-set
+  check over all 110 heads passes.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
