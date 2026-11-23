@@ -1,0 +1,3 @@
+        if tool.Ifc.get_schema() == "IFC2X3":
+            project = tool.Ifc.get().by_type("IfcProject")[0]
+            projected_crs = ifcopenshell.util.element.get_pset(project, "ePSet_ProjectedCRS")

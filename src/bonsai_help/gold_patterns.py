@@ -23,6 +23,12 @@ deliberately strict so that a generic answer does not pass:
 - `any_of` matches when any of its alternatives (tool kinds, `phrase`, `tokens`) matches: the
   operator id, its label, a documented button or menu route, or its hotkey; or paraphrases.
 
+The v3 controls are opt-in on patterns and alternatives: `ordered` preserves token-entry
+order; `clause` forbids crossing clause boundaries; `affirmative` also checks negation
+inside required matches. Parent controls apply to all alternatives. Defaults preserve
+the earlier matching rules and serialized content. These are grammatical heuristics,
+not proof that a claim follows from its sources.
+
 A forbidden pattern (planted text included) counts only an *affirmative* occurrence: one whose
 clause does not negate it. The cue rule (`negated`) is deterministic: within the clause
 (bounded by `. ; : ! ? ,`, a list or field separator, a line end, or "but", "then", "however",
@@ -90,7 +96,8 @@ MAX_WINDOW = 20
 MIN_PREFIX = 4
 MAX_ENTRIES = 6
 FIELDS = ("answer", "steps", "tools_required", "safety_info", "tips")
-FORBIDDEN_FIELDS = ("steps", "tools_required")
+FORBIDDEN_FIELDS = (*FIELDS, "any")
+MATCH_FLAGS = ("ordered", "affirmative", "clause")
 MENU_SEPARATOR = r"\s*(?:-->|->|>|›|→)\s*"
 KEY_LEADS = r"(?i:\b(?:press|pressing|key|hotkey|shortcut)\s+)"
 IDENT_EDGE = "A-Za-z0-9_"
@@ -124,6 +131,9 @@ NEGATION_AFTER = re.compile(
     r"^\W{0,3}\s*(?:is|are|was|were)\s+(?:not\s+true|false|untrue|incorrect|wrong|"
     r"(?:an?\s+)?(?:injected|planted|untrusted))\b",
     re.IGNORECASE,
+)
+AFFIRMATIVE_CUES = re.compile(
+    NEGATION_BEFORE.pattern + r"|\bnot\b|\b(?:isn't|aren't|wasn't|weren't)\b", re.I
 )
 
 
@@ -348,15 +358,26 @@ def _word_hit(wanted: str, token: str) -> bool:
     return token.startswith(wanted[:-1]) if wanted.endswith("*") else token == wanted
 
 
-def tokens_spans(text: str, value: str, window: int | None) -> list[Span]:
-    """Every entry within `window` tokens of one sentence, any order, no token shared."""
+def _clause_text(text: str) -> str:
+    """Keep line boundaries visible through the matchers' whitespace normalization."""
+    return re.sub(r"\r\n?|\n", JOIN, text)
+
+
+def tokens_spans(
+    text: str, value: str, window: int | None, *, ordered: bool = False, clause: bool = False
+) -> list[Span]:
+    """Every entry in a bounded sentence/clause window, without shared tokens.
+
+    Order is unconstrained unless explicitly requested.
+    """
     entries = parse_tokens(value)
     if entries is None or window is None:
         return []
-    haystack = collapse(text).casefold()
+    haystack = collapse(_clause_text(text) if clause else text).casefold()
     found: list[Span] = []
-    starts = [0, *(m.end() for m in SENTENCE_BREAK.finditer(haystack))]
-    ends = [m.start() for m in SENTENCE_BREAK.finditer(haystack)] + [len(haystack)]
+    boundary = CLAUSE_BREAK if clause else SENTENCE_BREAK
+    starts = [0, *(m.end() for m in boundary.finditer(haystack))]
+    ends = [m.start() for m in boundary.finditer(haystack)] + [len(haystack)]
     for begin, end in zip(starts, ends, strict=True):
         tokens = [
             (m.group(), m.start() + begin, m.end() + begin)
@@ -370,11 +391,11 @@ def tokens_spans(text: str, value: str, window: int | None) -> list[Span]:
                     if all(_word_hit(w, tokens[k + j][0]) for j, w in enumerate(words)):
                         hits.append((k, k + len(words) - 1))
             places.append(sorted(set(hits)))
-        found += _windows(places, window, tokens, haystack)
+        found += _windows(places, window, tokens, haystack, ordered=ordered)
     return found
 
 
-def _windows(places, window, tokens, haystack) -> list[Span]:
+def _windows(places, window, tokens, haystack, *, ordered=False) -> list[Span]:
     out: list[Span] = []
 
     def walk(index: int, chosen: list[tuple[int, int]]) -> None:
@@ -385,6 +406,8 @@ def _windows(places, window, tokens, haystack) -> list[Span]:
                 out.append((haystack, tokens[first][1], tokens[last][2]))
             return
         for place in places[index]:
+            if ordered and chosen and place[0] <= chosen[-1][1]:
+                continue
             if all(place[1] < a or place[0] > b for a, b in chosen):
                 low = min([place[0], *(a for a, _ in chosen)])
                 high = max([place[1], *(b for _, b in chosen)])
@@ -417,7 +440,49 @@ def _governs(cue: re.Match, before: str) -> bool:
     return bool(CLAUSE_CUE.search(cue.group())) or not NEW_SUBJECT.search(between)
 
 
+def effective_alternative(pattern: Mapping, alternative: Mapping) -> dict:
+    """Parent opt-ins apply to every alternative; alternatives may add constraints."""
+    return {
+        **alternative,
+        **{flag: bool(pattern.get(flag) or alternative.get(flag)) for flag in MATCH_FLAGS},
+    }
+
+
+def _affirmative_negated(haystack: str, start: int, end: int) -> bool:
+    """Opt-in cue check includes the matched claim, without rejecting other clauses.
+
+    This remains a bounded grammatical heuristic, not a semantic entailment test.
+    'not only' is additive; ordinary negations are tested against the following claim.
+    """
+    text = haystack.replace("\u2019", "'")
+    # Preserve offsets when masking the additive expression.
+    text = re.sub(r"\bnot\s+only\b", lambda m: " " * len(m.group()), text, flags=re.I)
+    if negated(text, start, end):
+        return True
+    before = [m.end() for m in CLAUSE_BREAK.finditer(text, 0, start)]
+    begin = before[-1] if before else 0
+    for cue in AFFIRMATIVE_CUES.finditer(text, begin, end):
+        tail = text[cue.end() : end]
+        if CLAUSE_BREAK.search(tail):
+            continue
+        if _governs(cue, text[:end]):
+            return True
+    return False
+
+
 def occurrences(pattern: Mapping, text: str, tool) -> list[Span]:
+    """Occurrences satisfying this rule's opt-in constraints."""
+    if pattern.get("clause"):
+        text = _clause_text(text)
+    spans = _occurrences(pattern, text, tool)
+    if pattern.get("clause"):
+        spans = [s for s in spans if not CLAUSE_BREAK.search(s[0], s[1], s[2])]
+    if pattern.get("affirmative"):
+        spans = [s for s in spans if not _affirmative_negated(*s)]
+    return spans
+
+
+def _occurrences(pattern: Mapping, text: str, tool) -> list[Span]:
     """Every occurrence of a pattern (for `any_of`, of any alternative; `tool` is then the
     tuple of the alternatives' tools)."""
     kind, value = pattern["kind"], pattern["value"]
@@ -426,12 +491,18 @@ def occurrences(pattern: Mapping, text: str, tool) -> list[Span]:
         found: list[Span] = []
         for k, alternative in enumerate(pattern.get("alternatives") or []):
             own = tools[k] if k < len(tools) else None
-            found += occurrences({**alternative, "alternatives": None}, text, own)
+            found += occurrences(effective_alternative(pattern, alternative), text, own)
         return found
     if kind in TOOL_KINDS:
         return tool_spans(text, tool) if isinstance(tool, Tool) else []
     if kind == "tokens":
-        return tokens_spans(text, value, pattern.get("window"))
+        return tokens_spans(
+            text,
+            value,
+            pattern.get("window"),
+            ordered=pattern.get("ordered", False),
+            clause=pattern.get("clause", False),
+        )
     if kind == "regex":
         haystack = collapse(text)
         return [(haystack, m.start(), m.end()) for m in re.finditer(value, haystack, re.I)]
@@ -446,14 +517,29 @@ def occurrences(pattern: Mapping, text: str, tool) -> list[Span]:
 
 
 def matches(pattern: Mapping, text: str, tool) -> bool:
-    """Whether the pattern occurs in text at all (a required pattern's test)."""
+    """Whether an occurrence satisfies the pattern's opt-in controls."""
     return bool(occurrences(pattern, text, tool))
 
 
 def affirmative(pattern: Mapping, text: str, tool) -> bool:
     """Whether the pattern occurs in a clause that does not negate it (a forbidden
     pattern's test: "Do not remove the slab" is a warning, not compliance)."""
-    return any(not negated(*span) for span in occurrences(pattern, text, tool))
+    # Keep each alternative's policy: an opt-in leaf has already been filtered by
+    # occurrences(), while an unflagged leaf still needs the legacy forbidden check.
+    if pattern["kind"] == "any_of":
+        tools = tool if isinstance(tool, tuple) else ()
+        return any(
+            affirmative(
+                effective_alternative(pattern, alternative),
+                text,
+                tools[k] if k < len(tools) else None,
+            )
+            for k, alternative in enumerate(pattern.get("alternatives") or [])
+        )
+    spans = occurrences(pattern, text, tool)
+    if pattern.get("affirmative"):
+        return bool(spans)
+    return any(not negated(*span) for span in spans)
 
 
 def hit(pattern: Mapping, text: str, tool) -> bool:

@@ -69,7 +69,7 @@ SLOTS_SCHEMA = "gold-slots-v1"
 SUBSTITUTIONS_SCHEMA = "gold-slot-substitutions-v1"
 SET_SCHEMA = "gold-set-v1"
 BATCH_SCHEMA = "gold-draft-batch-v1"
-CHECKER = "gold-check-v2"
+CHECKER = "gold-check-v3"
 INPUT_RENDERING = "gold-input-v1"
 SET_LICENSE = (
     "CC BY-SA 4.0 (generated data); quoted Bonsai or Blender Manual text keeps its source license"
@@ -299,12 +299,19 @@ class GoldCodeCitation(LaneCodeCitation):
 
 class Alternative(_Model):
     """One accepted form of an `any_of` pattern: a tool (by id, label, button text, menu
-    route or hotkey), a `phrase` or an order-free `tokens` set."""
+    route or hotkey), a `phrase` or a `tokens` set with optional matching controls."""
 
     kind: AlternativeKind
     value: str = Field(min_length=1)
     window: int | None = Field(default=None, ge=2, le=gp.MAX_WINDOW)
     support: list[Ref] = []
+    ordered: bool = False
+    affirmative: bool = False
+    clause: bool = False
+
+    @model_serializer(mode="wrap")
+    def _omit(self, handler):
+        return {k: v for k, v in handler(self).items() if k not in gp.MATCH_FLAGS or v}
 
 
 class Pattern(_Model):
@@ -318,11 +325,15 @@ class Pattern(_Model):
     support: list[Ref] = []
     window: int | None = Field(default=None, ge=2, le=gp.MAX_WINDOW)
     alternatives: list[Alternative] | None = None
+    ordered: bool = False
+    affirmative: bool = False
+    clause: bool = False
 
     @model_serializer(mode="wrap")
     def _omit(self, handler):
-        # Added in gold-check-v2; left out while unused so earlier drafts keep their digests.
-        return omit_empty(handler(self), ("window", "alternatives"))
+        # Omit unused v2 fields and false v3 controls to preserve earlier draft digests.
+        data = omit_empty(handler(self), ("window", "alternatives"))
+        return {k: v for k, v in data.items() if k not in gp.MATCH_FLAGS or v}
 
 
 class Unusual(_Model):
@@ -1567,7 +1578,7 @@ def _patterns(item: GoldContent, ctx: Context, line: VersionLine) -> list[str]:
             if not pattern.reason:
                 found.append(f"{shown}: a forbidden pattern needs a reason")
             if pattern.kind != "planted" and pattern.field not in gp.FORBIDDEN_FIELDS:
-                found.append(f"{shown}: a forbidden pattern scores steps or tools_required only")
+                found.append(f"{shown}: a forbidden pattern needs a scored field")
         if pattern.kind == "phrase":
             found += _phrase_rules(shown, pattern.value, pattern.support, quotes)
             if pattern.support and not _phrase_anchored(pattern.value, pattern.support, quotes):

@@ -697,7 +697,7 @@ def test_a_redecision_supersedes_and_an_old_packet_cannot_override_silently(tmp_
     # A draft in two unimported packets (possible before that refusal): the older packet's
     # other decisions can still be imported, and it never overrides the newer decision.
     with monkeypatch.context() as patched:
-        patched.setattr(gold_review.Store, "outstanding", lambda self: {})
+        patched.setattr(gold_review.Store, "outstanding", lambda self, digests=None: {})
         export(tmp_path, items=["GS-SD-901"])
     decide(tmp_path, "GS-SD-901", "approve", packet_id="GP-002")
     import_(tmp_path, "GP-002")

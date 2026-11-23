@@ -1,0 +1,5 @@
+        prop_with_search(self.layout, pprops, "export_schema")
+        row = self.layout.row()
+        row.prop(context.scene.unit_settings, "system")
+        row = self.layout.row()
+        row.prop(context.scene.unit_settings, "length_unit")

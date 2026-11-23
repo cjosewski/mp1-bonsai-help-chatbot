@@ -1,0 +1,11 @@
+        if props.is_editing:
+            self.draw_editable_ui(context)
+        else:
+            self.draw_ui(context)
+
+    def draw_editable_ui(self, context):
+        props = tool.Georeference.get_georeference_props()
+        row = self.layout.row(align=True)
+        row.label(text="Projected CRS", icon="WORLD")
+        row.operator("bim.edit_georeferencing", icon="CHECKMARK", text="")
+        row.operator("bim.disable_editing_georeferencing", icon="CANCEL", text="")

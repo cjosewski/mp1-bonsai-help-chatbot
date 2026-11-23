@@ -1,0 +1,8 @@
+def edit_georeferencing(ifc: type[tool.Ifc], georeference: type[tool.Georeference]) -> None:
+    ifc.run(
+        "georeference.edit_georeferencing",
+        projected_crs=georeference.export_projected_crs(),
+        coordinate_operation=georeference.export_coordinate_operation(),
+    )
+    georeference.disable_editing()
+    georeference.set_model_origin()

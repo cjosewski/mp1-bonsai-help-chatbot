@@ -1,0 +1,18 @@
+class AddGeoreferencing(bpy.types.Operator, tool.Ifc.Operator):
+    bl_idname = "bim.add_georeferencing"
+    bl_label = "Add Georeferencing"
+    bl_options = {"REGISTER", "UNDO"}
+    bl_description = "Add a new georeference"
+
+    def _execute(self, context):
+        core.add_georeferencing(tool.Georeference)
+
+
+class EnableEditingGeoreferencing(bpy.types.Operator, tool.Ifc.Operator):
+    bl_idname = "bim.enable_editing_georeferencing"
+    bl_label = "Enable Editing Georeferencing"
+    bl_options = {"REGISTER", "UNDO"}
+    bl_description = "Enable editing georeferencing"
+
+    def _execute(self, context):
+        core.enable_editing_georeferencing(tool.Georeference)

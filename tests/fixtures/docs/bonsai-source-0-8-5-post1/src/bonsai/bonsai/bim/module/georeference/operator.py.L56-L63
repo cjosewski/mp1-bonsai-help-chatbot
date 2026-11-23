@@ -1,0 +1,8 @@
+class EditGeoreferencing(bpy.types.Operator, tool.Ifc.Operator):
+    bl_idname = "bim.edit_georeferencing"
+    bl_label = "Edit Georeferencing"
+    bl_options = {"REGISTER", "UNDO"}
+    bl_description = "Edit the georeferencing"
+
+    def _execute(self, context):
+        core.edit_georeferencing(tool.Ifc, tool.Georeference)

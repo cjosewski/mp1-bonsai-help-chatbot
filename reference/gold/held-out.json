@@ -1,7 +1,7 @@
 {
-  "checker": "gold-check-v2",
+  "checker": "gold-check-v3",
   "counts": {"control": 3, "single": 1},
-  "digest": "9d1d5529c79e8e5a42c4b2a41a28eacd19f7ded881dfe7317a60334a6722b8c5",
+  "digest": "5efc6aa53f7dc3d2ea747862bb792fc54ca5e75b0071928d3dfc74ceafcb7320",
   "docs_index": "5dc286fdb8c2cadf2ab90af85a4e4b637ebd8826e0bbb931ab4638ab683b252d",
   "input_rendering": "gold-input-v1",
   "items": [

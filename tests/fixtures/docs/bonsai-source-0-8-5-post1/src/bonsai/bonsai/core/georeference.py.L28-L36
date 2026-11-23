@@ -1,0 +1,9 @@
+def add_georeferencing(georeference: type[tool.Georeference]) -> None:
+    georeference.add_georeferencing()
+    georeference.set_model_origin()
+
+
+def enable_editing_georeferencing(georeference: type[tool.Georeference]) -> None:
+    georeference.import_projected_crs()
+    georeference.import_coordinate_operation()
+    georeference.enable_editing()

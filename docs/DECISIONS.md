@@ -896,6 +896,37 @@ and Chad's "Code wins, cited" rule; nothing here approves, imports or reviews an
   as GP-006 to GP-008 (58 development) and GP-009 and GP-010 (46 held-out), and SF-021 as
   setup packet SR-002. The packets stay outside Git under `data/`; the imports are Chad's.
 
+### November 22, 2026: corrections after the second packet review
+
+Chad answered "Yes" to correcting the affected answers and scoring rules. This authorizes
+redrafting and replacement review packets, not acceptance of any draft or import of a review.
+
+Assistant implementation choices:
+
+- `gold-check-v3` adds optional `ordered`, `clause` and `affirmative` controls to patterns
+  and alternatives. Defaults are omitted from serialization so existing accepted drafts
+  retain their content hashes. Positive claims can reject governing negation; negative
+  claims keep explicit negative wording rather than using the positive-claim control.
+- Forbidden patterns can inspect any scored answer field. The previous steps/tools-only
+  restriction let obsolete instructions in the answer text escape detection.
+- These are still lexical heuristics, not semantic equivalence tests or rubric decisions.
+  Regression cases include both correct paraphrases and incorrect reversals, wrong actions,
+  missing conditions and harmless warnings. Existing accepted items retain their decisions.
+- A packet bound to obsolete checking/source digests remains as a record, but no longer
+  prevents export of a replacement packet for the same pending draft. Import continues to
+  reject stale decisions. No synthetic import is used to clear the old packet queue.
+- SF-021's ProjectedCRS code excerpts now start one line earlier, showing the IFC2X3
+  condition directly. Its narrow claim and assistant-drafted status are unchanged.
+
+- The follow-up revises 46 assistant drafts across the original packet review, including
+  colour/status ownership, operation order, conditional advice and obsolete UI routes.
+  The six accepted item bodies and all imported decisions remain unchanged. Replacement
+  packets GP-011 to GP-015 contain all 104 pending items; SR-003 contains the expanded
+  SF-021 evidence. Older packets are retained, not overwritten.
+- Independent review found additional counterexamples after the first passing probe run;
+  those concrete cases were corrected and retained as regressions. This does not establish
+  general paraphrase equivalence or replace Chad's review, and no live Bonsai run is claimed.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

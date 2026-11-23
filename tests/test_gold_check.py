@@ -128,7 +128,6 @@ def with_citation(item: dict, record_id: str, role: str = "support") -> dict:
             ),
             "a regex needs a reason",
         ),
-        (change(single(), "patterns.2.field", "answer"), "scores steps or tools_required only"),
         (change(single(), "patterns.2.reason", None), "a forbidden pattern needs a reason"),
         (
             change(

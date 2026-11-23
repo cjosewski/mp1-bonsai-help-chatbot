@@ -244,13 +244,19 @@ class Store:
             return "rejected"
         return "pending"
 
-    def outstanding(self) -> dict[tuple[str, str], str]:
-        """(item, draft) pairs in an exported packet that has not been imported."""
+    def outstanding(self, digests: Mapping | None = None) -> dict[tuple[str, str], str]:
+        """Unimported (item, draft) pairs, optionally only for the current checking context.
+
+        A packet with obsolete check/source digests remains on disk as evidence, but cannot
+        settle a current review and must not prevent exporting a replacement packet.
+        Without digests, retain the historical inventory (also used by setup reviews).
+        """
         imported = {record["packet_id"] for record in self.imports()}
         return {
             (entry["item"], entry["draft_sha256"]): packet["packet_id"]
             for packet in self.packets()
             if packet["packet_id"] not in imported
+            and (digests is None or packet.get("digests") == digests)
             for entry in packet["items"]
         }
 
@@ -487,22 +493,26 @@ def render_item(item: GoldContent, ctx: Context, prior: dict | None) -> tuple[st
     def row(values) -> str:
         return "| " + " | ".join(_cell(v) for v in values) + " |"
 
-    def accepted(kind: str, value: str, window, tool) -> str:
+    def accepted(rule, tool) -> str:
+        kind, value, window = rule["kind"], rule["value"], rule.get("window")
+        flags = ", ".join(f"{flag}=true" for flag in gp.MATCH_FLAGS if rule.get(flag))
         if isinstance(tool, gp.Tool):
-            return ", ".join([tool.value, *tool.forms])
-        if kind == "tokens":
-            return f"all of: {value} (any order, within {window} tokens of a sentence)"
-        return "(text)"
+            forms = ", ".join([tool.value, *tool.forms])
+        elif kind == "tokens":
+            order = "entry order" if rule.get("ordered") else "any order"
+            scope = "clause" if rule.get("clause") else "sentence"
+            forms = f"all of: {value} ({order}, within {window} tokens of a {scope})"
+        elif kind == "any_of":
+            forms = f"any of {len(rule.get('alternatives') or [])} alternatives below"
+        else:
+            forms = "(text)"
+        return forms + (f"; {flags}" if flags else "")
 
     for pattern in item.patterns:
         tool = tools_by_id.get(pattern.id)
         text = gp.field_text(fields, pattern.field)
         hit = gp.hit(pattern.model_dump(), text, tool)
-        forms = (
-            f"any of {len(pattern.alternatives or [])} alternatives below"
-            if pattern.kind == "any_of"
-            else accepted(pattern.kind, pattern.value, pattern.window, tool)
-        )
+        forms = accepted(pattern.model_dump(), tool)
         out.append(
             row(
                 (
@@ -530,7 +540,8 @@ def render_item(item: GoldContent, ctx: Context, prior: dict | None) -> tuple[st
                 )
                 tie = "from its quotes" if tied else "paraphrase: check it against its quotes"
             support = f" [{', '.join(alternative.support)}]" if alternative.support else ""
-            sub = gp.matches({**alternative.model_dump(), "alternatives": None}, text, own)
+            effective = gp.effective_alternative(pattern.model_dump(), alternative.model_dump())
+            sub = gp.hit({**effective, "polarity": pattern.polarity}, text, own)
             out.append(
                 row(
                     (
@@ -540,8 +551,7 @@ def render_item(item: GoldContent, ctx: Context, prior: dict | None) -> tuple[st
                         alternative.value + support,
                         "",
                         "",
-                        f"{accepted(alternative.kind, alternative.value, alternative.window, own)}"
-                        f"; {tie}",
+                        f"{accepted(effective, own)}; {tie}",
                         "yes" if sub else "no",
                     )
                 )
@@ -649,7 +659,7 @@ def export_packets(
     with store.locked():
         heads = store.heads()
         decisions = store.decisions()
-        outstanding = store.outstanding()
+        outstanding = store.outstanding(_staleness_digests(ctx))
         chosen = []
         if items:
             for item_id in items:
@@ -1146,9 +1156,12 @@ def status(store: Store, ctx: Context, gold_dir: Path) -> Report:
             report.warnings.append(
                 f"orphan draft gold/drafts/{path.parent.name}/{path.name}; inspect it"
             )
-    outstanding = store.outstanding()
+    outstanding = store.outstanding(_staleness_digests(ctx))
     for packet in sorted(set(outstanding.values())):
         report.warnings.append(f"{packet} exported, not yet imported")
+    obsolete = set(store.outstanding().values()) - set(outstanding.values())
+    for packet in sorted(obsolete):
+        report.warnings.append(f"{packet} uses an obsolete checking context; retained as a record")
     published = published_ids(gold_dir)
     current = store.head_items(heads)
     grouped = by_item(check_heads(current, current, ctx), list(current))

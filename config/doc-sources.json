@@ -1601,6 +1601,16 @@
           "path": "src/bonsai/bonsai/tool/geometry.py",
           "line_start": 2423,
           "line_end": 2425
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/data.py",
+          "line_start": 104,
+          "line_end": 106
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/project/ui.py",
+          "line_start": 383,
+          "line_end": 387
         }
       ],
       "fixture_min_per_category": 0,
@@ -2219,6 +2229,36 @@
           "path": "src/bonsai/bonsai/tool/search.py",
           "line_start": 133,
           "line_end": 144
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/data.py",
+          "line_start": 104,
+          "line_end": 106
+        },
+        {
+          "path": "src/bonsai/bonsai/core/georeference.py",
+          "line_start": 28,
+          "line_end": 36
+        },
+        {
+          "path": "src/bonsai/bonsai/core/georeference.py",
+          "line_start": 48,
+          "line_end": 55
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/ui.py",
+          "line_start": 52,
+          "line_end": 62
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/operator.py",
+          "line_start": 26,
+          "line_end": 43
+        },
+        {
+          "path": "src/bonsai/bonsai/bim/module/georeference/operator.py",
+          "line_start": 56,
+          "line_end": 63
         }
       ],
       "fixture_min_per_category": 0,
