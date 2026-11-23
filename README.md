@@ -1,12 +1,17 @@
-# Bonsai help chatbot (Mini Project 1)
+# Bonsai help Q&A synthetic data (Mini Project 1)
 
-A course example, not a product. This repository builds and evaluates a small help
-chatbot for one AEC topic: building information modeling with
-[Bonsai](https://bonsaibim.org/) in [Blender](https://www.blender.org/). The chatbot
-answers a user's Bonsai question for that user's stated setup (Blender and Bonsai
-versions, IFC schema, discipline, model state). It works from the Bonsai documentation
-and the Blender Manual. The same documentation is used to derive synthetic questions
-and reference answers, and to ground the judge that evaluates the answers.
+A course example, not a product. This repository generates and evaluates synthetic help
+data for one AEC topic: building information modeling with
+[Bonsai](https://bonsaibim.org/) in [Blender](https://www.blender.org/). One generation
+prompt, parameterized by category and user setup (Blender and Bonsai versions, IFC
+schema, discipline, model state), writes each question and its seven-field answer from
+pinned sections of the Bonsai documentation and the Blender Manual. The same
+documentation grounds the judge that evaluates the items.
+
+On November 23, 2026 Chad moved the help chatbot itself, its doc tools, the security pass
+and the gold set to Mini Project 4; MP1 is the data and its evaluation, as the course brief
+asks. The repository name still says "chatbot" until Chad decides otherwise (open item
+O-8).
 
 The project follows the course's six-step pipeline: generate, first-pass gate, human
 labels, LLM judge, analysis, and two-phase iteration. The owner's plan,
@@ -17,7 +22,10 @@ edits Chad directed for this public copy are recorded in
 ## Status
 
 **Milestones B0 (repository readiness), B1 (documentation snapshots) and B2 (lexicons
-and setup facts) are done.** Install, the offline tests, the documentation corpus
+and setup facts) are done. B3 (gold set) was withdrawn from MP1 on November 23, 2026**
+and moves to Mini Project 4; its tooling and the 6 published items stay here, frozen, and
+the paused review packets stay unimported. B4 is next. The B3 history below is kept as a
+record. Install, the offline tests, the documentation corpus
 rebuild, the section index, the lexicons and the setup-fact checks run today; every
 pipeline step below is marked *not yet implemented* and will be filled in when its
 milestone lands. Chad's decisions on the B2 setup records (packet SR-001) are applied: 38
@@ -49,14 +57,14 @@ Older packets remain as records. No new review decisions were imported.
 | B0 | Repository, licenses, decision log, porting map, packaging | Done |
 | B1 | Pinned, hashed documentation snapshots; fixture slice | Done |
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (Chad's SR-001 decisions applied) |
-| B3 | Gold set and multi-part and injection requests | In progress: 6 of 110 items accepted and published; 104 drafts await review (GP-021 to GP-025) |
-| B4 | Rubric, prompts, deterministic checks; generation, gate and collection modules ported | Not yet implemented |
+| B3 | Gold set and multi-part and injection requests | Withdrawn from MP1 (moves to Mini Project 4); 6 of 110 items published and frozen; 104 drafts unreviewed |
+| B4 | Rubric, section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Not yet implemented |
 | B5 | Baseline run | Not yet implemented |
 | B6 | Baseline human labels | Not yet implemented |
 | B7 | Judge and Phase A calibration | Not yet implemented |
 | B8 | Phase B correction | Not yet implemented |
-| B9 | Analysis, charts and security pass | Not yet implemented |
-| B10 | Submission set, replay demo, iteration log, demo video, coaching approval | Not yet implemented |
+| B9 | Analysis and charts | Not yet implemented |
+| B10 | Submission set, pipeline replay demo, iteration log, demo video, coaching approval | Not yet implemented |
 
 No dataset, label, judge result or chart exists yet. No model measurement is claimed;
 the counts below are counts of pinned files.
@@ -207,7 +215,7 @@ uv run --locked bonsai-help setup check
 | --- | --- | --- |
 | `docs index build` | Cut every docs page at its headings into section records under `data/index/` (git-ignored, never overwritten; a present index is verified) and compare with `reference/docs-index.json`. `--write-digest` writes that file (once per pin change) | Never |
 | `docs index check [--committed]` | The committed digest agrees with the config and manifest; without `--committed`, a rebuild and the built index agree with it | Never |
-| `docs search QUERY [--source ID] [--tag T] [--top N]` | BM25 over passages of the built index (a precursor of B5's `search_docs`) | Never |
+| `docs search QUERY [--source ID] [--tag T] [--top N]` | BM25 over passages of the built index (a precursor of Mini Project 4's `search_docs`) | Never |
 | `docs section RECORD_ID` | Print one section record; an unknown id is exit 1 | Never |
 | `lexicon build [--write]` | Extract every lexicon from the verified snapshots and compare with `reference/lexicons/` (exit 1 on a difference); `--write` writes them | Never |
 | `lexicon check [--committed]` | Layout, digest, pins, ordering, counts, no privacy match, and the RST entries of fixture pages equal a re-extraction from the fixture slice; without `--committed`, also a full rebuild | Never |
@@ -272,7 +280,7 @@ says no more than its quotes is not machine-checked: every row, profile and vers
 is `assistant_drafted` until Chad decides it in a review packet, and uncited rows cannot
 exist.
 
-### Chad's review of the setup drafts (B3)
+### Chad's review of the setup drafts (begun at B3)
 
 Chad reviews the version lines, profiles and fact rows through the same Markdown packets as
 the gold items (about 25 records each), outside Git under `data/setup-review/`:
@@ -294,6 +302,9 @@ A review binds to the record's content (everything but its status and review), s
 stays in `data/setup-review/imports/`.
 
 ## Gold set (B3)
+
+Withdrawn from MP1 on November 23, 2026; kept, frozen, as the seed for Mini Project 4's
+relevance labels. The text below describes the tooling as built.
 
 The gold set is 110 slots (Chad's decisions of November 22, 2026): 50 development and 25
 held-out questions, 15 multi-part requests drawn from the Bonsai tutorials (10 development,
@@ -408,7 +419,7 @@ The published files are CC BY-SA 4.0 data; quotes keep their source license (`NO
 *Not yet implemented (B4 to B9).* Each step will run on its own against saved
 artifacts:
 
-1. Generate: derive questions, then answer them (B4, B5, B8).
+1. Generate: one prompt per category and setup profile writes each item from pinned doc sections (B4, B5, B8).
 2. First-pass gate: schema, deterministic checks, duplicates, category balance (B4, B5).
 3. Human labels: blind, resumable labeling (B6).
 4. Judge: independent prompt at a lower temperature than the generator (B7).

@@ -1,10 +1,11 @@
-# Bonsai help chatbot (Mini Project 1)
+# Bonsai help Q&A synthetic data (Mini Project 1)
 
-This public repository is a course example, not a product. It builds a help chatbot for
-building information modeling with Bonsai in Blender, generates synthetic question and
-answer data from the Bonsai documentation and the Blender Manual, and evaluates the
-chatbot with the course's six-step pipeline: generate, first-pass gate, human labels,
-LLM judge, analysis, and two-phase iteration.
+This public repository is a course example, not a product. It generates synthetic help
+question and answer data for building information modeling with Bonsai in Blender,
+grounded in the Bonsai documentation and the Blender Manual, and evaluates it with the
+course's six-step pipeline: generate, first-pass gate, human labels, LLM judge, analysis,
+and two-phase iteration. The help chatbot itself moved to Mini Project 4 on November 23,
+2026 (below); the repository name still says "chatbot" (open item O-8).
 
 The owner is Chad Josewski. The plan is his document `docs/MP1-BONSAI-HELP-CHATBOT.md`
 ("proposed plan, not started"). Change the plan only on Chad's direction, and record
@@ -113,13 +114,23 @@ with Chad's four decisions (pairings, IFC schemas, review packets, drafting; quo
     regenerate them only with `gold slots --write` and `gold publish --write`, never by
     hand. NOTE text and `data/gold/` never enter Git.
   - Held-out items are public but held out from development decisions: load them only
-    through `gold.load_held_out` (checker, publish, packets; later the assessed runs).
+    through `gold.load_held_out` (checker, publish, packets; in MP4, the assessed runs).
     Prompts, few-shot examples and judge-v2 examples use development items only, and
     `gold score` scores development items only.
 
-Then B4 (rubric, prompts, checks
-and the first ported modules), and B5–B10 as the plan's §9 describes. B3, B6 and B8 need
-Chad's review and labels.
+As of November 23, 2026, **MP1's scope is revised** (Chad: "This plan is approved. Modify
+MP1 as needed."; details in `docs/DECISIONS.md`). MP1 creates and evaluates data: one
+generation prompt, parameterized by category and setup profile, writes each seven-field
+item from pinned doc sections, grounded from the baseline on; Phase B is one targeted,
+pre-registered change to that prompt. The help chatbot, the doc tools `search_docs` and
+`get_doc_section`, the security pass and the gold set move to Mini Project 4. **B3 is
+withdrawn from MP1**: the gold tooling, its tests and the 6 published items stay, frozen,
+and the gold rules above still bind anything touching `reference/gold/` or `data/gold/`.
+The paused gold packets GP-021 to GP-025 stay unimported; do not ask Chad to review them for
+MP1. Setup review SR-003 (fact row SF-021) stays an MP1 item, still pending.
+
+Next is B4 (rubric, section sampler, generation prompt v1, checks and the first ported
+modules), then B5–B10 as the plan's §9 describes. B6 and B8 need Chad's labels.
 
 B0 scope is the assistant's call, not Chad's: earlier pipeline modules were not copied.
 B4 ports them module by module, each with its tests, following `docs/PORTING-MAP.md`. The
@@ -220,8 +231,9 @@ Recorded as owner-reported, in Chad's words where given. Details in `docs/DECISI
   and O-7 open), at least 50 retained items per run (generate about 70). A setup record
   travels with every item; uncited setup-fact rows are not scored; items are split by
   setup profile so no profile leaks between development and assessed sets. One embedding
-  model for every vector. The chatbot has only read-only tools (`search_docs`,
-  `get_doc_section`) and a step budget. The security pass is reported separately.
+  model for every vector. Generation cites the pinned sections each item was written
+  from. The chatbot, its read-only tools and the security pass belong to Mini Project 4,
+  not this pipeline.
 - **Iteration.** Every prompt change gets an iteration-log entry: date, change,
   hypothesis, before and after, decision, next step. Phase B correction is pre-registered
   from the heatmap before any corrected run.

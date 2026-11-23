@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "mp1-bonsai-help-chatbot"
 version = "0.1.0"
-description = "Course example: a Bonsai (Blender BIM) help chatbot with synthetic data generation and evaluation"
+description = "Course example: synthetic Bonsai (Blender BIM) help Q&A data generation and evaluation"
 readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]

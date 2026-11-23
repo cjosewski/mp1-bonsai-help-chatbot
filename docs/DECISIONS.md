@@ -6,7 +6,7 @@ approval is implied. Open items keep the plan's default, stated as a default, un
 Chad decides them.
 
 The plan is `docs/MP1-BONSAI-HELP-CHATBOT.md` ("proposed plan, not started"). Its
-section numbers (§) and open-item IDs (O-1 to O-7) are used below. The plan changes
+section numbers (§) and open-item IDs (O-1 to O-8) are used below. The plan changes
 only on Chad's direction; each change, and any later decision that departs from it, is
 recorded here.
 
@@ -1111,13 +1111,45 @@ round-4 gold review should go ahead meanwhile, Chad chose "Pause it (Recommended
 to GP-025 and SR-003 stay valid and unimported. The plan is unchanged until Chad decides
 the scope.
 
+### November 23, 2026: MP1 scope revised; chatbot and gold set move to Mini Project 4
+
+After reading the Mini Project 1 to 9 briefs, Chad chose a project map for the course
+(MP2 as change requests paired with candidate patches: "I want MP2 to be the change
+requests option.") and then said: "This plan is approved. Modify MP1 as needed." The plan
+(`docs/MP1-BONSAI-HELP-CHATBOT.md`) is revised on that direction:
+
+- **Scope.** Mini Project 1 creates and evaluates synthetic Q&A data, as the course brief
+  asks. One structured generation prompt, parameterized by category and setup profile,
+  writes each seven-field item from pinned doc sections (plan §7 Step 1). The generator is
+  grounded from the baseline on; Phase B is one targeted, pre-registered change to that
+  prompt for the worst segment and dimension.
+- **Moved to Mini Project 4.** The help chatbot, the read-only tools `search_docs` and
+  `get_doc_section`, the step budget, the security pass, and the gold set with its
+  multi-part, injection, control and held-out items.
+- **B3 withdrawn from MP1.** The gold-set tooling (`bonsai-help gold ...`), its tests and
+  the 6 published items stay in this repository, frozen, as the seed for MP4's relevance
+  labels. The paused gold packets GP-021 to GP-025 stay unimported; whether they are
+  reviewed later is MP4's decision. SR-003 (fact row SF-021) is a setup review and stays
+  an MP1 item, still pending. Gold rules in `AGENTS.md` still bind anything
+  that touches `reference/gold/`.
+- **Milestones.** B4 now includes the section sampler and generation prompt v1; B9 drops
+  the security scorecard; B10's replay demo replays the pipeline, not a chatbot. The
+  remaining estimate is about 30 hours (plan §9).
+- **Kept.** B0 to B2 work, the setup profiles and fact table (a setup record travels with
+  every item), the lexicons and checks, the six dimensions, thresholds, blind labels, the
+  judge rules and every implementation rule in `AGENTS.md`.
+- **Open.** O-7 (uniform 20% in place of the DIY benchmark) is now one of the questions for
+  the instructor in Chad's project map. New O-8: the repository name still says "chatbot";
+  it stays until Chad decides, because renaming changes the public URL.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
 | --- | --- | --- |
 | O-2 | Confirm the five categories in plan §5 | Use them as proposed: `bonsai_project_setup`, `bonsai_modeling`, `ifc_data_and_materials`, `model_exploration`, `files_versions_troubleshooting` |
 | O-6 | Recheck the Unit 5 Module 2 exercises and the Unit 7 and Unit 8 Module 1 notebooks when they are published | Recheck at B4 and before B10 |
-| O-7 | Distribution reference for category balance | Uniform 20% target |
+| O-7 | Distribution reference for category balance | Uniform 20% target; asked of the instructor (November 23) |
+| O-8 | Repository name `mp1-bonsai-help-chatbot` names the chatbot, which moved to Mini Project 4 | Keep the name until Chad decides |
 
 ## Amendment rule
 

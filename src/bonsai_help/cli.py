@@ -41,7 +41,9 @@ def repository_root(start: Path) -> Path | None:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="bonsai-help", description="Bonsai help chatbot tools.")
+    parser = argparse.ArgumentParser(
+        prog="bonsai-help", description="Bonsai help Q&A synthetic data tools."
+    )
     commands = parser.add_subparsers(dest="command", required=True)
 
     def paths(sub: argparse.ArgumentParser, *, data: bool = True, fixtures: bool = False) -> None:
