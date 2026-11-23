@@ -101,9 +101,14 @@ def test_credential_never_in_public_settings(tmp_path, monkeypatch):
     assert SENTINEL not in text
     assert "api_key" not in text
     assert config.public_settings()["authentication"] == "environment"
-    with pytest.raises(ValueError) as caught:
-        make(api_key_env=SENTINEL, api_key_file=SENTINEL)
-    assert SENTINEL not in str(caught.value)
+    for bad in (
+        {"seed": SENTINEL},
+        {"base_url": SENTINEL},
+        {"api_key_env": SENTINEL, "api_key_file": SENTINEL},
+    ):
+        with pytest.raises(ValidationError) as caught:
+            make(**bad)
+        assert SENTINEL not in str(caught.value)
 
 
 def test_artifact_root_rules(tmp_path):
@@ -159,3 +164,18 @@ def test_committed_prompt_formats_and_names_fields():
         "cited_section_ids",
     ):
         assert field in rendered
+
+
+def test_escaped_placeholder_is_rejected(tmp_path):
+    bad = tmp_path / "escaped.md"
+    bad.write_text("{{category}} {setup} {sections}", encoding="utf-8")
+    with pytest.raises(ValueError, match="placeholder"):
+        load_prompt(make(prompt_path=str(bad)))
+
+
+def test_paths_resolve_against_repository_not_cwd(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    config = make()
+    assert config.artifact_path() == REPO / "runs"
+    assert config.prompt_file() == REPO / "prompts" / "generator-v1.md"
+    assert load_prompt(config)[0]

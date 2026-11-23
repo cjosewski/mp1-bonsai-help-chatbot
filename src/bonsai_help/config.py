@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import ipaddress
+import os
 import re
 from pathlib import Path
 from typing import Annotated, Literal
@@ -93,12 +94,18 @@ class RunConfig(BaseModel):
             except OSError as exc:
                 raise ValueError("cannot read configured API-key file") from exc
         else:
-            import os
-
             value = os.environ.get(self.api_key_env or "", "").strip()
         if not value:
             raise ValueError("configured API key is missing or empty")
         return value
+
+    def artifact_path(self) -> Path:
+        """The validated artifact root, resolved against the repository root."""
+        return _resolve(self.artifact_root)
+
+    def prompt_file(self) -> Path:
+        """The prompt file, resolved against the repository root."""
+        return _resolve(self.prompt_path)
 
     def public_settings(self) -> dict:
         return self.model_dump(exclude={"api_key_env", "api_key_file"}) | {
@@ -140,11 +147,13 @@ def load_config(path: Path) -> RunConfig:
 def load_prompt(config: RunConfig) -> tuple[str, str]:
     """Return the prompt text and the SHA-256 of its file bytes."""
     try:
-        raw = _resolve(config.prompt_path).read_bytes()
+        raw = config.prompt_file().read_bytes()
     except OSError as exc:
         raise ValueError("cannot read the generator prompt") from exc
     text = raw.decode("utf-8")
-    missing = [p for p in PROMPT_PLACEHOLDERS if p not in text]
+    missing = [
+        p for p in PROMPT_PLACEHOLDERS if not re.search(rf"(?<!\{{)\{{{p[1:-1]}\}}(?!\}})", text)
+    ]
     if missing:
         raise ValueError(f"generator prompt must include the placeholders {', '.join(missing)}")
     return text, hashlib.sha256(raw).hexdigest()
