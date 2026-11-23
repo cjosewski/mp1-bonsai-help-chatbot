@@ -24,6 +24,10 @@ def test_changed_checker_allows_new_packet_without_recording_a_review(tmp_path):
     assert store(tmp_path).imports() == []
     assert store(tmp_path).decisions() == []
     assert not any("GP-003:" in line for line in export(tmp_path, ctx=new).lines)
+    # GP-002 re-exported GP-001's unchanged draft; GP-001 is still reported as a record.
+    warnings = gold_review.status(store(tmp_path), new, tmp_path / "gold").warnings
+    assert "GP-001 uses an obsolete checking context; retained as a record" in warnings
+    assert "GP-002 exported, not yet imported" in warnings
     with pytest.raises(ConfigError, match="not yet imported"):
         export(tmp_path, ctx=new, items=["GS-SD-901"])
     decide(tmp_path, "GS-SD-901", "approve")

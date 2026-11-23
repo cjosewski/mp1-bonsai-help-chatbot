@@ -1156,10 +1156,18 @@ def status(store: Store, ctx: Context, gold_dir: Path) -> Report:
             report.warnings.append(
                 f"orphan draft gold/drafts/{path.parent.name}/{path.name}; inspect it"
             )
-    outstanding = store.outstanding(_staleness_digests(ctx))
+    digests = _staleness_digests(ctx)
+    outstanding = store.outstanding(digests)
     for packet in sorted(set(outstanding.values())):
         report.warnings.append(f"{packet} exported, not yet imported")
-    obsolete = set(store.outstanding().values()) - set(outstanding.values())
+    # Per packet, not per (item, draft): a packet whose drafts were all re-exported unchanged
+    # in a later packet is still an obsolete record.
+    imported = {record["packet_id"] for record in store.imports()}
+    obsolete = {
+        packet["packet_id"]
+        for packet in store.packets()
+        if packet["packet_id"] not in imported and packet.get("digests") != digests
+    }
     for packet in sorted(obsolete):
         report.warnings.append(f"{packet} uses an obsolete checking context; retained as a record")
     published = published_ids(gold_dir)

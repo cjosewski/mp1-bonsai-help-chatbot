@@ -76,18 +76,22 @@ with Chad's four decisions (pairings, IFC schemas, review packets, drafting; quo
   ("I delegated; record them as mine"); future packets may be reviewed the same way, and
   only he runs `gold packet import` and `setup review import`. The 6 accepted items are
   published (`reference/gold/`). The 104 rejected items are redrafted as assistant drafts
-  and exported for Chad's decisions. After further corrections to 46 drafts, replacement
-  packets are GP-011 to GP-015; fact row SF-021 is in SR-003. Earlier packets remain as
-  history. No new decisions were imported during these corrections.
+  and exported for Chad's decisions. After corrections to 46 drafts (November 22) and two
+  scoring fixes with 7 more redrafts (Chad, November 23, 2026: "Fix first, then re-export
+  (Recommended)"), replacement packets are GP-016 to GP-020; fact row SF-021 is still in
+  SR-003. Earlier packets remain as history. No new decisions were imported during these
+  corrections.
 - Docs versus code (Chad, November 22, 2026, "Code wins, cited"): where the pinned Bonsai
   docs and the pinned add-on source disagree, a reference answer follows the code, cites
   both (the doc section with role `conflict`, the code span as a code citation), and carries
   the unusual flag `doc_conflict`. Code spans join the fixture slice only as their own lines
   (`fixture_code_spans`, then `snapshot fixtures`); never commit a whole add-on file.
-- Checker `gold-check-v3` (assistant's calls in `docs/DECISIONS.md`): `any_of` and `tokens`
-  patterns with optional ordered, clause-bounded and affirmative matching; forbidden
-  instructions may be checked across all scored fields. Code citations (G26) and the regex budget
-  only for a set that fills every slot. Record every further change to a check as a dated
+- Checker `gold-check-v4` (assistant's calls in `docs/DECISIONS.md`): `any_of` and `tokens`
+  patterns with optional ordered, clause-bounded and affirmative matching (each only where it
+  has an effect); negation-aware forbidden patterns, which may be checked across all scored
+  fields, except that a forbidden tool or stale-docs pattern scores `steps` or
+  `tools_required` unless it is affirmative throughout; code citations (G26); and the regex
+  budget only for a set that fills every slot. Record every further change to a check as a dated
   assistant's call; never weaken a check silently.
 - Gold rules:
   - Only Chad writes a packet's `DECISION:` and `NOTE:` lines and its edit JSON, and only

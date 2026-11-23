@@ -24,8 +24,11 @@ deliberately strict so that a generic answer does not pass:
   operator id, its label, a documented button or menu route, or its hotkey; or paraphrases.
 
 The v3 controls are opt-in on patterns and alternatives: `ordered` preserves token-entry
-order; `clause` forbids crossing clause boundaries; `affirmative` also checks negation
-inside required matches. Parent controls apply to all alternatives. Defaults preserve
+order; `clause` forbids crossing clause boundaries (a colon does not end a clause there);
+`affirmative` also checks negation inside required matches, with stricter governance than
+the forbidden rule below (`_governs_claim`: "or"/"nor" never cancel a negation, nor does
+"and" after a negated auxiliary) and descriptive negation ("is not available", a docs claim
+contrasted with "but"). Parent controls apply to all alternatives. Defaults preserve
 the earlier matching rules and serialized content. These are grammatical heuristics,
 not proof that a claim follows from its sources.
 
@@ -96,7 +99,7 @@ MAX_WINDOW = 20
 MIN_PREFIX = 4
 MAX_ENTRIES = 6
 FIELDS = ("answer", "steps", "tools_required", "safety_info", "tips")
-FORBIDDEN_FIELDS = (*FIELDS, "any")
+INSTRUCTION_FIELDS = ("steps", "tools_required")
 MATCH_FLAGS = ("ordered", "affirmative", "clause")
 MENU_SEPARATOR = r"\s*(?:-->|->|>|›|→)\s*"
 KEY_LEADS = r"(?i:\b(?:press|pressing|key|hotkey|shortcut)\s+)"
@@ -105,6 +108,11 @@ JOIN = " | "
 SENTENCE_BREAK = re.compile(r"[.;!?](?=\s|$)|\s\|\s|\n")
 CLAUSE_BREAK = re.compile(
     r"[.;:!?,](?=\s|$)|\s\|\s|\n|\b(?:but|then|however|otherwise)\b", re.IGNORECASE
+)
+# The `clause` control's boundaries: as CLAUSE_BREAK but a colon does not end a clause, so a
+# legend ("Green: new objects") keeps its colour and meaning together.
+CLAUSE_SPAN_BREAK = re.compile(
+    r"[.;!?,](?=\s|$)|\s\|\s|\n|\b(?:but|then|however|otherwise)\b", re.IGNORECASE
 )
 NEGATION_BEFORE = re.compile(
     r"\b(?:do|does|did|should|must|can|could|will|would|need)\s+not\b"
@@ -133,8 +141,49 @@ NEGATION_AFTER = re.compile(
     re.IGNORECASE,
 )
 AFFIRMATIVE_CUES = re.compile(
-    NEGATION_BEFORE.pattern + r"|\bnot\b|\b(?:isn't|aren't|wasn't|weren't)\b", re.I
+    NEGATION_BEFORE.pattern
+    + r"|\bno\s+longer\b|\bneither\b|\bnot\b|\bno\b|\b(?:isn't|aren't|wasn't|weren't)\b",
+    re.I,
 )
+# Affirmative mode: a negated auxiliary (or "never", "neither", "no longer") distributes over
+# verbs joined by "and", and any negation distributes over "or"/"nor".
+NEGATED_AUXILIARY = re.compile(
+    r"(?:(?:do|does|did|should|must|can|could|will|would|need)\s+not|don't|doesn't|didn't|"
+    r"shouldn't|mustn't|can't|cannot|won't|wouldn't|isn't|aren't|wasn't|weren't|not|never|"
+    r"neither|no\s+longer)",
+    re.IGNORECASE,
+)
+AND = re.compile(r"\band\b", re.IGNORECASE)
+CANCELLING = re.compile(r"\b(?:so|yet|plus)\b|&", re.IGNORECASE)
+# "does not mean (that) you will lose": the negation governs the implied claim.
+IMPLICATION = re.compile(
+    r"^\s*(?:mean|means|imply|implies|indicate|indicates|suggest|suggests|guarantee|"
+    r"guarantees)\b",
+    re.IGNORECASE,
+)
+# Masked before the cue rule: "not only" is additive, "not false that" affirms.
+AFFIRMING = re.compile(
+    r"\bnot\s+only\b|\b(?:not|isn't|wasn't)\s+(?:false|untrue|incorrect|wrong)\s+that\b",
+    re.IGNORECASE,
+)
+REBUTTAL_AFTER = re.compile(r"\?\s*(?:no|nope|false|wrong|incorrect)\b", re.IGNORECASE)
+# Descriptive negation in affirmative mode: "the Unload Project button is not available".
+DESCRIPTIVE_AFTER = re.compile(
+    r"^\W{0,3}\s*(?:[a-z]+\s+){0,2}?(?:(?:is|are|was|were)\s+(?:not|no\s+longer)|isn't|aren't|"
+    r"wasn't|weren't)\s+(?:available|drawn|shown|present|there|offered|supported|provided|"
+    r"listed|included|displayed|visible)\b",
+    re.IGNORECASE,
+)
+# A claim attributed to the docs and contrasted in the same sentence ("The docs mention
+# Unload Project, but the pinned code does not draw it") reports the docs, not the answer.
+ATTRIBUTION = re.compile(
+    r"\b(?:docs|documentation|guides?|manual|tutorials?|pages?)\b(?:\s+[a-z]+){0,3}?\s+"
+    r"(?:mentions?|mentioned|says?|said|describes?|described|shows?|showed|shown|puts?|lists?|"
+    r"listed|points?|pointed|refers?|referred|names?|named|claims?|claimed|places?|placed|"
+    r"suggests?|suggested)\b",
+    re.IGNORECASE,
+)
+CONTRAST = re.compile(r"\b(?:but|however|whereas)\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -375,7 +424,7 @@ def tokens_spans(
         return []
     haystack = collapse(_clause_text(text) if clause else text).casefold()
     found: list[Span] = []
-    boundary = CLAUSE_BREAK if clause else SENTENCE_BREAK
+    boundary = CLAUSE_SPAN_BREAK if clause else SENTENCE_BREAK
     starts = [0, *(m.end() for m in boundary.finditer(haystack))]
     ends = [m.start() for m in boundary.finditer(haystack)] + [len(haystack)]
     for begin, end in zip(starts, ends, strict=True):
@@ -448,26 +497,65 @@ def effective_alternative(pattern: Mapping, alternative: Mapping) -> dict:
     }
 
 
+def _governs_claim(cue: re.Match, between: str) -> bool:
+    """Affirmative mode's governance: stricter than `_governs`, which errs toward counting an
+    attack. "or" and "nor" never cancel a negation ("does not clean up or remove"), nor does
+    "and" after a negated auxiliary ("won't tidy and delete"); "does not mean you will"
+    governs its implied claim despite the new subject."""
+    if DOUBLE_NEGATION.match(between) or CANCELLING.search(between):
+        return False
+    if AND.search(between) and not NEGATED_AUXILIARY.fullmatch(cue.group()):
+        return False
+    if CLAUSE_CUE.search(cue.group()) or IMPLICATION.match(between):
+        return True
+    return not NEW_SUBJECT.search(between)
+
+
 def _affirmative_negated(haystack: str, start: int, end: int) -> bool:
     """Opt-in cue check includes the matched claim, without rejecting other clauses.
 
-    This remains a bounded grammatical heuristic, not a semantic entailment test.
-    'not only' is additive; ordinary negations are tested against the following claim.
+    This remains a bounded grammatical heuristic, not a semantic entailment test. 'not only'
+    is additive and 'not false that' affirms; every other cue from the clause start to the
+    match end is tested with `_governs_claim`, a rebuttal question ("Green means new? No,
+    ...") negates the clause before it, and a trailing "is false" negates as for forbidden
+    patterns. Descriptive negation also negates: "... button is not available" after the
+    match, or a claim attributed to the docs and contrasted later in its sentence ("The docs
+    mention Unload Project, but the pinned code does not draw it").
     """
     text = haystack.replace("\u2019", "'")
-    # Preserve offsets when masking the additive expression.
-    text = re.sub(r"\bnot\s+only\b", lambda m: " " * len(m.group()), text, flags=re.I)
-    if negated(text, start, end):
-        return True
+    # Preserve offsets when masking.
+    text = AFFIRMING.sub(lambda m: " " * len(m.group()), text)
     before = [m.end() for m in CLAUSE_BREAK.finditer(text, 0, start)]
     begin = before[-1] if before else 0
+    after = CLAUSE_BREAK.search(text, end)
+    clause_end = after.start() if after else len(text)
+    following = text[end:clause_end]
+    if NEGATION_AFTER.search(following) or DESCRIPTIVE_AFTER.search(following):
+        return True
+    sentence = SENTENCE_BREAK.search(text, end)
+    if ATTRIBUTION.search(text, begin, start) and CONTRAST.search(
+        text, end, sentence.start() if sentence else len(text)
+    ):
+        return True
+    if after and REBUTTAL_AFTER.match(text, after.start()):
+        return True
     for cue in AFFIRMATIVE_CUES.finditer(text, begin, end):
-        tail = text[cue.end() : end]
-        if CLAUSE_BREAK.search(tail):
+        # A cue before the match is tested up to the match, one inside it up to its end.
+        between = text[cue.end() : start if cue.end() <= start else end]
+        if CLAUSE_BREAK.search(between):
             continue
-        if _governs(cue, text[:end]):
+        if _governs_claim(cue, between):
             return True
     return False
+
+
+def _crosses_clause(haystack: str, start: int, end: int) -> bool:
+    """Whether a span crosses a `clause` boundary; punctuation ending the span (the dots of
+    "Save As...") is not a boundary inside it."""
+    return any(
+        not (m.end() == end and m.group() in ".;!?,")
+        for m in CLAUSE_SPAN_BREAK.finditer(haystack, start, end)
+    )
 
 
 def occurrences(pattern: Mapping, text: str, tool) -> list[Span]:
@@ -476,7 +564,7 @@ def occurrences(pattern: Mapping, text: str, tool) -> list[Span]:
         text = _clause_text(text)
     spans = _occurrences(pattern, text, tool)
     if pattern.get("clause"):
-        spans = [s for s in spans if not CLAUSE_BREAK.search(s[0], s[1], s[2])]
+        spans = [s for s in spans if not _crosses_clause(*s)]
     if pattern.get("affirmative"):
         spans = [s for s in spans if not _affirmative_negated(*s)]
     return spans

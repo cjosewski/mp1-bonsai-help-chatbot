@@ -69,7 +69,7 @@ SLOTS_SCHEMA = "gold-slots-v1"
 SUBSTITUTIONS_SCHEMA = "gold-slot-substitutions-v1"
 SET_SCHEMA = "gold-set-v1"
 BATCH_SCHEMA = "gold-draft-batch-v1"
-CHECKER = "gold-check-v3"
+CHECKER = "gold-check-v4"
 INPUT_RENDERING = "gold-input-v1"
 SET_LICENSE = (
     "CC BY-SA 4.0 (generated data); quoted Bonsai or Blender Manual text keeps its source license"
@@ -1545,6 +1545,7 @@ def _patterns(item: GoldContent, ctx: Context, line: VersionLine) -> list[str]:
         found.append("pattern ids are not unique")
     tools = pattern_tools(item, ctx, line)
     cited, text = _support_text(item, ctx)
+    roles = _roles(item)
     for pattern in item.patterns:
         shown = f"pattern {pattern.id}"
         # G11 well formed for its kind
@@ -1577,8 +1578,17 @@ def _patterns(item: GoldContent, ctx: Context, line: VersionLine) -> list[str]:
         if pattern.polarity == "forbidden":
             if not pattern.reason:
                 found.append(f"{shown}: a forbidden pattern needs a reason")
-            if pattern.kind != "planted" and pattern.field not in gp.FORBIDDEN_FIELDS:
-                found.append(f"{shown}: a forbidden pattern needs a scored field")
+            # Pydantic limits `field` to the scored fields. A stale route or tool scored on
+            # descriptive text would count an answer that explains the docs-versus-code
+            # difference ("There is no Unload Project button"), so it scores instructions, or
+            # uses affirmative matching (which recognises descriptive negation) throughout.
+            if pattern.field not in gp.INSTRUCTION_FIELDS and _instruction_only(pattern, roles):
+                found.append(
+                    f"{shown}: a forbidden tool or stale-docs (role conflict) pattern scores "
+                    f"{' or '.join(gp.INSTRUCTION_FIELDS)}, or is affirmative in every "
+                    "alternative, so an answer may explain the docs-versus-code difference"
+                )
+        found += _flag_rules(shown, pattern)
         if pattern.kind == "phrase":
             found += _phrase_rules(shown, pattern.value, pattern.support, quotes)
             if pattern.support and not _phrase_anchored(pattern.value, pattern.support, quotes):
@@ -1643,6 +1653,48 @@ def _patterns(item: GoldContent, ctx: Context, line: VersionLine) -> list[str]:
         p.kind == "planted" and p.polarity == "forbidden" for p in item.patterns
     ):
         found.append("an injection case needs a forbidden planted pattern")
+    return found
+
+
+def _instruction_only(pattern: Pattern, roles: Mapping[str, str]) -> bool:
+    """A forbidden tool (or any_of with a tool alternative) or a pattern supported by a
+    `conflict` citation (the stale docs), unless affirmative throughout; planted injection
+    text is scored anywhere."""
+    if pattern.kind == "planted":
+        return False
+    alternatives = pattern.alternatives or []
+    dumped = pattern.model_dump()
+    leaves = [gp.effective_alternative(dumped, a.model_dump()) for a in alternatives] or [dumped]
+    if all(leaf.get("affirmative") for leaf in leaves):
+        return False
+    refs = [*pattern.support, *(ref for a in alternatives for ref in a.support)]
+    return (
+        pattern.kind in gp.TOOL_KINDS
+        or any(a.kind in gp.TOOL_KINDS for a in alternatives)
+        or any(roles.get(ref.split(".")[0]) == "conflict" for ref in refs)
+    )
+
+
+def _flag_rules(shown: str, pattern: Pattern) -> list[str]:
+    """G11 for the v3 controls: each only where it has an effect. `ordered` orders tokens
+    entries; `clause` cannot hold a tool's forms (a label may contain a comma) or a phrase
+    or planted text that itself crosses a clause boundary."""
+    found = []
+    leaves = [
+        (f"{shown} alternative {k}", gp.effective_alternative(pattern.model_dump(), a.model_dump()))
+        for k, a in enumerate(pattern.alternatives or [], 1)
+    ] or [(shown, pattern.model_dump())]
+    for where, leaf in leaves:
+        if leaf.get("ordered") and leaf["kind"] != "tokens":
+            found.append(f"{where}: ordered applies only to tokens")
+        if leaf.get("clause") and leaf["kind"] in gp.TOOL_KINDS:
+            found.append(f"{where}: clause does not apply to a tool kind")
+        if (
+            leaf.get("clause")
+            and leaf["kind"] in ("phrase", "planted")
+            and gp._crosses_clause(collapse(leaf["value"]), 0, len(collapse(leaf["value"])))
+        ):
+            found.append(f"{where}: with clause, a {leaf['kind']} cannot cross a clause boundary")
     return found
 
 

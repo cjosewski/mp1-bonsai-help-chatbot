@@ -120,9 +120,19 @@ def test_forbidden_outdated_instruction_in_every_scored_field(field):
 
 
 @pytest.mark.parametrize("field", ["any", *gp.FIELDS])
-def test_checker_allows_forbidden_in_all_scored_fields(field):
+def test_checker_scopes_forbidden_tools_to_instructions_unless_affirmative(field):
     item = single()
     item["patterns"][2]["field"] = field
+    found = problems_of(item)
+    if field in gp.INSTRUCTION_FIELDS:
+        assert found == []
+    else:
+        assert found == [
+            "pattern P3: a forbidden tool or stale-docs (role conflict) pattern scores steps or "
+            "tools_required, or is affirmative in every alternative, so an answer may explain "
+            "the docs-versus-code difference"
+        ]
+    item["patterns"][2]["affirmative"] = True
     assert problems_of(item) == []
 
 
@@ -137,7 +147,7 @@ def test_false_defaults_preserve_serialized_content_and_digest():
     assert gold.Alternative(**legacy, **dict.fromkeys(gp.MATCH_FLAGS, False)).model_dump() == legacy
     assert gold.Pattern(**rule(ordered=True)).model_dump()["ordered"] is True
     assert '"affirmative"' not in gold.Pattern(**rule()).model_dump_json()
-    assert gold.CHECKER == "gold-check-v3"
+    assert gold.CHECKER == "gold-check-v4"
 
 
 def test_rendering_discloses_effective_flags_and_actual_alternative_result():

@@ -898,10 +898,13 @@ and Chad's "Code wins, cited" rule; nothing here approves, imports or reviews an
 
 ### November 22, 2026: corrections after the second packet review
 
-Chad answered "Yes" to correcting the affected answers and scoring rules. This authorizes
-redrafting and replacement review packets, not acceptance of any draft or import of a review.
+The second packet review of GP-006 to GP-010 and SR-002 was an assistant review: it entered
+no decisions and nothing was imported. Asked whether to correct the answers and scoring rules
+that review found affected, Chad answered "Yes". The exact wording of the question is not on
+file. This authorizes redrafting and replacement review packets, not acceptance of any draft
+or import of a review.
 
-Assistant implementation choices:
+Assistant's calls (not owner decisions):
 
 - `gold-check-v3` adds optional `ordered`, `clause` and `affirmative` controls to patterns
   and alternatives. Defaults are omitted from serialization so existing accepted drafts
@@ -917,7 +920,11 @@ Assistant implementation choices:
   reject stale decisions. No synthetic import is used to clear the old packet queue.
 - SF-021's ProjectedCRS code excerpts now start one line earlier, showing the IFC2X3
   condition directly. Its narrow claim and assistant-drafted status are unchanged.
-
+- The fixture slice gained 8 code spans that the corrected drafts and SF-021 cite, written by
+  `snapshot fixtures` from new `fixture_code_spans` entries: at 0.8.5-post1
+  `georeference/data.py` L104-L106, `georeference/operator.py` L26-L43 and L56-L63,
+  `georeference/ui.py` L52-L62 and `core/georeference.py` L28-L36 and L48-L55; at
+  0.9.0-post1 `georeference/data.py` L104-L106 and `project/ui.py` L383-L387.
 - The follow-up revises 46 assistant drafts across the original packet review, including
   colour/status ownership, operation order, conditional advice and obsolete UI routes.
   The six accepted item bodies and all imported decisions remain unchanged. Replacement
@@ -926,6 +933,61 @@ Assistant implementation choices:
 - Independent review found additional counterexamples after the first passing probe run;
   those concrete cases were corrected and retained as regressions. This does not establish
   general paraphrase equivalence or replace Chad's review, and no live Bonsai run is claimed.
+
+### November 23, 2026: scoring fixes before the round-3 review
+
+An independent assistant review of the round-3 commit (no decisions entered or imported)
+found two scoring flaws: affirmative matching credited reversed claims written as "does not
+A or B", "neither ... nor" or "does not mean you will", and forbidden stale-docs patterns
+scanned across all fields counted answers that explain the docs-versus-code difference. 17
+of its 65 probes on the pending drafts scored wrongly. Asked whether to fix the two flaws
+before reviewing the round-3 packets, Chad chose "Fix first, then re-export (Recommended)".
+This authorizes the fixes, redrafts and replacement packets; it accepts no draft.
+
+Assistant's calls (not owner decisions):
+
+- **`gold-check-v4`.** Affirmative matching has its own governance (`_governs_claim`):
+  "or" and "nor" never cancel a negation, nor does "and" after a negated auxiliary
+  ("won't tidy and delete"); "neither", "no longer" and bare "no" are cues; "does not mean
+  (that) you will" governs the implied claim; "not false that" affirms; "Green means new?
+  No, ..." negates the claim before the rebuttal. Descriptive negation also negates in
+  affirmative mode: "is not available/drawn/shown/..." after the match, or a claim
+  attributed to the docs and contrasted with "but", "however" or "whereas" in its
+  sentence. A cue that is not an auxiliary still yields to "and" ("No need to save and green
+  means new" still credits the claim). The unflagged forbidden rule is unchanged and still
+  errs toward counting an attack.
+- **Stale-docs forbidden patterns.** Of the two fixes the review offered, the assistant kept
+  `any` and extended the descriptive negation (above) rather than limiting these patterns
+  to `steps`. Limiting them would have let "Use Unload Project to complete this task." in
+  the answer pass again, which the November 22 review had found. A new rule replaces the
+  unreachable "forbidden pattern needs a scored field" check: a forbidden tool pattern (or
+  `any_of` with a tool alternative), or one supported by a `conflict` quote, scores `steps` or
+  `tools_required` unless every alternative is `affirmative`. Planted injection text is
+  exempt. The November 22 claim that valid warnings remain allowed holds only for warnings
+  and explanations that this cue rule recognises. Other descriptive forms (for example "the
+  button was removed") can still count, and the judge handles them.
+- **Control rules (G11).** `ordered` is accepted only on tokens (an `any_of` parent's flag
+  must suit every alternative). `clause` is rejected on tool kinds and on a phrase or
+  planted text that crosses a clause boundary. Under `clause` a colon no longer ends a clause,
+  so "Green: new objects" matches, and punctuation ending a span ("Save As...") is not a
+  boundary inside it.
+- **Redrafts.** Only the 7 items whose patterns had to change were redrafted, as assistant
+  drafts in lane batches: GS-MD-009 P4 adds click/select/hit/tap; GS-SD-030 P1 to P3 and
+  GS-SH-015 P3 and P4 accept "objects appear in <colour>"; GS-MD-001 P4 and GS-MD-006 P8 add
+  the passive "must be deleted/removed"; GS-SD-015 P4 adds "afterwards", "after that",
+  "later" and "next"; GS-MH-005 P6 is affirmative throughout. GS-MH-001 was briefly
+  redrafted with P7 on `steps` and then returned to its round-3 draft, which the new rule
+  accepts. The six accepted items are byte-identical, and only the published files'
+  `checker` and `digest` headers changed.
+- **Checks.** The complete-set check over all 110 heads passes with the fixture-slice rule,
+  offline and online, with the same two overlap warnings. The 17 failing probes and their
+  controls are regression tests on synthetic patterns and items
+  (`tests/test_gold_patterns_v4.py`). The round-3 probes (430) and whole-answer checks (22)
+  give the same results on the new heads.
+- **Packets.** GP-016 to GP-018 (58 development) and GP-019 and GP-020 (46 held-out) replace
+  GP-011 to GP-015, which remain as obsolete records. SF-021 did not change, so SR-003 stays
+  current. `gold status` lists every unimported packet with an obsolete context, including
+  one whose drafts were all re-exported unchanged.
 
 ## Open items (not yet decided)
 

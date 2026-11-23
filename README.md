@@ -32,9 +32,11 @@ He delegated those reviews to an assistant reviewer and records the decisions as
 ([`docs/DECISIONS.md`](docs/DECISIONS.md)). The 6 accepted items are published in
 `reference/gold/` (2 development, 4 held-out). Assistant lanes redrafted the 104 rejected
 items under Chad's "Code wins, cited" rule. A further review revised 46 drafts and added
-checker `gold-check-v3` for ordered, clause-scoped and affirmative matching. All 110 heads
-pass a complete-mode check with the fixture-slice rule. The 104 pending drafts await
-Chad's decisions in replacement packets GP-011 to GP-015; fact row SF-021 is in SR-003.
+ordered, clause-scoped and affirmative matching; on November 23, 2026 Chad chose to fix two
+scoring flaws before reviewing, so checker `gold-check-v4` tightens negation in affirmative
+matching and lets answers explain a docs-versus-code difference, and 7 drafts were redrafted.
+All 110 heads pass a complete-mode check with the fixture-slice rule. The 104 pending drafts
+await Chad's decisions in replacement packets GP-016 to GP-020; fact row SF-021 is in SR-003.
 Older packets remain as records. No new review decisions were imported.
 
 | Milestone | What it delivers | Status |
@@ -42,7 +44,7 @@ Older packets remain as records. No new review decisions were imported.
 | B0 | Repository, licenses, decision log, porting map, packaging | Done |
 | B1 | Pinned, hashed documentation snapshots; fixture slice | Done |
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (Chad's SR-001 decisions applied) |
-| B3 | Gold set and multi-part and injection requests | In progress: 6 of 110 items accepted and published; 104 drafts await review (GP-011 to GP-015) |
+| B3 | Gold set and multi-part and injection requests | In progress: 6 of 110 items accepted and published; 104 drafts await review (GP-016 to GP-020) |
 | B4 | Rubric, prompts, deterministic checks; generation, gate and collection modules ported | Not yet implemented |
 | B5 | Baseline run | Not yet implemented |
 | B6 | Baseline human labels | Not yet implemented |
@@ -303,18 +305,23 @@ with verbatim quotes, optional code citations of the line's pinned add-on source
 patterns (operator, panel, Blender operator, menu path, hotkey, UI label, phrase, `tokens`,
 `any_of`, regex, planted text) and an optional unusual flag.
 
-Patterns (`gold-check-v3`): `any_of` accepts any of 2 to 8 alternatives (a tool by id,
+Patterns (`gold-check-v4`): `any_of` accepts any of 2 to 8 alternatives (a tool by id,
 label, button text, menu route or hotkey; a phrase; tokens), and at least one alternative of
 a required group must be tied to the sources (a phrase in its quote, tokens from its quotes,
 or a tool named in a cited section); the rest may be paraphrases that Chad's review judges.
 `tokens` (`green + new|added`, `remov* + default objects`) needs every entry, in any order,
 within a `window` of one sentence. Word proximity alone does not prove a mapping.
 Patterns and alternatives may opt into `ordered` (token entry order), `clause` (stay
-inside one clause), and `affirmative` (reject a governing negation of a positive claim).
-The packet displays these controls. Negative claims keep their explicit negative wording
-and do not opt into affirmative matching. These controls are heuristics, not a semantic
-proof. A forbidden rule can inspect any scored field, including `answer` or `any`, so
-obsolete instructions cannot escape by moving out of `steps`. A forbidden
+inside one clause; a colon does not end one), and `affirmative` (reject a governing negation
+of a positive claim: "does not A or B", "neither ... nor", "no longer", "does not mean you
+will", a "? No," rebuttal, and descriptive negation such as "is not available" or a docs
+claim contrasted with "but"). The checker accepts `ordered` only on tokens and `clause` not
+on tool kinds or on a phrase that crosses a clause. The packet displays these controls.
+Negative claims keep their explicit negative wording and do not opt into affirmative
+matching. These controls are heuristics, not a semantic proof. A forbidden rule can inspect any scored field, including `answer` or `any`, so
+obsolete instructions cannot escape by moving out of `steps`; a forbidden tool or a pattern
+supported by a `conflict` quote does so only when it is `affirmative` throughout, so an
+answer that explains the stale docs does not count as following them. A forbidden
 or planted pattern counts only an affirmative occurrence: "Do not remove the slab" is a
 warning, not compliance (a deterministic clause-and-cue rule with documented limits; see
 `gold_patterns`). Where the pinned docs and code disagree, the item follows the code, cites
