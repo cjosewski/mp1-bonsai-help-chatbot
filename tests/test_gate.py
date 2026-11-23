@@ -1,0 +1,355 @@
+"""First-pass gate: per-item checks, duplicates, distribution and the one-time report."""
+
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+import pytest
+from fakes import synthetic_item
+from test_generation import FakeClient, execute, offered_ids, run_dir
+
+from bonsai_help import gate
+from bonsai_help.checks import load_lexicons
+from bonsai_help.config import RunConfig
+from bonsai_help.doc_sources import CATEGORIES
+from bonsai_help.gate import GateError, evaluate_gate, gate_run
+from bonsai_help.model_client import AttemptResult, EmbeddingError
+from bonsai_help.schemas import CitedSection, GeneratedItem, GenerationOutput
+
+ROOT = Path(__file__).resolve().parents[1]
+LEX = load_lexicons(ROOT / "reference")
+EMBED_MODEL = "synthetic-embedding"
+DIMENSIONS = {"D1", "D2", "D3", "D4", "D5", "D6"}
+
+
+def section(n: int) -> CitedSection:
+    return CitedSection(
+        id=f"bonsai-docs:synthetic/page{n}.rst#L1-L9",
+        page_sha256="0" * 64,
+        source="bonsai-docs",
+        pin_id="synthetic-pin",
+    )
+
+
+def good_item(index: int) -> dict:
+    item = synthetic_item()
+    item["question"] = f"How do I add wall number {index} to a new Bonsai project?"
+    item["answer"] = " ".join(["Open the project and add the wall using the type library."] * 7)
+    item["equipment_problem"] = f"Project {index} has no walls yet."
+    item["safety_info"] = (
+        "Save a copy of the project before editing so that an edit you cannot undo "
+        "does not destroy the only version of the file."
+    )
+    item["tips"] = ["Name the wall type clearly so it is easy to find in the library later."]
+    return item
+
+
+def record(index: int, category: str | None = None, **changes) -> GeneratedItem:
+    item = good_item(index)
+    item.update(changes)
+    return GeneratedItem(
+        run_id="r",
+        trace_id=f"t{index}",
+        item_id=f"r-{index:03d}",
+        attempt_id=f"a{index}",
+        slot_id=f"{index:03d}",
+        category=category or CATEGORIES[index % 5],
+        setup_id="SP-1",
+        version_line="VL-current",
+        prompt_variant="baseline",
+        prompt_hash="h",
+        model="m",
+        sampler_seed=1,
+        offered_sections=[section(1), section(2)],
+        cited_sections=[section(1)],
+        item=item,
+    )
+
+
+class FakeEmbedder:
+    """Distinct one-hot vectors, except texts mapped to the same group share a vector."""
+
+    def __init__(self, groups=None, fail=False):
+        self.groups = groups or {}
+        self.fail = fail
+        self.calls: list[list[str]] = []
+
+    def embed(self, texts):
+        self.calls.append(list(texts))
+        if self.fail:
+            raise EmbeddingError("synthetic embedding failure")
+        vectors = []
+        for index, text in enumerate(texts):
+            slot = next((g for key, g in self.groups.items() if key in text), index)
+            vector = [0.0] * (len(texts) + 8)
+            vector[slot] = 1.0
+            vectors.append(vector)
+        return vectors
+
+
+def evaluate(records, embedder=None, **kwargs):
+    return evaluate_gate(
+        records,
+        lexicons=LEX,
+        embedder=embedder or FakeEmbedder(),
+        embedding_model=EMBED_MODEL,
+        **kwargs,
+    )
+
+
+def test_clean_balanced_batch_is_retained_and_recorded():
+    records = [record(i) for i in range(10)]
+    report = evaluate(records)
+    assert report["retained_ids"] == sorted(r.item_id for r in records)
+    assert report["gate_pass_rate"] == 1.0
+    assert report["embedding_model"] == EMBED_MODEL
+    assert report["threshold"] == 0.92
+    assert report["distribution"]["passed"] is True
+    assert {c["retained"] for c in report["per_category"].values()} == {2}
+    assert report["quality_status"] == "pending"
+    assert all(v["retained"] and v["dropped_by"] == [] for v in report["per_item"].values())
+
+
+def test_every_dimension_has_a_precheck():
+    report = evaluate([record(0)])
+    names = {c["dimension"] for c in report["per_item"]["r-000"]["checks"]}
+    assert names == DIMENSIONS
+
+
+def test_drops_counted_per_check():
+    records = [
+        record(0, safety_info="Be careful and stay safe and use caution."),
+        record(1, tips=["Short tip."]),
+        record(2, tips=["Tiny."]),
+        record(3),
+    ]
+    report = evaluate(records)
+    assert report["drops_per_check"]["safety_length"] == 1
+    assert report["drops_per_check"]["tip_length"] == 2
+    assert report["drops_per_check"]["exact_duplicate"] == 0
+    assert report["retained_ids"] == ["r-003"]
+    assert report["per_item"]["r-001"]["retained"] is False
+    assert "D6:tip_length" in report["per_item"]["r-001"]["dropped_by"]
+    assert report["gate_pass_rate"] == 0.25
+
+
+def test_dropped_items_are_not_embedded():
+    embedder = FakeEmbedder()
+    evaluate([record(0), record(1, tips=["Short."]), record(2)], embedder)
+    assert len(embedder.calls) == 1 and len(embedder.calls[0]) == 2
+
+
+def test_exact_duplicate_dropped_and_counted():
+    first = record(0)
+    again = record(1, question="  HOW do I add wall number 0 to a NEW Bonsai project?!! ")
+    report = evaluate([again, first, record(2)])
+    assert report["exact_duplicates"] == [{"kept": "r-000", "dropped": "r-001"}]
+    assert report["per_item"]["r-001"]["dropped_by"] == ["exact_duplicate"]
+    assert report["drops_per_check"]["exact_duplicate"] == 1
+    assert report["retained_ids"] == ["r-000", "r-002"]
+
+
+def test_near_duplicate_dropped_with_fake_embedder():
+    records = [record(0), record(1), record(2)]
+    embedder = FakeEmbedder(groups={"number 0 ": 0, "number 2 ": 0})
+    report = evaluate(records, embedder)
+    assert [(p["kept"], p["dropped"]) for p in report["near_duplicates"]] == [("r-000", "r-002")]
+    assert report["near_duplicates"][0]["score"] == pytest.approx(1.0)
+    assert report["per_item"]["r-002"]["dropped_by"] == ["near_duplicate"]
+    assert report["drops_per_check"]["near_duplicate"] == 1
+    assert report["retained_ids"] == ["r-000", "r-001"]
+
+
+def test_embedding_text_is_question_then_answer():
+    embedder = FakeEmbedder()
+    records = [record(0)]
+    evaluate(records, embedder)
+    item = records[0].item
+    assert embedder.calls == [[item.question + "\n" + item.answer]]
+
+
+def test_threshold_is_configurable():
+    class Close(FakeEmbedder):
+        def embed(self, texts):
+            return [[1.0, 0.1 * i] for i in range(len(texts))]
+
+    records = [record(0), record(1)]
+    assert len(evaluate(records, Close(), threshold=0.999)["retained_ids"]) == 2
+    assert len(evaluate(records, Close(), threshold=0.9)["retained_ids"]) == 1
+
+
+def test_distribution_fails_under_18_percent():
+    records = [record(i, category=CATEGORIES[0]) for i in range(9)] + [
+        record(9, category=CATEGORIES[1])
+    ]
+    report = evaluate(records)
+    assert report["distribution"]["min_share"] == 0.18
+    assert report["distribution"]["passed"] is False
+    assert report["per_category"][CATEGORIES[1]]["share"] == pytest.approx(0.1)
+
+
+def test_distribution_fails_when_a_category_has_no_retained_items():
+    records = [record(i, category=CATEGORIES[i % 4]) for i in range(8)]
+    report = evaluate(records)
+    assert report["per_category"][CATEGORIES[4]]["retained"] == 0
+    assert report["distribution"]["passed"] is False
+
+
+def test_distribution_is_over_the_final_retained_set():
+    records = [record(i) for i in range(10)]
+    dup = record(10, category=CATEGORIES[0], question=records[1].item.question)
+    # Categories of records 0..9 are two each; dropping the duplicate must not matter.
+    report = evaluate([*records, dup])
+    assert report["distribution"]["passed"] is True
+    assert report["per_category"][CATEGORIES[0]]["retained"] == 2
+    assert report["per_category"][CATEGORIES[0]]["input"] == 3
+
+
+def test_empty_batch_fails_distribution_without_dividing_by_zero():
+    report = evaluate([])
+    assert report["gate_pass_rate"] is None
+    assert report["retained_ids"] == []
+    assert report["distribution"]["passed"] is False
+
+
+def test_unoffered_citation_drops_the_item():
+    records = [record(0), record(1)]
+    report = evaluate(records, unoffered_citations={"r-000": ["bonsai-docs:nowhere#L1-L2"]})
+    assert "D3:cited_sections_offered" in report["per_item"]["r-000"]["dropped_by"]
+    assert report["retained_ids"] == ["r-001"]
+
+
+def test_embedding_failure_is_controlled():
+    with pytest.raises(GateError, match="synthetic embedding failure"):
+        evaluate([record(0)], FakeEmbedder(fail=True))
+
+
+def test_wrong_number_of_vectors_is_controlled():
+    class Short(FakeEmbedder):
+        def embed(self, texts):
+            return [[1.0]]
+
+    with pytest.raises(GateError, match="vectors"):
+        evaluate([record(0), record(1)], Short())
+
+
+# --- gate_run on a real (synthetic) run directory -------------------------------------
+
+
+class GoodClient(FakeClient):
+    """Synthetic model returning a distinct, check-passing item per slot."""
+
+    def generate(self, messages):
+        self.calls += 1
+        match = re.search(r"slot (?P<slot>\S+), attempt", messages[-1]["content"])
+        body = {
+            "item": good_item(self.calls)
+            | {"question": f"How do I add the wall for slot {match['slot']} to a new project?"},
+            "cited_section_ids": self.cite(offered_ids(messages)),
+        }
+        output = GenerationOutput.model_validate(body)
+        return AttemptResult(output, {"synthetic": True}, None, None, self.model)
+
+
+@pytest.fixture
+def config(tmp_path):
+    from fakes import FAKE_BASE_URL, FAKE_MODEL
+
+    return RunConfig.model_validate(
+        {
+            "base_url": FAKE_BASE_URL,
+            "model": FAKE_MODEL,
+            "embedding_model": EMBED_MODEL,
+            "seed": 7,
+            "artifact_root": str(tmp_path / "runs"),
+        }
+    )
+
+
+def run_gate(config, embedder=None, run_id="test-run"):
+    return gate_run(
+        config.artifact_path(),
+        run_id,
+        lexicons=LEX,
+        embedder=embedder or FakeEmbedder(),
+        embedding_model=EMBED_MODEL,
+    )
+
+
+def test_gate_run_writes_the_report_once(config):
+    execute(config, GoodClient())
+    report = run_gate(config)
+    path = run_dir(config) / "gate-report.json"
+    written = json.loads(path.read_text())
+    assert written == report
+    assert written["run_id"] == "test-run"
+    assert len(written["retained_ids"]) == 5
+    assert written["distribution"]["passed"] is True
+    before = path.read_bytes()
+    with pytest.raises(GateError, match="already"):
+        run_gate(config)
+    assert path.read_bytes() == before
+    assert not (run_dir(config) / ".gate.lock").exists()
+
+
+def test_gate_run_reads_unoffered_citations_from_the_attempt(config):
+    execute(config, GoodClient(cite=lambda ids: ["bonsai-docs:nowhere#L1-L2"]))
+    report = run_gate(config)
+    assert report["retained_ids"] == []
+    assert report["drops_per_check"]["cited_sections_offered"] == 5
+
+
+def test_embedding_failure_writes_no_report(config):
+    execute(config, GoodClient())
+    with pytest.raises(GateError):
+        run_gate(config, FakeEmbedder(fail=True))
+    assert not (run_dir(config) / "gate-report.json").exists()
+    assert not (run_dir(config) / ".gate.lock").exists()
+    assert run_gate(config)["retained_ids"]  # a failed gate leaves the run gate-able
+
+
+@pytest.mark.parametrize("change", ["delete", "alter"])
+def test_tampered_run_is_refused(config, change):
+    execute(config, GoodClient())
+    target = run_dir(config) / "items.jsonl"
+    if change == "delete":
+        target.unlink()
+    else:
+        target.write_text(target.read_text().replace('"run_id"', '"x": 1, "run_id"', 1))
+    with pytest.raises(ValueError, match="changed or missing"):
+        run_gate(config)
+    assert not (run_dir(config) / "gate-report.json").exists()
+
+
+def test_item_not_backed_by_a_successful_attempt_is_refused(config):
+    execute(config, GoodClient())
+    directory = run_dir(config)
+    lines = (directory / "items.jsonl").read_text().splitlines()
+    forged = json.loads(lines[0])
+    forged["item"]["answer"] = "forged " * 70
+    lines[0] = json.dumps(forged)
+    (directory / "items.jsonl").write_text("\n".join(lines) + "\n")
+    manifest = json.loads((directory / "manifest.json").read_text())
+    from bonsai_help.tracing import artifact_hashes
+
+    manifest["artifacts_sha256"] = artifact_hashes(directory)
+    (directory / "manifest.json").write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match="successful attempt"):
+        run_gate(config)
+
+
+def test_missing_run_and_locked_run_are_refused(config):
+    with pytest.raises(GateError, match="no run"):
+        run_gate(config)
+    execute(config, GoodClient())
+    (run_dir(config) / ".generation.lock").write_text("x")
+    with pytest.raises(GateError, match="lock"):
+        run_gate(config)
+
+
+def test_gate_module_has_no_domain_leftovers():
+    source = Path(gate.__file__).read_text()
+    for word in ("benchmark", "_repair_checks", "_HAZARD", "home-diy"):
+        assert word not in source
