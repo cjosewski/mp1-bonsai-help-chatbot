@@ -1099,6 +1099,18 @@ Assistant's calls (not owner decisions):
   (`tests/test_gold_patterns_v4.py`, `tests/test_gold_stale_export.py`). The complete-set
   check over all 110 heads passes.
 
+### November 23, 2026: MP1 scope under review; gold review paused
+
+Chad: "This project is about creating the data. The chat-bot feature is an additional
+feature which may get moved to another Mini-Project. I'm investigating that now." Compared
+with the course brief, the help chatbot (retrieval tools, step budget, security pass) and
+the gold set (B3: reference answers, multi-part, injection, control and held-out items) go
+beyond what Mini Project 1 requires; the brief's generator writes the seven-field items
+directly and its only reference is the benchmark's category distribution. Asked whether the
+round-4 gold review should go ahead meanwhile, Chad chose "Pause it (Recommended)". GP-021
+to GP-025 and SR-003 stay valid and unimported. The plan is unchanged until Chad decides
+the scope.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
