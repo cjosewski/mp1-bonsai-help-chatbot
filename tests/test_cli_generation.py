@@ -142,7 +142,7 @@ def test_cli_config_errors_exit_2(tmp_path, run_config, capsys):
     capsys.readouterr()
 
 
-def test_cli_never_prints_credentials(tmp_path, run_config, monkeypatch, capsys):
+def test_cli_never_prints_credentials(tmp_path, run_config, monkeypatch, capsys, caplog):
     config = str(run_config)
 
     def leaky(request: httpx.Request) -> httpx.Response:
@@ -182,9 +182,17 @@ def test_cli_never_prints_credentials(tmp_path, run_config, monkeypatch, capsys)
         ),
         (["generate", "--config", config, "--run-id", "../escape"], None),
     ]
-    codes = [invoke(capsys, argv, transport)[0] for argv, transport in paths]
-    assert codes[0] == 3 and codes[1] == 3
-    assert all(code in (1, 2, 3) for code in codes)
+    results = [invoke(capsys, argv, transport) for argv, transport in paths]
+    # exhaustion 3, exhaustion 3, distribution failed 1, no run 1, collection out of
+    # batches 3, fixture slice does not verify 1, escaping run ID 2.
+    assert [code for code, _, _ in results] == [3, 3, 1, 1, 3, 1, 2]
+    for code, _, err in results:
+        # Failures are one stderr line: no library log output beside the error.
+        assert len(err.splitlines()) <= 1
+        assert err == "" or err.startswith("error:")
+    # The instructor library logs each failed call; the CLI keeps it quiet (the attempt
+    # ledger is the record), so a terminal shows only the error line.
+    assert not [r for r in caplog.records if r.name.startswith("instructor")]
     # The key file path: a missing key and an unreadable key file are config errors.
     monkeypatch.delenv(KEY_ENV)
     code, _, err = invoke(capsys, ["generate", "--config", config, "--run-id", "x4"])

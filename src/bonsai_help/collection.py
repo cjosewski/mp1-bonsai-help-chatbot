@@ -7,6 +7,12 @@ kept) reaches `target_retained` with every category at `MIN_PER_CATEGORY` or mor
 is committed to the collection manifest before its first request, so a resume can never
 reset the batch budget. A failed or incomplete batch is never rewritten; it counts toward
 `max_batches`, and its numbers stay in every summary.
+
+Each batch samples with its own seed, derived from the run seed and the batch number and
+recorded in the collection manifest, so later batches are offered other sections. After a
+batch is gated, its retained items are screened against every item the collection already
+accepted, with the gate's embedder and threshold; the decisions are recorded so that
+`collection_status` and the cohort verify them without an endpoint.
 """
 
 from __future__ import annotations
@@ -19,6 +25,7 @@ from bonsai_help import gate, generate
 from bonsai_help.checks import load_lexicons, normalize
 from bonsai_help.config import REPOSITORY, RunConfig, load_prompt
 from bonsai_help.doc_sources import CATEGORIES, load_config
+from bonsai_help.model_client import EmbeddingError
 from bonsai_help.setup import SetupProfiles
 from bonsai_help.tracing import (
     artifact_hashes,
@@ -72,6 +79,15 @@ def batch_id(collection_id: str, number: int) -> str:
     return f"{collection_id}-b{number:02d}"
 
 
+def batch_seed(seed: int, number: int) -> int:
+    """The sampler seed of batch `number`: distinct per batch, reproducible from the run seed."""
+    return int(digest({"seed": seed, "batch": number})[:15], 16)
+
+
+def _text(record: dict) -> str:
+    return f"{record['item']['question']}\n{record['item']['answer']}"
+
+
 def _sealed(manifest: dict) -> str:
     return digest({k: v for k, v in manifest.items() if k != "sha256"})
 
@@ -104,6 +120,9 @@ def load_collection(root: Path, collection_id: str) -> tuple[Path, dict]:
         raise CollectionError("collection batch membership or budget changed")
     if any(b.get("gated") is None for b in batches[:-1]):
         raise CollectionError("only the last batch of a collection can be ungated")
+    seed = manifest["identity"]["settings"]["seed"]
+    if any(b.get("seed") != batch_seed(seed, n + 1) for n, b in enumerate(batches)):
+        raise CollectionError("collection batch seeds changed")
     return directory, manifest
 
 
@@ -117,7 +136,7 @@ def _batch(root: Path, entry: dict, identity: dict) -> dict:
         if entry.get("gated") is not None:
             raise CollectionError(f"{run_id}: gated batch is missing") from None
         return {"run_id": run_id, "manifest": None, "items": [], "gate": None}
-    settings = identity["settings"]
+    settings = identity["settings"] | {"seed": entry["seed"]}
     if (
         manifest.get("run_id") != run_id
         or manifest.get("settings") != settings
@@ -145,8 +164,31 @@ def _batch(root: Path, entry: dict, identity: dict) -> dict:
     return {"run_id": run_id, "manifest": manifest, "items": items, "gate": report}
 
 
-def summarize(root: Path, manifest: dict) -> dict:
-    """Readiness, budget and the three denominators kept apart; reads only saved files."""
+def _check_screen(run_id: str, screen: dict | None, screened: list[str], accepted: set, model):
+    """A recorded cross-batch screen must match the batch's candidates and the settings."""
+    if screen is None:
+        raise CollectionError(f"{run_id}: gated batch has no cross-batch screen")
+    dropped = [pair["dropped"] for pair in screen["near_duplicates"]]
+    if (
+        screen.get("screened") != screened
+        or screen.get("embedding_model") != model
+        or screen.get("threshold") != gate.DEFAULT_THRESHOLD
+        or screen.get("compared_with") != len(accepted)
+        or len(set(dropped)) != len(dropped)
+        or not set(dropped) <= set(screened)
+        or any(pair["kept"] not in accepted for pair in screen["near_duplicates"])
+        or any(pair["score"] < gate.DEFAULT_THRESHOLD for pair in screen["near_duplicates"])
+    ):
+        raise CollectionError(f"{run_id}: recorded cross-batch screen differs from the batch")
+    return {pair["dropped"]: pair["kept"] for pair in screen["near_duplicates"]}
+
+
+def summarize(root: Path, manifest: dict, *, pending: bool = False) -> dict:
+    """Readiness, budget and the three denominators kept apart; reads only saved files.
+
+    With `pending`, a last batch that is gated but not yet screened across batches is
+    returned as `unscreened` candidates (not members); otherwise that is refused.
+    """
     identity = manifest["identity"]
     budget = identity["policy"]
     counts = dict.fromkeys(CATEGORIES, 0)
@@ -155,6 +197,8 @@ def summarize(root: Path, manifest: dict) -> dict:
     batches: list[dict] = []
     seen: dict[str, str] = {}
     reasons: list[str] = []
+    unscreened: list[dict] = []
+    model = identity["settings"]["embedding_model"]
     totals = dict.fromkeys(
         (
             "initial_slots",
@@ -167,7 +211,7 @@ def summarize(root: Path, manifest: dict) -> dict:
         ),
         0,
     )
-    for entry in manifest["batches"]:
+    for number, entry in enumerate(manifest["batches"], 1):
         batch = _batch(root, entry, identity)
         run = batch["manifest"]
         report = batch["gate"]
@@ -201,11 +245,37 @@ def summarize(root: Path, manifest: dict) -> dict:
         if report is None:
             continue
         retained = set(report["retained_ids"])
+        candidates = []
+        batch_decisions = []
         for record in sorted(batch["items"], key=lambda r: r["item_id"]):
             if record["item_id"] not in retained:
                 continue
             key = normalize(record["item"]["question"])
-            rejection = ["cross_batch_duplicate"] if key in seen else []
+            exact = seen.get(key)
+            if exact is None:
+                seen[key] = record["item_id"]
+                candidates.append(record)
+            batch_decisions.append((record, key, exact))
+        screen = entry["gated"].get("cross_batch")
+        if screen is None and pending and number == len(manifest["batches"]):
+            unscreened = candidates
+            reasons.append("batch_not_screened")
+            continue
+        near = _check_screen(
+            batch["run_id"],
+            screen,
+            [c["item_id"] for c in candidates],
+            {m["item_id"] for m in members},
+            model,
+        )
+        for record, key, exact in batch_decisions:
+            if exact is not None:
+                rejection, duplicate_of = ["cross_batch_duplicate"], exact
+            elif record["item_id"] in near:
+                rejection = ["cross_batch_near_duplicate"]
+                duplicate_of = near[record["item_id"]]
+            else:
+                rejection, duplicate_of = [], None
             decisions.append(
                 {
                     "item_id": record["item_id"],
@@ -213,11 +283,10 @@ def summarize(root: Path, manifest: dict) -> dict:
                     "category": record["category"],
                     "retained": not rejection,
                     "reasons": rejection,
-                    "duplicate_of": seen.get(key),
+                    "duplicate_of": duplicate_of,
                 }
             )
             if not rejection:
-                seen[key] = record["item_id"]
                 members.append(record)
                 counts[record["category"]] += 1
     if len(members) < budget["target_retained"]:
@@ -239,12 +308,15 @@ def summarize(root: Path, manifest: dict) -> dict:
         "gate_retention": (
             totals["gate_retained"] / totals["gate_input"] if totals["gate_input"] else None
         ),
-        "near_duplicates_scope": "within each batch; across batches exact questions only",
+        "near_duplicates_scope": (
+            "within each batch by the gate; across batches against every earlier accepted "
+            "item, same embedder and threshold (recorded decisions)"
+        ),
         "quality_status": "pending",
         "batches": batches,
         "decisions": decisions,
         "members": members,
-    }
+    } | ({"unscreened": unscreened} if pending else {})
 
 
 def collection_status(root: Path, collection_id: str) -> dict:
@@ -327,11 +399,15 @@ def collect(
                 if len(manifest["batches"]) == budget["max_batches"]:
                     return summary
                 number = len(manifest["batches"]) + 1
-                last = {"run_id": batch_id(collection_id, number), "gated": None}
+                last = {
+                    "run_id": batch_id(collection_id, number),
+                    "seed": batch_seed(config.seed, number),
+                    "gated": None,
+                }
                 manifest["batches"].append(last)
                 checkpoint(directory, manifest)  # commit the budget before any request
             _run_batch(
-                config,
+                config.model_copy(update={"seed": last["seed"]}),
                 root,
                 last["run_id"],
                 prompt,
@@ -349,7 +425,41 @@ def collect(
                 "gate_report_sha256": _file_sha(batch_dir / gate.REPORT),
                 "ledgers_sha256": artifact_hashes(batch_dir),
             }
+            pending = summarize(root, manifest, pending=True)
+            last["gated"]["cross_batch"] = _screen(
+                pending["members"], pending["unscreened"], embedder, config.embedding_model
+            )
             checkpoint(directory, manifest)
+
+
+def _screen(accepted: list[dict], candidates: list[dict], embedder, model: str) -> dict:
+    """Drop a candidate whose cosine to an earlier accepted item reaches the gate threshold."""
+    threshold = gate.DEFAULT_THRESHOLD
+    record = {
+        "embedding_model": model,
+        "threshold": threshold,
+        "text": "question, newline, answer",
+        "screened": [c["item_id"] for c in candidates],
+        "compared_with": len(accepted),
+        "near_duplicates": [],
+    }
+    if not accepted or not candidates:
+        return record
+    texts = [_text(r) for r in accepted + candidates]
+    try:
+        vectors = embedder.embed(texts)
+    except EmbeddingError as error:
+        raise CollectionError(f"cross-batch embedding failed: {error}") from None
+    if len(vectors) != len(texts) or len({len(v) for v in vectors}) != 1:
+        raise CollectionError("cross-batch embedding returned mismatched vectors")
+    earlier = list(zip((a["item_id"] for a in accepted), vectors[: len(accepted)], strict=True))
+    for candidate, vector in zip(candidates, vectors[len(accepted) :], strict=True):
+        score, kept = max((gate._cosine(vector, v), item_id) for item_id, v in earlier)
+        if score >= threshold:
+            record["near_duplicates"].append(
+                {"kept": kept, "dropped": candidate["item_id"], "score": score}
+            )
+    return record
 
 
 def _run_batch(config, root, run_id, prompt, prompt_sha256, *, count, **inputs) -> None:

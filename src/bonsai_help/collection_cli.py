@@ -6,13 +6,16 @@ evidence to inspect (changed ledgers, a leftover lock, a refused gate); 2 usage 
 configuration error (bad run config, missing credential, invalid count or ID, an ID that
 already exists); 3 controlled exhaustion (a generation run left `incomplete`, or a
 collection out of batches). Ctrl-C returns 130 with the evidence kept for `--resume`.
-Errors are one `error:` line on stderr, never a traceback, and never contain the API key.
+Errors are one `error:` line on stderr, never a traceback, and never contain the API key;
+the `instructor` logger is silenced while a command runs (each attempt's error is in the
+attempt ledger).
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -120,7 +123,23 @@ class _Secrets:
         return text
 
 
+QUIET_LOGGERS = ("instructor",)
+
+
 def run(args, *, transport: httpx.BaseTransport | None = None) -> int:
+    """Run one command; library loggers stay quiet (the attempt ledger is the record)."""
+    loggers = [logging.getLogger(name) for name in QUIET_LOGGERS]
+    levels = [logger.level for logger in loggers]
+    for logger in loggers:
+        logger.setLevel(logging.CRITICAL + 1)
+    try:
+        return _run(args, transport)
+    finally:
+        for logger, level in zip(loggers, levels, strict=True):
+            logger.setLevel(level)
+
+
+def _run(args, transport) -> int:
     secrets = _Secrets()
     try:
         result, code = _dispatch(args, secrets, transport)

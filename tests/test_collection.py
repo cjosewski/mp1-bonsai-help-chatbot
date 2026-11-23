@@ -223,7 +223,7 @@ def test_cohort_requires_ready_collection_and_balance(tmp_path):
     # Seeded from the collection id: the same evidence gives the same selection.
     assert picks[0] == picks[1]
 
-    with pytest.raises((CollectionError, FileExistsError)):
+    with pytest.raises(CollectionError, match="already frozen"):
         cohort.freeze_cohort(root, "col-1", "cohort-2")
     with pytest.raises(ValueError, match="frozen"):
         run_collect(config, UniqueClient(), max_batches=3, resume=True)
@@ -233,6 +233,98 @@ def test_cohort_requires_ready_collection_and_balance(tmp_path):
     path.write_text(json.dumps(data))
     with pytest.raises(CollectionError, match="cohort"):
         cohort.load_cohort(root, "cohort-1")
+
+
+def test_batches_sample_with_their_own_recorded_seed(config):
+    run_collect(config, UniqueClient(), max_batches=3)
+    root = config.artifact_path()
+    manifest = json.loads((root / "collections/col-1/manifest.json").read_text())
+    seeds = [b["seed"] for b in manifest["batches"]]
+    assert seeds == [collection.batch_seed(7, 1), collection.batch_seed(7, 2)]
+    assert len(set(seeds) | {7}) == 3
+    offered = []
+    for entry in manifest["batches"]:
+        run = json.loads((root / entry["run_id"] / "manifest.json").read_text())
+        assert run["settings"]["seed"] == entry["seed"]
+        starts = (root / entry["run_id"] / "starts.jsonl").read_text().splitlines()
+        offered.append(
+            {(r := json.loads(line))["slot_id"]: r["offered_sections"] for line in starts}
+        )
+    assert offered[0].keys() == offered[1].keys()
+    differing = [slot for slot in offered[0] if offered[0][slot] != offered[1][slot]]
+    assert len(differing) > len(offered[0]) // 2
+
+
+class TwinEmbedder:
+    """Texts containing "twin" share one vector; every other text gets its own."""
+
+    def __init__(self):
+        self.calls: list[list[str]] = []
+
+    def embed(self, texts):
+        self.calls.append(list(texts))
+        width = len(texts) + 2
+        return [
+            [1.0 if j == (0 if "twin" in text else i + 1) else 0.0 for j in range(width)]
+            for i, text in enumerate(texts)
+        ]
+
+
+class TwinClient(UniqueClient):
+    """Call 1 (batch 1) and call 31 (batch 2, same slot id) are distinct near-twins."""
+
+    def generate(self, messages):
+        result = super().generate(messages)
+        if self.calls in (1, 31):
+            question = f"How do I add twin wall variant {self.calls} to a Bonsai project?"
+            item = result.item.item.model_copy(update={"question": question})
+            output = result.item.model_copy(update={"item": item})
+            result = AttemptResult(output, result.raw_response, None, None, "synthetic-model")
+        return result
+
+
+def test_near_duplicate_across_batches_is_excluded_from_union_and_cohort(config):
+    embedder = TwinEmbedder()
+    summary = collect(
+        config,
+        "col-1",
+        TwinClient(),
+        embedder,
+        batch_count=30,
+        max_batches=3,
+        fixtures_dir=FIXTURES,
+        reference_dir=REFERENCE,
+    )
+    root = config.artifact_path()
+    assert summary["status"] == "ready" and summary["retained"] == 59
+    dropped = [d for d in summary["decisions"] if d["reasons"] == ["cross_batch_near_duplicate"]]
+    assert len(dropped) == 1
+    first, second = dropped[0]["duplicate_of"], dropped[0]["item_id"]
+    assert first.startswith("col-1-b01-") and second.startswith("col-1-b02-")
+    assert first.removeprefix("col-1-b01-") == second.removeprefix("col-1-b02-")
+    assert second not in {m["item_id"] for m in summary["members"]}
+    manifest = json.loads((root / "collections/col-1/manifest.json").read_text())
+    screen = manifest["batches"][1]["gated"]["cross_batch"]
+    assert screen["embedding_model"] == "synthetic-embedding"
+    assert screen["threshold"] == 0.92 and screen["compared_with"] == 30
+    assert screen["near_duplicates"] == [{"kept": first, "dropped": second, "score": 1.0}]
+    assert manifest["batches"][0]["gated"]["cross_batch"]["near_duplicates"] == []
+    # Status and cohort verify the recorded decisions without an endpoint.
+    assert collection_status(root, "col-1") == summary
+    frozen = cohort.freeze_cohort(root, "col-1", "cohort-1")
+    assert second not in frozen["item_ids"]
+    assert cohort.load_cohort(root, "cohort-1") == frozen
+
+
+def test_unscreened_gated_batch_is_refused(config):
+    run_collect(config, UniqueClient(), max_batches=1)
+    root = config.artifact_path()
+    path = root / "collections/col-1/manifest.json"
+    manifest = json.loads(path.read_text())
+    del manifest["batches"][0]["gated"]["cross_batch"]
+    collection.checkpoint(path.parent, manifest)
+    with pytest.raises(CollectionError, match="cross-batch screen"):
+        collection_status(root, "col-1")
 
 
 def test_modules_do_not_import_cli_or_assessment():
