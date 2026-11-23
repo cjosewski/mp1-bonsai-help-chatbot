@@ -989,6 +989,54 @@ Assistant's calls (not owner decisions):
   current. `gold status` lists every unimported packet with an obsolete context, including
   one whose drafts were all re-exported unchanged.
 
+### November 23, 2026: affirmative-matching fixes after the gold-check-v4 review
+
+An independent assistant review of the `gold-check-v4` commit (no decisions entered or
+imported) found that the new affirmative governance had made the two stale-docs guards
+(GS-MH-001 P7 and GS-MH-005 P6, the only forbidden patterns with `affirmative`) less strict,
+which the entry above did not say, and that it rejected some correct required claims. This
+follows from Chad's same decision, "Fix first, then re-export (Recommended)"; it accepts no
+draft.
+
+Assistant's calls (not owner decisions):
+
+- **`gold-check-v5`: forbidden patterns keep the forbidden governance.** Under v4 an
+  affirmative forbidden pattern used `_governs_claim`, so a negated auxiliary carried through
+  "and": "Don't use the Git panel and open the Bonsai sidebar instead.", "Don't save first and
+  click Unload Project to close it." and "You don't need the wizard and can just use Unload
+  Project." no longer counted as following the stale docs (v3 counted them). v4 weakened
+  these guards silently; v5 restores them. In affirmative mode a forbidden pattern's cue
+  loop now uses the forbidden rule's `_governs`, where any coordinator cancels the negation.
+  The descriptive, attribution and rebuttal checks still apply to it, since they are how an
+  answer explains the stale docs. Required claims keep `_governs_claim`.
+- **Required claims.** A bare "no" is not a cue in "no doubt", "no question" or "no matter"
+  ("There is no doubt that green objects are new" is credited again). A negated auxiliary no
+  longer carries through "and" when a new subject follows it: a pronoun, a determiner or a
+  product name ("You do not have to do anything and Bonsai commits pending parametric drafts
+  before saving" is credited again). Known limit: a bare noun-phrase subject after "and"
+  ("... and green objects are new" after "do not") is not recognised, so the negation still
+  reaches it. "no longer" stays a negated auxiliary ("Bonsai no longer cleans up and removes
+  the default cube" is not credited), now pinned by a test.
+- **Descriptive negation.** Also "does/did not exist", "doesn't exist", "no longer exists" and
+  "is/was/has been removed, dropped or gone" after the match, and a docs claim followed by
+  ", which ... no longer/not/never/n't". The words between the match and these forms are
+  never a coordinator or a subordinator (and, or, if, when, once, until, ...), so "Use Unload
+  Project once it is removed from the scene." still counts. "Unload Project does not exist in
+  Bonsai 0.9.", "Unload Project was removed from the pinned code." and "The tutorial
+  mentions an Unload Project button, which the pinned code no longer draws." no longer fail
+  GS-MH-001's P7. Other wordings (for example "You won't find Unload Project") can still
+  count; the judge handles them.
+- **Items and checks.** No draft changed, and the six accepted items are byte-identical; only
+  the published files' `checker` and `digest` headers changed. None of the accepted items
+  uses the v3 controls, so their scores cannot change. The complete-set check over all 110
+  heads passes offline and online with the same two overlap warnings. The round-3 probes
+  (430) and whole-answer checks (22), the round-4 review's 65 probes and the v4 probe set give
+  the same results as under v4, apart from the sentences above. The review's cases are
+  regression tests on synthetic patterns (`tests/test_gold_patterns_v4.py`).
+- **Packets.** GP-021 to GP-023 (58 development) and GP-024 and GP-025 (46 held-out) replace
+  GP-016 to GP-020, which remain as obsolete records; they hold the same 104 drafts. SR-003
+  stays current.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

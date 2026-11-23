@@ -69,7 +69,7 @@ SLOTS_SCHEMA = "gold-slots-v1"
 SUBSTITUTIONS_SCHEMA = "gold-slot-substitutions-v1"
 SET_SCHEMA = "gold-set-v1"
 BATCH_SCHEMA = "gold-draft-batch-v1"
-CHECKER = "gold-check-v4"
+CHECKER = "gold-check-v5"
 INPUT_RENDERING = "gold-input-v1"
 SET_LICENSE = (
     "CC BY-SA 4.0 (generated data); quoted Bonsai or Blender Manual text keeps its source license"

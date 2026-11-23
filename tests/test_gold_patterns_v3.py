@@ -147,7 +147,7 @@ def test_false_defaults_preserve_serialized_content_and_digest():
     assert gold.Alternative(**legacy, **dict.fromkeys(gp.MATCH_FLAGS, False)).model_dump() == legacy
     assert gold.Pattern(**rule(ordered=True)).model_dump()["ordered"] is True
     assert '"affirmative"' not in gold.Pattern(**rule()).model_dump_json()
-    assert gold.CHECKER == "gold-check-v4"
+    assert gold.CHECKER == "gold-check-v5"
 
 
 def test_rendering_discloses_effective_flags_and_actual_alternative_result():

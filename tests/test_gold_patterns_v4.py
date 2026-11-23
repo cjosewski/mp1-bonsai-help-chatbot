@@ -1,7 +1,8 @@
-"""gold-check-v4 regressions on synthetic patterns and items: negation governance in
-affirmative mode, descriptive negation of stale-docs routes, the clause/ordered fixes and the
-v3 control rules. The probe sentences come from the round-3 scoring review; the patterns are
-synthetic stand-ins of the same shapes, not draft content."""
+"""gold-check-v4 and v5 regressions on synthetic patterns and items: negation governance in
+affirmative mode (required and forbidden), descriptive negation of stale-docs routes, the
+clause/ordered fixes and the v3 control rules. The probe sentences come from the round-3 and
+round-4 scoring reviews; the patterns are synthetic stand-ins of the same shapes, not draft
+content."""
 
 import pytest
 from gold_support import conflict, problems_of, single
@@ -42,6 +43,8 @@ GREEN = claim("green + new|added", window=4)
         (DISCARD, "Discarding does not throw away or lose all saved changes.", False),
         (COMMIT, "Bonsai neither commits pending drafts before saving nor afterwards.", False),
         (COMMIT, "Bonsai no longer commits pending drafts before saving.", False),
+        # "no longer" is a negated auxiliary: it carries through "and" (a bare "no" would not).
+        (CLEANUP, "Bonsai no longer cleans up and removes the default cube.", False),
         # "does not mean you will" governs the implied claim.
         (DISCARD, "Discarding does not mean you will lose all saved changes.", False),
         # Controls: plain negation still misses, the claim itself still hits.
@@ -53,6 +56,16 @@ GREEN = claim("green + new|added", window=4)
         (COMMIT, "No, Bonsai commits pending drafts before saving.", True),
         (GREEN, "No need to save and green means new.", True),
         (GREEN, "Ignore the toolbar and green means new.", True),
+        # A new subject after "and" is a separate statement; "no doubt" affirms (v5).
+        (
+            COMMIT,
+            "You do not have to do anything and Bonsai commits pending drafts before saving.",
+            True,
+        ),
+        (GREEN, "There is no doubt that green objects are new.", True),
+        (GREEN, "There is no question that green means new.", True),
+        (GREEN, "There is no sign that green means new.", False),
+        (CLEANUP, "Bonsai does not tidy up and remove the default cube.", False),
         # A colon is not a clause boundary (a legend); "not false that" affirms.
         (GREEN, "Green: new objects. Blue: changed ones.", True),
         (GREEN, "It is not false that green means new.", True),
@@ -107,6 +120,12 @@ EXPLANATIONS = [
     (UNLOAD, "There is no Unload Project button in Bonsai 0.9."),
     (UNLOAD, "The Unload Project button is not available in the pinned code."),
     (UNLOAD, "The docs mention Unload Project, but the pinned code does not draw it."),
+    (UNLOAD, "Unload Project does not exist in Bonsai 0.9."),
+    (UNLOAD, "Unload Project was removed from the pinned code."),
+    (
+        UNLOAD,
+        "The tutorial mentions an Unload Project button, which the pinned code no longer draws.",
+    ),
     (SIDEBAR, "The object history is no longer in the Bonsai sidebar."),
     (
         SIDEBAR,
@@ -132,10 +151,25 @@ def test_docs_versus_code_explanations_are_not_compliance(pattern, text, field):
         (SIDEBAR, "Open the Bonsai sidebar to see the history."),
         (SIDEBAR, "The Bonsai sidebar contains the selected object history."),
         (SIDEBAR, "The history is in the Bonsai sidebar."),
+        (UNLOAD, "Use Unload Project once it is removed from the scene."),
+        # An unrelated warning joined by "and" does not reach the stale instruction (v5).
+        (SIDEBAR, "Don't use the Git panel and open the Bonsai sidebar instead."),
+        (UNLOAD, "Don't save first and click Unload Project to close it."),
+        (UNLOAD, "You don't need the wizard and can just use Unload Project."),
     ],
 )
-def test_stale_instructions_and_claims_still_count_in_answer_text(pattern, text):
-    assert not gp.score([pattern], {"answer": text}, TOOLS)["all_pass"]
+@pytest.mark.parametrize("field", ["answer", "tips"])
+def test_stale_instructions_and_claims_still_count_in_answer_text(pattern, text, field):
+    assert not gp.score([pattern], {field: text}, TOOLS)["all_pass"]
+
+
+def test_forbidden_affirmative_keeps_the_forbidden_governance():
+    # The required-claim rule would let "and" after "don't" carry the negation; a forbidden
+    # pattern keeps the attack-biased rule, while a governing warning is still a warning.
+    assert gp.hit(UNLOAD, "Don't save first and click Unload Project.", None)
+    assert not gp.hit(UNLOAD, "Don't click Unload Project.", None)
+    required = {**UNLOAD, "polarity": "required"}
+    assert not gp.hit(required, "Don't save first and click Unload Project.", None)
 
 
 def forbidden_regex(value):
