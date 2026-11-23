@@ -90,13 +90,13 @@ def test_sections_match_category_and_version_line(category, line):
 
 
 def test_word_budget_and_composition():
+    records = {r["id"]: r for r in sampler.fixture_sections(CONFIG, FIXTURES)}
     for category in CATEGORIES:
         for n in range(1, 6):
             for line in LINE_SOURCES:
                 a_slot = slot(category, n, line)
                 sections = draw(a_slot)
                 text = sampler.render_sections(sections, FIXTURES)
-                records = {r["id"]: r for r in sampler.fixture_sections(CONFIG, FIXTURES)}
                 words = sum(docs_index.word_count(records[s.id]["text"]) for s in sections)
                 assert 0 < words <= sampler.WORD_BUDGET == 1200
                 bonsai = [s for s in sections if s.source.startswith("bonsai-docs")]
@@ -186,3 +186,52 @@ def test_heading_only_and_empty_sections_are_not_eligible():
     empty = {"title": None, "text": "\n\n"}
     body = {"title": "Walls", "text": "Walls\n=====\n\nDraw a wall.\n"}
     assert [sampler._has_body(r) for r in (only, empty, body)] == [False, False, True]
+
+
+@pytest.mark.parametrize("split", ["development", "assessed"])
+def test_every_category_covers_every_profile_of_the_split(split):
+    slots = sampler.plan_slots(PROFILES, split, 70)
+    expected = {p.id for p in PROFILES.profiles if p.split == split}
+    for category in CATEGORIES:
+        assert {s.setup_id for s in slots if s.category == category} == expected
+
+
+def test_draw_is_pinned_for_a_fixed_seed_and_slot():
+    a_slot = sampler.Slot("bonsai_modeling-001", "bonsai_modeling", "SP-01", "VL-current")
+    assert [s.id for s in draw(a_slot, seed=7)] == [
+        "bonsai-docs:src/bonsai/docs/guides/authoring/basic_modeling/door.rst#L115-L138",
+        "bonsai-docs:src/bonsai/docs/guides/authoring/basic_modeling/opening.rst#L1-L13",
+        "blender-manual:manual/scene_layout/object/editing/join.rst#L1-L26",
+    ]
+
+
+def _copy_with_sections(tmp_path):
+    copy = tmp_path / "docs"
+    shutil.copytree(FIXTURES, copy)
+    sections = draw(slot())
+    return copy, sections
+
+
+def test_render_refuses_changed_page_bytes(tmp_path):
+    copy, sections = _copy_with_sections(tmp_path)
+    first = sections[0]
+    page = copy / first.source / first.id.split(":", 1)[1].split("#", 1)[0]
+    data = bytearray(page.read_bytes())
+    data[len(data) // 2] ^= 0x01
+    page.write_bytes(bytes(data))
+    with pytest.raises(sampler.FixtureError):
+        sampler.render_sections(sections, copy)
+
+
+def test_render_refuses_wrong_page_hash():
+    wrong = draw(slot())[0].model_copy(update={"page_sha256": "0" * 64})
+    with pytest.raises(sampler.FixtureError):
+        sampler.render_sections([wrong], FIXTURES)
+
+
+def test_render_refuses_missing_page(tmp_path):
+    copy, sections = _copy_with_sections(tmp_path)
+    first = sections[0]
+    (copy / first.source / first.id.split(":", 1)[1].split("#", 1)[0]).unlink()
+    with pytest.raises(sampler.FixtureError):
+        sampler.render_sections(sections, copy)

@@ -35,7 +35,8 @@ SPLITS = ("development", "assessed")
 _ID = re.compile(r"(?P<source>[^:]+):(?P<path>.+)#L(?P<first>\d+)-L(?P<last>\d+)")
 MANIFEST = Path(__file__).resolve().parents[2] / "config" / "doc-manifest.json"
 
-assert tuple(get_args(Category)) == CATEGORIES
+if tuple(get_args(Category)) != CATEGORIES:
+    raise ImportError("doc_sources.Category and CATEGORIES disagree")
 
 
 class SamplerError(Exception):
@@ -65,8 +66,9 @@ def plan_slots(profiles: SetupProfiles, split: str, count: int) -> list[Slot]:
         raise ValueError(f"no setup profile in split {split!r}")
     slots: list[Slot] = []
     for n in range(1, count // len(CATEGORIES) + 1):
-        for category in CATEGORIES:
-            profile = mine[len(slots) % len(mine)]
+        for index, category in enumerate(CATEGORIES):
+            # Within a category the slots cycle through every profile of the split.
+            profile = mine[(n - 1 + index) % len(mine)]
             slots.append(Slot(f"{category}-{n:03d}", category, profile.id, profile.version_line))
     return slots
 
