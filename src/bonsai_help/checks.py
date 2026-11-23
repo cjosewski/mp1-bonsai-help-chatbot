@@ -42,6 +42,7 @@ GENERIC_PHRASES = frozenset(
         "use common sense",
     }
 )
+GENERIC_RESIDUAL_WORDS = 5
 REFUSAL_PHRASES = ("as an ai", "i cannot help", "i'm unable to")
 
 _BIM_ID = re.compile(r"\bbim\.[a-z0-9_]+")
@@ -120,6 +121,23 @@ def load_lexicons(reference_dir: Path) -> Lexicons:
     return Lexicons(bim, operators, segments)
 
 
+def _normalize_keep_dots(text: str) -> str:
+    """NFKC and casefold only, so dotted operator ids survive."""
+    return unicodedata.normalize("NFKC", text).casefold()
+
+
+def _phrase_matches(phrase: str, text: str) -> bool:
+    return re.search(rf"(?<!\w){re.escape(normalize(phrase))}(?!\w)", text) is not None
+
+
+def _is_generic(text: str) -> bool:
+    """Generic only if under GENERIC_RESIDUAL_WORDS words remain once phrases are removed."""
+    rest = normalize(text)
+    for phrase in sorted(GENERIC_PHRASES, key=len, reverse=True):
+        rest = re.sub(rf"(?<!\w){re.escape(normalize(phrase))}(?!\w)", " ", rest)
+    return len(rest.split()) < GENERIC_RESIDUAL_WORDS and normalize(text) != " ".join(rest.split())
+
+
 def _jaccard(a: set[str], b: set[str]) -> float:
     return len(a & b) / len(a | b) if a | b else 0.0
 
@@ -136,6 +154,8 @@ def run_checks(
     """Evaluate every pre-check on one generated item."""
     item = record.item
     line = record.version_line
+    if line not in lexicons.bim_ids:
+        raise ValueError(f"unknown version line {line!r}; known: {sorted(lexicons.bim_ids)}")
     results: list[CheckResult] = []
 
     def add(dimension: Dimension, name: str, ok: bool, detail: str, *, drop: bool = True) -> None:
@@ -152,11 +172,12 @@ def run_checks(
         chars >= MIN_SAFETY_CHARS,
         f"{chars} characters, need {MIN_SAFETY_CHARS}",
     )
-    hits = sorted(p for p in GENERIC_PHRASES if p in safety)
+    hits = sorted(p for p in GENERIC_PHRASES if _phrase_matches(p, safety))
+    hits = hits if _is_generic(item.safety_info) else []
     add("D2", "safety_not_generic", not hits, f"generic phrases: {hits}" if hits else "none")
 
     texts = [*item.tools_required, *item.steps]
-    used = sorted({m for t in texts for m in _BIM_ID.findall(normalize_keep_dots(t))})
+    used = sorted({m for t in texts for m in _BIM_ID.findall(_normalize_keep_dots(t))})
     known = lexicons.bim_ids.get(line, frozenset())
     unknown = [i for i in used if i not in known]
     add(
@@ -178,7 +199,7 @@ def run_checks(
         {
             f"{a}.{b}"
             for t in texts
-            for a, b in _OPERATOR.findall(normalize_keep_dots(t))
+            for a, b in _OPERATOR.findall(_normalize_keep_dots(t))
             if a in prefixes
         }
     )
@@ -207,7 +228,7 @@ def run_checks(
     )
 
     fields = normalize(f"{item.answer} {item.safety_info} {' '.join(item.tips)}")
-    refusals = [p for p in REFUSAL_PHRASES if normalize(p) in fields]
+    refusals = [p for p in REFUSAL_PHRASES if _phrase_matches(p, fields)]
     add("D4", "no_refusal", not refusals, f"refusal phrases: {refusals}" if refusals else "none")
 
     qwords = _words(item.question)
@@ -227,7 +248,7 @@ def run_checks(
 
     short = [t for t in item.tips if len(t.strip()) < MIN_TIP_CHARS]
     add("D6", "tip_length", not short, f"{len(short)} tips under {MIN_TIP_CHARS} characters")
-    generic = [t for t in item.tips if any(p in normalize(t) for p in GENERIC_PHRASES)]
+    generic = [t for t in item.tips if _is_generic(t)]
     add("D6", "tip_not_generic", not generic, f"{len(generic)} generic tips")
     step_tokens = [_tokens(_TIP_NUMBER.sub("", s)) for s in item.steps]
     copies = [
@@ -237,8 +258,3 @@ def run_checks(
     ]
     add("D6", "tip_not_step_copy", not copies, f"{len(copies)} tips copy a step")
     return results
-
-
-def normalize_keep_dots(text: str) -> str:
-    """NFKC and casefold only, so dotted operator ids survive."""
-    return unicodedata.normalize("NFKC", text).casefold()

@@ -91,7 +91,7 @@ def test_d2_short_or_generic_safety():
     assert not by_name(short, "safety_length").passed
     generic = run_checks(
         record(
-            safety_info="Please be careful when you edit the model and save often to avoid trouble later on."
+            safety_info="Be careful. Stay safe. Use common sense. Good luck and take your time, really, yes."
         ),
         LEX,
     )
@@ -153,9 +153,7 @@ def test_d5_thin_question():
 def test_d6_generic_short_or_step_copy_tip():
     short = run_checks(record(tips=["Save often."]), LEX)
     assert not by_name(short, "tip_length").passed
-    generic = run_checks(
-        record(tips=["Remember that practice makes perfect when you work in Bonsai."]), LEX
-    )
+    generic = run_checks(record(tips=["Practice makes perfect, so take your time."]), LEX)
     assert not by_name(generic, "tip_not_generic").passed
     step = "Select a wall type in the Type Library and click Add Wall."
     copy = run_checks(
@@ -191,7 +189,7 @@ def test_known_blender_operator_passes():
 
 
 def test_normalization_catches_fullwidth_generic_phrase():
-    fullwidth = "Ｂｅ　ｃａｒｅｆｕｌ　and keep a backup of the project file at all times."
+    fullwidth = "Ｂｅ　ｃａｒｅｆｕｌ　and take your time, good luck!"
     results = run_checks(record(tips=[fullwidth]), LEX)
     assert not by_name(results, "tip_not_generic").passed
 
@@ -203,3 +201,49 @@ def test_extra_generic_phrases_present(phrase):
 
 def test_lexicons_type():
     assert isinstance(LEX, Lexicons)
+
+
+@pytest.mark.parametrize("text", ["has an aisle", "was an aid", "has an air gap"])
+def test_refusal_matches_whole_words_only(text):
+    answer = "The room " + text + " of 1200 mm. " + " ".join(["Add the wall in Bonsai."] * 15)
+    assert by_name(run_checks(record(answer=answer), LEX), "no_refusal").passed
+
+
+def test_real_refusal_still_fails():
+    answer = "As an AI, I cannot help. " + " ".join(["Add the wall in Bonsai."] * 15)
+    assert not by_name(run_checks(record(answer=answer), LEX), "no_refusal").passed
+
+
+def test_specific_safety_with_generic_phrase_passes_d2():
+    text = (
+        "Be careful to save before running Purge, which removes unused types "
+        "permanently from the IFC."
+    )
+    assert by_name(run_checks(record(safety_info=text), LEX), "safety_not_generic").passed
+
+
+def test_purely_generic_safety_fails_d2():
+    text = "Be careful and stay safe. " * 4
+    assert not by_name(run_checks(record(safety_info=text), LEX), "safety_not_generic").passed
+
+
+def test_specific_tip_with_generic_phrase_passes_d6():
+    tip = "Follow the steps in the Georeferencing panel in order, setting the CRS before the false origin"
+    assert by_name(run_checks(record(tips=[tip]), LEX), "tip_not_generic").passed
+
+
+def test_purely_generic_tip_fails_d6():
+    assert not by_name(
+        run_checks(record(tips=["Good luck, take your time!"]), LEX), "tip_not_generic"
+    ).passed
+
+
+def test_generic_phrase_needs_word_boundary():
+    assert not checks._phrase_matches("be safe", "please be safely careful")
+    assert checks.GENERIC_RESIDUAL_WORDS == 5
+
+
+def test_unknown_version_line_raises():
+    bad = record().model_copy(update={"version_line": "VL-nope"})
+    with pytest.raises(ValueError, match="VL-nope"):
+        run_checks(bad, LEX)
