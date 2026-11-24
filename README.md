@@ -29,10 +29,14 @@ and the first-pass gate) is done, with no model run yet**; it has no rubric, whi
 moved to B5 on November 24, 2026. **B5 (rubric and baseline run) has started**: the
 rubric `config/rubric.json` (`bonsai-rubric-v1`) is drafted and awaits Chad's approval
 (status `assistant_drafted`), and the run config can name a separate local embedding
-server. One diagnostic smoke run was made on November 24, 2026; a thinking model spent its
+server. The first diagnostic smoke run on November 24, 2026 showed a thinking model spending its
 token budget on reasoning, so the run config can now turn that reasoning off
-(`enable_thinking`, below). The baseline run has not been done; it needs reachable local
-servers and Chad's go-ahead. Install, the offline tests, the
+(`enable_thinking`, below). The first baseline collection (`baseline-2026-11-24`,
+generator v1) was stopped during batch 2 on Chad's decision "Stop, fix, restart
+(Recommended)": batch 1's gate retained 19 of 70, mostly because v1 never asked for the
+gate's 60-word answer minimum and because quotes failed on RST inline markup. Its evidence
+is kept unchanged. The baseline restarts under a new collection ID with generator v1.1
+(`prompts/generator-v1.1.md`), and no baseline figure exists yet. Install, the offline tests, the
 documentation corpus rebuild, the section index, the lexicons, the setup-fact checks and
 the rubric commands (`rubric check`, `rubric show`) run today; steps 1 and 2 of the pipeline run offline against fake endpoints; every other
 step below is marked *not yet implemented* and will be filled in when its milestone lands.
@@ -71,7 +75,7 @@ packets remain as records. No new review decisions were imported.
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (Chad's SR-001 decisions applied) |
 | B3 | Gold set and multi-part and injection requests | Withdrawn from MP1 (moves to Mini Project 4); 6 of 110 items published and frozen; 104 drafts unreviewed |
 | B4 | Section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet; the rubric moved to B5 on November 24, 2026) |
-| B5 | Rubric (D1–D6) and baseline run | Started: rubric drafted (`assistant_drafted`, awaiting Chad's approval); one diagnostic smoke run (incomplete); baseline run not yet done |
+| B5 | Rubric (D1–D6) and baseline run | Started: rubric drafted (`assistant_drafted`, awaiting Chad's approval); diagnostic smoke runs; first baseline collection stopped and kept; restarted baseline (generator v1.1) not yet done |
 | B6 | Baseline human labels | Not yet implemented |
 | B7 | Judge and Phase A calibration | Not yet implemented |
 | B8 | Phase B correction | Not yet implemented |
@@ -438,8 +442,8 @@ The published files are CC BY-SA 4.0 data; quotes keep their source license (`NO
 
 ## Generate and gate (B4)
 
-One diagnostic smoke run has been made (November 24, 2026; `docs/DECISIONS.md`); no
-baseline run has. B5 needs a reachable local endpoint and Chad's go-ahead; the offline
+Diagnostic smoke runs have been made, and the first baseline collection was stopped
+(November 24, 2026; `docs/DECISIONS.md`); no baseline figure exists yet. B5 needs a reachable local endpoint and Chad's go-ahead; the offline
 tests exercise the commands against fake endpoints only. Copy
 `config/run.example.json` to `config/run.local.json` (git-ignored by the pattern
 `config/*.local.json`; `config/run.json` would be tracked) or to a path outside the
@@ -488,6 +492,15 @@ bonsai-help cohort-status --cohort-id COHORT_ID [--artifact-root ARTIFACT_ROOT]
 Defaults: `--count` 5 (a multiple of 5), `--target-retained` 50, `--batch-count` 70,
 `--max-batches` 3, fixtures `tests/fixtures/docs`, reference `reference`, artifact root
 `runs`. `uv run --locked bonsai-help <command> --help` prints the full text.
+
+`prompt_path` names the generator prompt. Any file that contains the `{category}`,
+`{setup}` and `{sections}` placeholders is accepted, and each run records its SHA-256 and a
+copy. Both measured arms use `prompts/generator-v1.1.md`: the baseline uses it as written,
+and the corrected arm changes v1.1 by the one Phase B change pre-registered from the
+heatmap. v1.1 differs from `prompts/generator-v1.md` only in asking for an answer of at
+least 60 words, the gate's D1 minimum; v1's wording is otherwise kept. v1 is frozen, because recorded runs used it. The
+field's default and `config/run.example.json` still name v1, so a baseline or corrected
+config sets `prompt_path` itself.
 
 | Command | What it does and writes |
 | --- | --- |

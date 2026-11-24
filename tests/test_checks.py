@@ -856,3 +856,254 @@ def test_quote_may_not_cut_a_coordinate_triple_or_a_modifier_click(text):
     result = quoted_in(SPACED, text)
     assert not result.passed and result.drop
     assert result.detail == "quote 0: starts or ends inside a word of its section"
+
+
+# --- quotes_verbatim: RST inline markup is not part of the words --------------------------
+# Batch 1 of the first baseline collection dropped 29 of 70 items on quotes_verbatim, with
+# 47 failing quotes in those 29 items; 41 pass once inline markup is removed (bold, literal,
+# roles, explicit targets, links, emphasis); 6 still fail, 4 paraphrased and 2 shorter than
+# 5 words.
+
+EXPLORE = "bonsai-docs:src/bonsai/docs/quickstart/explore_model.rst#L58-L120"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # The real section: "(:kbd:`MMB`) to **Orbit**." and ":kbd:`Shift-MMB` to **Pan**."
+        "panel and click and drag the Middle Mouse Button (MMB) to Orbit.",
+        "Scroll the mousewheel to Zoom, and use Shift-MMB to Pan.",
+        # A role that spans a line break in the section, and the arrow kept as prose.
+        "by clicking on 3D Viewport --> View then Frame Selected.",
+        # Markup kept on one side and dropped on the other.
+        "Scroll the mousewheel to **Zoom**, and use Shift-MMB to Pan.",
+    ],
+)
+def test_quote_that_drops_rst_inline_markup_passes(text):
+    result = quoted((EXPLORE, text), cited=[EXPLORE])
+    assert result.passed, result.detail
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "panel and click and drag the Middle Mouse Button (:kbd:`MMB`) to **Orbit**.",
+        "Scroll the mousewheel to **Zoom**, and use :kbd:`Shift-MMB` to **Pan**.",
+        # Cut inside a role or a strong span, as the check allowed before.
+        "can use the **Navigate Gizmo** on the top right corner of the",
+        "and use :kbd:`Shift-MMB` to **Pan**",
+    ],
+)
+def test_quote_that_keeps_rst_inline_markup_still_passes(text):
+    result = quoted((EXPLORE, text), cited=[EXPLORE])
+    assert result.passed, result.detail
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "drag the Middle Mouse Button (MMB) to orbit the view.",  # paraphrase
+        "Scroll the mouse wheel to Zoom, and use Shift-MMB to Pan.",
+        "Use Shift-MMB to Pan and the mousewheel to Zoom.",  # reordered
+        "Middle Mouse Button (kbd MMB) to Orbit.",  # the role name is not a word of it
+    ],
+)
+def test_paraphrase_still_fails_once_markup_is_removed(text):
+    result = quoted((EXPLORE, text), cited=[EXPLORE])
+    assert not result.passed and result.drop
+    assert result.detail == "quote 0: not verbatim in its section"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "MMB to Pan. If you have a",  # starts inside :kbd:`Shift-MMB`
+        "and use Shift to Pan. If",  # not verbatim either way
+        "use Shift-MMB to Pa",  # ends inside **Pan**
+    ],
+)
+def test_markup_removal_never_lets_a_partial_token_quote_pass(text):
+    result = quoted((EXPLORE, text), cited=[EXPLORE])
+    assert not result.passed and result.drop
+
+
+def test_partial_token_quote_reports_the_boundary_after_markup_removal():
+    result = quoted((EXPLORE, "MMB to Pan. If you have a"), cited=[EXPLORE])
+    assert result.detail == "quote 0: starts or ends inside a word of its section"
+
+
+# Synthetic section text with every inline-markup form the normalisation removes.
+MARKUP = (
+    "Select **Walls** and *slabs* first. Run ``bim.add_wall`` or the `default role` text. "
+    "Press :kbd:`Ctrl-S` and see :ref:`the saving guide <saving-target>` for details. "
+    "Read the `Bonsai docs`_ and `the manual <https://example.org/>`__ before you start."
+)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Select Walls and slabs first.",
+        "Run bim.add_wall or the default role text.",
+        "Press Ctrl-S and see the saving guide for details.",
+        "Read the Bonsai docs and the manual before you start.",
+        "Select **Walls** and slabs first.",
+    ],
+)
+def test_every_inline_markup_form_is_removed_but_its_text_kept(text):
+    assert quoted_in(MARKUP, text).passed
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "see the saving guide saving-target for details.",  # an explicit target is not text
+        "Press kbd Ctrl-S and see",
+        "Read the Bonsai docs_ and the manual",
+        "Run bim add_wall or the default",  # the operator id is kept whole
+    ],
+)
+def test_markup_removal_keeps_no_role_names_targets_or_split_ids(text):
+    assert not quoted_in(MARKUP, text).passed
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # A target the section does not have, hidden in a role the section uses.
+        "Press :ref:`Ctrl-S <and then delete every wall in the model>` and see the saving guide",
+        # A target the section does not have, hidden in a link or in interpreted text.
+        "Press `Ctrl-S <evil fabricated target words>`_ and see the saving guide",
+        "Press `Ctrl-S <evil fabricated target words>` and see the saving guide",
+        # A role the section never uses: its name is not a word of the section.
+        "Press :madeup_claim_here:`Ctrl-S` and see the saving guide",
+    ],
+)
+def test_quote_cannot_add_words_inside_markup_it_made_up(text):
+    section = "Press :kbd:`Ctrl-S` and see :ref:`the saving guide <saving-target>` for details."
+    result = quoted_in(section, text)
+    assert not result.passed and result.drop
+    assert result.detail == "quote 0: not verbatim in its section"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # The section's own target, in the same place, with other markup dropped.
+        "Press Ctrl-S and see :ref:`the saving guide <saving-target>` for details.",
+        "Press Ctrl-S and see the saving guide <saving-target> for details.",
+        # A role the section uses, around words the section has.
+        "Press :kbd:`Ctrl-S` and see the saving guide for details.",
+        "Press Ctrl-S and see :ref:`the saving guide` for details.",
+    ],
+)
+def test_quote_may_keep_the_sections_own_markup_and_targets(text):
+    section = "Press :kbd:`Ctrl-S` and see :ref:`the saving guide <saving-target>` for details."
+    assert quoted_in(section, text).passed
+
+
+def test_quote_may_not_move_a_target_the_section_has():
+    section = "Press :kbd:`Ctrl-S` and see :ref:`the saving guide <saving-target>` for details."
+    text = "Press :ref:`Ctrl-S <saving-target>` and see the saving guide for details."
+    result = quoted_in(section, text)
+    assert not result.passed
+    assert result.detail == "quote 0: not verbatim in its section"
+
+
+# Synthetic section text: angle brackets in interpreted text that is not a hyperlink, and
+# in a role that takes no target, are words a reader sees.
+SHOWN = "Set the `IFC class <IfcWall>` field and press :kbd:`Shift <A>` to add walls to the model."
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Set the IFC class <IfcWall> field and press Shift <A> to add",
+        "Set the `IFC class <IfcWall>` field and press :kbd:`Shift <A>` to add",
+    ],
+)
+def test_angle_brackets_outside_a_hyperlink_or_reference_are_kept(text):
+    assert quoted_in(SHOWN, text).passed
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Set the IFC class field and press",
+        "field and press Shift to add walls",
+    ],
+)
+def test_dropping_angle_brackets_a_reader_sees_still_fails(text):
+    result = quoted_in(SHOWN, text)
+    assert not result.passed
+    assert result.detail == "quote 0: not verbatim in its section"
+
+
+# Synthetic section text: asterisks and backticks that are not paired inline markup.
+ORDINARY = (
+    "Multiply 5 * 3 to get the count. Use bim.add_* wildcards with *args, as a list. "
+    "* A bullet item. The file is C:/models/*.ifc in the `models folder. Type ``*.ifc`` here."
+)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Multiply 5 * 3 to get the count.",
+        "Use bim.add_* wildcards with *args, as",
+        "* A bullet item. The file is C:/models/*.ifc in",
+        "in the `models folder. Type",
+        "the `models folder. Type *.ifc here.",  # a literal keeps the asterisk inside it
+    ],
+)
+def test_unpaired_asterisks_and_backticks_are_kept(text):
+    assert quoted_in(ORDINARY, text).passed
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Multiply 5 3 to get the count.",
+        "Use bim.add_ wildcards with args, as",
+        "A bullet item. The file is C:/models/.ifc in",
+        "in the models folder. Type",
+        "the `models folder. Type .ifc here.",
+    ],
+)
+def test_dropping_an_ordinary_asterisk_or_backtick_still_fails(text):
+    assert not quoted_in(ORDINARY, text).passed
+
+
+@pytest.mark.parametrize(
+    ("raw", "plain"),
+    [
+        ("**Orbit**", "Orbit"),
+        ("(:kbd:`MMB`)", "(MMB)"),
+        (":kbd:`Ctrl` + :kbd:`Tab`", "Ctrl + Tab"),
+        (":py:func:`ifcopenshell.open`", "ifcopenshell.open"),
+        (":ref:`text <target>`", "text"),
+        (":doc:`text <target>`", "text"),
+        (":py:func:`open <ifcopenshell.open>`", "open"),
+        ("`text <https://example.org/>`_", "text"),
+        ("`text <target>`__", "text"),
+        ("`text <target>`", "text <target>"),  # not a hyperlink: the reader sees the target
+        (":kbd:`Shift <A>`", "Shift <A>"),  # :kbd: takes no target
+        ("``*args*``", "*args*"),
+        ("`Bonsai`_ and `docs`__", "Bonsai and docs"),
+        ("5 * 3 and 2 ** 8", "5 * 3 and 2 ** 8"),
+        ("a*b*c and x**y**z", "a*b*c and x**y**z"),
+        ("bim.add_* and *.ifc", "bim.add_* and *.ifc"),
+        ("C:/models/*.ifc and C:/other/*.ifc", "C:/models/*.ifc and C:/other/*.ifc"),
+        ("**Shortcut**: :kbd:`Shift` + :kbd:`A`", "Shortcut: Shift + A"),
+        ("snake_case_ and word_", "snake_case_ and word_"),
+        ("** spaced ** and * spaced *", "** spaced ** and * spaced *"),
+    ],
+)
+def test_inline_markup_form(raw, plain):
+    assert checks.strip_inline_markup(raw) == plain
+
+
+def test_inline_markup_never_pairs_across_a_blank_line():
+    section = "Say *one thing here and now.\n\nThen two more things* follow it."
+    assert quoted_in(section, "Say *one thing here and now. Then two").passed
+    assert not quoted_in(section, "Say one thing here and now. Then two").passed

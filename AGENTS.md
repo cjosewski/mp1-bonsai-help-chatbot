@@ -138,16 +138,21 @@ run yet. `bonsai-help generate`, `gate`, `collect`, `collection-status`, `cohort
 moved it to B5 on November 24, 2026 ("Refuse hosted for now; record the rubric as moved to
 B5"). The final-review fixes and the cleanup of November 24, 2026 are recorded there as
 assistant's calls.
-As of November 24, 2026, **B5 (rubric and baseline run) has started**, with no model run
-yet. The rubric `config/rubric.json` (`bonsai-rubric-v1`, checked by `bonsai-help rubric
-check | show`) is `assistant_drafted` and awaits Chad's decision; only a dated
+As of November 24, 2026, **B5 (rubric and baseline run) has started**. The rubric
+`config/rubric.json` (`bonsai-rubric-v1`, checked by `bonsai-help rubric check | show`) is `assistant_drafted` and awaits Chad's decision; only a dated
 `docs/DECISIONS.md` entry in his words can make it `chad_accepted`, and a threshold change
 needs a dated amendment, a new rubric version and a code change. Chad chose a separate
 local embedding server (`embedding_base_url`) and the chat server's key file for the key
-("Yes, use that file"); the path stays in the git-ignored local config. The baseline run
-needs reachable local servers and Chad's go-ahead; which split it uses is open (plan file
-`docs/superpowers/plans/2026-11-24-b5-rubric-and-baseline.md`). Then B6–B10 as the plan's
-§9 describes. B6 and B8 need Chad's labels.
+("Yes, use that file"); the path stays in the git-ignored local config. Model runs have
+been made: diagnostic smoke runs (never baseline evidence) and the first baseline
+collection `baseline-2026-11-24` (generator v1), which Chad stopped during batch 2 ("Stop,
+fix, restart (Recommended)"); it is kept unchanged under `runs/` and never resumed,
+repaired or counted. Both measured arms use the assessed split (Chad: "Assessed split
+(Recommended)"). The restarted baseline uses `prompts/generator-v1.1.md` (v1 plus the
+gate's 60-word answer minimum) under a new collection ID, and needs reachable local
+servers and Chad's go-ahead. `prompts/generator-v1.md` is frozen; the Phase B correction
+changes v1.1 (plan file `docs/superpowers/plans/2026-11-24-b5-rubric-and-baseline.md`).
+Then B6–B10 as the plan's §9 describes. B6 and B8 need Chad's labels.
 
 B0 scope is the assistant's call, not Chad's: earlier pipeline modules were not copied.
 B4 ports them module by module, each with its tests, following `docs/PORTING-MAP.md`. The

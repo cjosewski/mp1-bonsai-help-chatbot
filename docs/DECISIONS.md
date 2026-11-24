@@ -1992,6 +1992,107 @@ Assistant's calls (not owner decisions) on how the setting works:
   alters the implementation identity, and the new setting alters the settings, so it
   could not be resumed anyway. The next smoke run gets a new run ID.
 
+### November 24, 2026: first baseline collection stopped; generator v1.1 and quote markup
+
+The first baseline collection (collection ID `baseline-2026-11-24`; `purpose` `baseline`,
+assessed split, generator v1, `enable_thinking` `false`) was stopped during batch 2.
+
+What batch 1 showed (`baseline-2026-11-24-b01`): 70 slots, 70 valid initial attempts,
+and the gate retained 19 of 70. Drops per check were `answer_length` 33, `quotes_verbatim`
+29 and `tip_not_step_copy` 1; an item can fail several checks, so the drops add up to more
+than the 51 items dropped.
+
+- **Short answers.** The short answers were 15 to 59 words. The gate's D1 minimum is 60
+  words, and generator v1 never stated a length.
+- **Quotes.** The gate report records 47 failing quotes in the 29 items that `quotes_verbatim` dropped: 45 "not
+  verbatim in its section" and 2 "2 words, need 5". A read-only replay of batch 1 under
+  the new quote check (below) passes 41 of the 47, because they occur verbatim once RST
+  inline markup is removed from both the quote and the section. 6 still fail, one in each
+  of 6 items: 4 are paraphrases of their section (a changed letter case, an added "The",
+  a dropped list number, a dropped bullet marker) and 2 are under the 5-word minimum. On
+  the replay `quotes_verbatim` would drop 6 items rather than 29. A quicker count the
+  assistant gave Chad before the replay (46 failing quotes, 39 passing without markup, 7
+  "not in the source") did not match the gate report; these figures, from the gate report
+  and the replay, supersede it.
+
+Batch 2 (`baseline-2026-11-24-b02`) was interrupted with status `running`, after 54 request
+starts and 53 attempts. The start without an attempt is an unknown outcome.
+
+Owner decision (Chad, November 24, 2026): "Stop, fix, restart (Recommended)".
+
+- **The stopped collection is kept as evidence.** Both batches and the collection are
+  kept unchanged under the git-ignored `runs/`. They are never resumed, repaired, edited
+  or deleted, and their figures never count as the baseline. The unknown outcome in batch
+  2 uses up its attempt and stays disclosed.
+- **The restart uses a new collection ID.** Its batches get new run IDs, so no earlier
+  batch is adopted.
+
+Iteration-log record for the prompt change (this carries into the B10 iteration log):
+
+- **Date.** November 24, 2026.
+- **Change.** Generator v1 → v1.1. `prompts/generator-v1.1.md` is identical to v1 except
+  for the answer length. The instruction line says to answer "for the stated setup in at
+  least 60 words" (v1: "for the stated setup."), and the `answer` field description reads
+  "a direct answer for the stated setup, at least 60 words" (v1: "a direct answer for the
+  stated setup"). The sentence after the instruction moves to the next line unchanged.
+  v1's wording, including "direct", is kept; only the length is added. Every placeholder
+  and every other line is byte-identical.
+  `prompts/generator-v1.md` is unchanged and frozen, because runs `smoke-2026-11-24-a`,
+  `smoke-2026-11-24-b` and `baseline-2026-11-24` used it. SHA-256 of v1:
+  `04c6d155b534226f51b1256d787e8d715b073e1017e9533d5cd5ee62ec548b36`. SHA-256 of v1.1:
+  `ee1dc9a122740ddd7540091da2dd9acd4ea1975278e87590286418b9bcbd75b1`.
+  `tests/test_generator_prompts.py` pins v1's hash and checks that v1.1 differs only in
+  those lines and states the gate's own minimum (`checks.MIN_ANSWER_WORDS`).
+- **Hypothesis.** Stating the gate's 60-word D1 minimum in the prompt reduces
+  `answer_length` drops without padding. The gate's check is unchanged. Whether the longer
+  answers are padded is for Chad's blind labels and the judge to decide, not the gate.
+- **Before.** Batch 1 of the stopped collection, as above: 70 slots, 70 valid initial
+  attempts, 19 of 70 retained, with `answer_length` dropping 33 items (15 to 59 words)
+  under v1.
+- **After.** Pending the restarted baseline.
+- **Decision** (assistant's call carrying out Chad's "Stop, fix, restart"; Chad can
+  overrule it). v1.1 is the baseline prompt. This is a pre-baseline fix of a mismatch
+  between the prompt and the gate, found by the first baseline collection, which was
+  stopped. It is not the Phase B correction. Phase B stays one change to the prompt,
+  pre-registered from the heatmap, and the corrected arm changes v1.1.
+- **Next step.** Run the restarted baseline collection under a new collection ID with
+  `prompt_path` `prompts/generator-v1.1.md` and the same settings otherwise. Then report
+  its `answer_length` drops beside batch 1's as this record's "after".
+
+Assistant's calls (not owner decisions; Chad can overrule any of them, and a change is a
+new dated entry):
+
+- **The quote check removes RST inline markup on both sides.** A quote passes if it is
+  verbatim either as written or after RST inline markup is removed
+  (`checks.strip_inline_markup`). The forms removed are: strong (`**text**`), emphasis
+  (`*text*`), literal (` ``text`` `, its content kept as it is), interpreted text
+  (`` `text` ``), roles (`` :role:`text` ``, including `` :domain:role:`text` ``, such as
+  `:kbd:`, `:menuselection:`, `:ref:` and `:py:func:`), the trailing `_` or `__` of
+  `` `link`_ `` and `` `anonymous link`__ ``, and the `<target>` of an explicit target (a
+  link such as `` `text <target>`_ ``, or a cross-reference role such as `:ref:` or
+  `:doc:`); in any other interpreted text or role the angle-bracket text is shown text and
+  stays. The delimiters go and the text inside them stays. The two sides are not treated
+  alike, so a quote cannot pass with words that only markup could hide: the section is
+  compared with its explicit targets removed and, separately, kept; on the quote side only
+  delimiters go, its `<target>` text always stays, and only a role name that the section
+  itself uses is unmarked. Markup is recognised only within one paragraph (the text is
+  split at blank lines first), and only where RST would open and close it (a start-string
+  after the text's start, whitespace, a hyphen or an opening bracket or quote mark and
+  before a non-space; an end-string after a non-space and before the text's end,
+  whitespace or closing punctuation). Unpaired asterisks and backticks, and forms such as
+  `5 * 3`, `*args`, `bim.add_*`, `C:/models/*.ifc` or `snake_case_`, stay as ordinary
+  characters. No other character is changed. The reason is that 41 of the 47
+  quotes that failed in batch 1 were verbatim once the markup was removed. This corrects a
+  false fail and does not weaken the check. Every other quote rule stays as it was (the
+  5-word minimum, whole-token boundaries, a cited and offered section), and so does the
+  60-word D1 minimum. A paraphrased or too-short quote still fails, as the other 6 did.
+- **The prompt path is not hard-coded.** `RunConfig.prompt_path` takes any prompt file
+  that `load_prompt` accepts (it must contain the `{category}`, `{setup}` and `{sections}`
+  placeholders). Each run records the prompt's SHA-256 and a copy of the prompt, and resume
+  checks both. Nothing in the code allows only `generator-v1.md`. On this date the field's
+  default and `config/run.example.json` still name v1, so the restarted baseline config
+  must name v1.1 itself.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

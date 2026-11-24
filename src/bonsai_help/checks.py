@@ -288,6 +288,113 @@ def _quote_form(text: str) -> str:
     return " ".join(unicodedata.normalize("NFC", text).split())
 
 
+# reStructuredText inline markup, approximating the docutils recognition rules but
+# narrower: a start-string follows the text's start, whitespace, a hyphen or an opening
+# bracket or quote mark (not a slash or colon, so a path's `/*.ifc` never opens emphasis)
+# and is followed by a non-space; an end-string follows a non-space and precedes the
+# text's end, whitespace or closing punctuation. Emphasis and strong text hold no
+# asterisk or backtick, interpreted text and roles no backtick. Anything else (`5 * 3`,
+# `*args`, `bim.add_*`, `C:/models/*.ifc`, `snake_case_`, an unpaired backtick) is an
+# ordinary character.
+_MARKUP_PRE = r"(?<![^\s\-'\"<(\[{\u2018\u201c\u00ab])"
+_MARKUP_SUF = r"(?![^\s\-.,:;!?\\/'\")\]}>\u2019\u201d\u00bb])"
+_BACKTICK_TEXT = r"[^`\s](?:[^`]*[^`\s])?"
+_STAR_TEXT = r"[^*`\s](?:[^*`]*[^*`\s])?"
+_INLINE_MARKUP = re.compile(
+    _MARKUP_PRE
+    + "(?:"
+    # :role:`text`, also :domain:role:`text` (:kbd:, :menuselection:, :ref:, :py:func:)
+    + r":(?P<role_name>[A-Za-z0-9][\w+.-]*(?::[A-Za-z0-9][\w+.-]*)*)"
+    + rf":`(?P<role>{_BACKTICK_TEXT})`"
+    + r"|``(?P<literal>\S(?:.*?\S)?)``"  # ``literal`` (its content is kept as it is)
+    + rf"|\*\*(?P<strong>{_STAR_TEXT})\*\*"  # **strong**
+    + rf"|\*(?P<emphasis>{_STAR_TEXT})\*"  # *emphasis*
+    # `interpreted`, `link`_, `anonymous link`__
+    + rf"|`(?P<interpreted>{_BACKTICK_TEXT})`(?P<link>__?)?"
+    + ")"
+    + _MARKUP_SUF
+)
+# The explicit target of `text <target>`_ or :ref:`text <target>`; only "text" is shown.
+_EXPLICIT_TARGET = re.compile(r"^(?P<text>.*?\S)\s+<[^<>]+>$")
+# Roles whose `text <target>` names a target that is not shown (Sphinx cross-references),
+# and every domain role (:py:func:, :std:ref:). Any other role, :kbd: or :menuselection:
+# among them, shows its text whole, angle brackets included, as does interpreted text
+# with no trailing `_` or `__`.
+_TARGET_ROLES = frozenset(
+    {"ref", "doc", "term", "any", "numref", "download", "keyword", "option", "envvar", "token"}
+)
+
+
+def _unmark(match: re.Match[str], *, keep_targets: bool, roles: frozenset[str] | None) -> str:
+    role = match.group("role_name")
+    if role is not None:
+        role = role.lower()
+        if roles is not None and role not in roles:
+            return match.group(0)
+        text = match.group("role")
+        has_target = ":" in role or role in _TARGET_ROLES
+    elif match.group("interpreted") is not None:
+        text = match.group("interpreted")
+        has_target = match.group("link") is not None
+    else:
+        return next(match.group(k) for k in ("literal", "strong", "emphasis") if match.group(k))
+    if has_target and not keep_targets:
+        target = _EXPLICIT_TARGET.match(text)
+        if target is not None:
+            text = target.group("text")
+    return text
+
+
+def strip_inline_markup(
+    text: str, *, keep_targets: bool = False, roles: frozenset[str] | None = None
+) -> str:
+    """``text`` with its RST inline-markup delimiters removed and their text kept.
+
+    **strong**, *emphasis*, ``literal``, `interpreted`, :role:`text` and the trailing
+    ``_`` or ``__`` of `link`_ and `anonymous link`__ lose their delimiters; the content
+    of a literal is kept as it is. The ``<target>`` of an explicit target (a link, or a
+    cross-reference role such as :ref: or :doc:) is removed too unless ``keep_targets``;
+    in any other interpreted text or role it is shown text and stays. With ``roles``,
+    only a role named in it is unmarked; any other role stays as written. Asterisks and
+    backticks that are not paired markup stay. No other character is changed.
+    """
+    return _INLINE_MARKUP.sub(lambda m: _unmark(m, keep_targets=keep_targets, roles=roles), text)
+
+
+def _paragraphs(text: str) -> list[str]:
+    """``text`` split at blank lines, each part in `_quote_form`, empty parts dropped.
+
+    Markup is recognised only inside one paragraph, as in RST, so a stray asterisk in one
+    paragraph never pairs with one in the next.
+    """
+    parts = re.split(r"\n[^\S\n]*\n", unicodedata.normalize("NFC", text))
+    return [form for form in (_quote_form(p) for p in parts) if form]
+
+
+def _role_names(text: str) -> frozenset[str]:
+    """The names of the roles ``text`` uses, lower-cased (`kbd`, `ref`, `py:func`)."""
+    return frozenset(
+        m.group("role_name").lower()
+        for p in _paragraphs(text)
+        for m in _INLINE_MARKUP.finditer(p)
+        if m.group("role_name") is not None
+    )
+
+
+def _plain_form(
+    text: str, *, keep_targets: bool = False, roles: frozenset[str] | None = None
+) -> str:
+    """`_quote_form` with RST inline markup removed (`strip_inline_markup`), by paragraph."""
+    return " ".join(
+        part
+        for part in (
+            strip_inline_markup(p, keep_targets=keep_targets, roles=roles)
+            for p in _paragraphs(text)
+        )
+        if part
+    )
+
+
 def _echo(text: str) -> str:
     return text if len(text) <= MAX_ECHO_CHARS else text[: MAX_ECHO_CHARS - 1] + "…"
 
@@ -344,28 +451,57 @@ def quote_word_count(text: str) -> int:
     return sum(1 for token in text.split() if any(ch.isalnum() for ch in token))
 
 
-def _quote_problem(quote: str, section: str) -> str | None:
-    """Why ``quote`` is not a verbatim, whole-token passage of ``section`` (None if it is).
+_NOT_VERBATIM = "not verbatim in its section"
 
-    Both are compared in `_quote_form`. A passage must start and end on a token boundary
-    of the section (`_joined`), so "all walls" is not found in "install walls" and a quote
-    may not end at "bim" in "bim.add_wall", "can" in "can't", "File" in "File/Import",
-    "5" in "5,000", "EPSG" in "EPSG:7856" or "Ctrl" in "Ctrl+S", or start at "ifc" in
-    "model.ifc" or "destructive" in "non-destructive". Only tokens
-    with a letter or digit count toward MIN_QUOTE_WORDS.
-    """
-    needle, haystack = _quote_form(quote), _quote_form(section)
+
+def _passage_problem(needle: str, haystack: str) -> str | None:
+    """Why ``needle`` is not a whole-token passage of ``haystack`` (both in one form)."""
     words = quote_word_count(needle)
     if words < MIN_QUOTE_WORDS:
         return f"{words} words, need {MIN_QUOTE_WORDS}"
     start = haystack.find(needle)
     if start < 0:
-        return "not verbatim in its section"
+        return _NOT_VERBATIM
     while start >= 0:
         if not _joined(haystack, start) and not _joined(haystack, start + len(needle)):
             return None
         start = haystack.find(needle, start + 1)
     return "starts or ends inside a word of its section"
+
+
+def _quote_problem(quote: str, section: str) -> str | None:
+    """Why ``quote`` is not a verbatim, whole-token passage of ``section`` (None if it is).
+
+    The quote passes if it is found in one of three comparisons. As written: both texts
+    in `_quote_form` (NFC, whitespace collapsed). Without markup: the section in
+    `_plain_form` (its RST inline markup removed, explicit targets too), so a quote passes
+    whether it keeps the section's **bold**, ``literal`` and :kbd:`...` markup or drops
+    it, and the section in `_plain_form` with its explicit targets kept, so a quote may
+    keep a target where the section has it. On the quote side only delimiters go: its
+    ``<target>`` text always stays, and only a role the section uses is unmarked, so a
+    quote can never pass with words hidden in markup the section does not have (a made-up
+    target, a made-up role name). In each comparison a passage must have MIN_QUOTE_WORDS
+    tokens with a letter or digit and start and end on a token boundary of the section
+    (`_joined`), so "all walls" is not found in "install walls" and a quote may not end at
+    "bim" in "bim.add_wall", "can" in "can't", "File" in "File/Import", "5" in "5,000",
+    "EPSG" in "EPSG:7856" or "Ctrl" in "Ctrl+S", or start at "ifc" in "model.ifc" or
+    "destructive" in "non-destructive". When every comparison fails, the reason is the
+    written form's unless the quote is not verbatim as written; then it is the first
+    markup-free comparison's reason that is not "not verbatim", else "not verbatim".
+    """
+    written = _passage_problem(_quote_form(quote), _quote_form(section))
+    if written is None:
+        return None
+    needle = _plain_form(quote, keep_targets=True, roles=_role_names(section))
+    plain = []
+    for keep_targets in (False, True):
+        problem = _passage_problem(needle, _plain_form(section, keep_targets=keep_targets))
+        if problem is None:
+            return None
+        plain.append(problem)
+    if written != _NOT_VERBATIM:
+        return written
+    return next((p for p in plain if p != _NOT_VERBATIM), _NOT_VERBATIM)
 
 
 def quote_problems(record: GeneratedItem, section_texts: Mapping[str, str]) -> list[str]:
@@ -374,7 +510,7 @@ def quote_problems(record: GeneratedItem, section_texts: Mapping[str, str]) -> l
     ``section_texts`` maps each offered section id to its text as it was offered
     (`sampler.section_texts`). A quote must name a cited section, have at least
     MIN_QUOTE_WORDS words with a letter or digit and occur verbatim, on token boundaries,
-    in that section.
+    in that section, with or without its RST inline markup (`_quote_problem`).
     """
     cited = {s.id for s in record.cited_sections}
     offered = {s.id for s in record.offered_sections}

@@ -612,3 +612,17 @@ def test_gate_refuses_an_item_whose_quotes_differ_from_its_attempt(config):
     with pytest.raises(ValueError, match="quotes that differ from its attempt"):
         run_gate(config)
     assert not (directory / "gate-report.json").exists()
+
+
+def test_gate_retains_an_item_whose_quote_drops_rst_inline_markup():
+    # The real fixture section has "(:kbd:`MMB`) to **Orbit**."; the quote drops both.
+    explore = fixture_section("bonsai-docs:src/bonsai/docs/quickstart/explore_model.rst#L58-L120")
+    text = "panel and click and drag the Middle Mouse Button (MMB) to Orbit."
+    sections = {"offered_sections": [explore], "cited_sections": [explore]}
+    plain = record(0, quotes=[{"section_id": explore.id, "text": text}]).model_copy(update=sections)
+    invented = [{"section_id": explore.id, "text": "drag the middle mouse button to orbit"}]
+    paraphrase = record(1, quotes=invented).model_copy(update=sections)
+    report = evaluate([plain, paraphrase, *(record(i) for i in range(2, 5))])
+    assert report["per_item"]["r-000"]["dropped_by"] == []
+    assert report["per_item"]["r-001"]["dropped_by"] == ["D3:quotes_verbatim"]
+    assert "r-000" in report["retained_ids"] and "r-001" not in report["retained_ids"]
