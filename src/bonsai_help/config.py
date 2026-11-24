@@ -19,10 +19,40 @@ from pydantic import (
     model_validator,
 )
 
+from bonsai_help.doc_sources import ConfigError
+
 Nonblank = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 PROMPT_PLACEHOLDERS = ("{category}", "{setup}", "{sections}")
+# An environment-variable NAME: upper case, digits and underscores, not a pasted key.
+ENV_NAME = re.compile(r"[A-Z_][A-Z0-9_]{0,63}")
+# Credentials are scrubbed from evidence by exact match; a shorter key would match
+# ordinary words in generated text, so it is refused rather than redacted.
+MIN_API_KEY_LENGTH = 16
+HOSTED_REFUSED = (
+    "hosted: true is refused: the hosted path is not implemented, and it stays refused "
+    "until Chad authorizes one with an enforced cost cap (cost_cap_usd is not enforced)"
+)
+# Local model hosts: loopback, RFC 1918 IPv4 and IPv6 unique local addresses. Link-local
+# (169.254.0.0/16, fe80::/10) is refused: it holds cloud metadata services and is not a
+# plausible model host. Tunnel and translation prefixes (6to4, Teredo, NAT64), CGNAT and
+# documentation ranges are not on this list, so they are refused too.
+LOCAL_NETWORKS = tuple(
+    ipaddress.ip_network(network)
+    for network in (
+        "127.0.0.0/8",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "::1/128",
+        "fc00::/7",
+    )
+)
+
+
+class HostedRefused(ConfigError):
+    """A run config asks for the hosted path, which is not implemented (exit 2)."""
 
 
 def _resolve(value: str) -> Path:
@@ -60,17 +90,27 @@ class RunConfig(BaseModel):
 
     @model_validator(mode="after")
     def endpoint_and_credentials(self):
-        _check_endpoint(self.base_url, self.hosted)
         if self.hosted:
-            if not self.hosted_authorization:
-                raise ValueError("a hosted endpoint needs hosted_authorization")
-            if self.cost_cap_usd is None or self.cost_cap_usd <= 0:
-                raise ValueError("a hosted endpoint needs cost_cap_usd above zero")
+            # Not a ValueError, so Pydantic does not fold it into a ValidationError
+            # whose CLI summary would only name "(root)".
+            raise HostedRefused(HOSTED_REFUSED)
+        _check_endpoint(self.base_url)
         if bool(self.api_key_env) == bool(self.api_key_file):
             raise ValueError("set exactly one of api_key_env and api_key_file")
         if self.model_sha256 is not None and not re.fullmatch("[a-f0-9]{64}", self.model_sha256):
             raise ValueError("model_sha256 must be a lowercase SHA-256 checksum")
         return self
+
+    @field_validator("api_key_env")
+    @classmethod
+    def names_an_environment_variable(cls, value: str | None) -> str | None:
+        # hide_input_in_errors keeps the rejected value out of the error text.
+        if value is not None and not ENV_NAME.fullmatch(value):
+            raise ValueError(
+                "api_key_env must name an environment variable (A-Z, 0-9 and _, "
+                "at most 64 characters), not hold a key value"
+            )
+        return value
 
     @field_validator("base_url")
     @classmethod
@@ -97,6 +137,7 @@ class RunConfig(BaseModel):
             value = os.environ.get(self.api_key_env or "", "").strip()
         if not value:
             raise ValueError("configured API key is missing or empty")
+        check_api_key_length(value)
         return value
 
     def artifact_path(self) -> Path:
@@ -113,7 +154,23 @@ class RunConfig(BaseModel):
         }
 
 
-def _check_endpoint(value: str, hosted: bool) -> None:
+def check_api_key_length(value: str) -> None:
+    """Refuse a key too short to scrub from evidence without editing ordinary text."""
+    if len(value) < MIN_API_KEY_LENGTH:
+        raise ValueError(
+            f"the API key must be at least {MIN_API_KEY_LENGTH} characters; a local "
+            "server that ignores the key still needs a long random placeholder"
+        )
+
+
+def _is_local(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
+        address = address.ipv4_mapped
+    return any(address in network for network in LOCAL_NETWORKS)
+
+
+def _check_endpoint(value: str) -> None:
+    """Accept only an explicit local endpoint; the hosted path is refused earlier."""
     url = urlsplit(value)
     if url.scheme not in {"http", "https"} or not url.hostname:
         raise ValueError("base_url must be an explicit HTTP(S) endpoint")
@@ -127,17 +184,13 @@ def _check_endpoint(value: str, hosted: bool) -> None:
         raise ValueError("invalid endpoint port")
     if url.path.rstrip("/") != "/v1":
         raise ValueError("base_url must end in /v1")
-    if hosted:
-        if url.scheme != "https":
-            raise ValueError("a hosted endpoint must use https")
-        return
     if url.hostname != "localhost":
         try:
             address = ipaddress.ip_address(url.hostname)
         except ValueError as exc:
             raise ValueError("use localhost or an explicit private/loopback IP") from exc
-        if not (address.is_loopback or address.is_private) or address.is_unspecified:
-            raise ValueError("only explicit local endpoints are allowed unless hosted is true")
+        if not _is_local(address):
+            raise ValueError("only loopback, RFC 1918 or IPv6 unique local endpoints are allowed")
 
 
 def load_config(path: Path) -> RunConfig:

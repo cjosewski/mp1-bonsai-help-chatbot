@@ -15,6 +15,13 @@ import instructor
 from openai import OpenAI
 from pydantic import BaseModel
 
+from bonsai_help.config import check_api_key_length
+
+CREDENTIAL_ECHO = "CredentialEcho"
+AUTH_FIELDS = frozenset(
+    {"authorization", "proxy-authorization", "api-key", "x-api-key", "cookie", "set-cookie"}
+)
+
 
 @dataclass(frozen=True)
 class AttemptResult:
@@ -75,6 +82,7 @@ class InstructorClient:
             raise ValueError("temperature must be finite and between 0 and 2")
         if not api_key or not api_key.strip():
             raise ValueError("api_key must be supplied explicitly")
+        check_api_key_length(api_key)
         if not model or not model.strip():
             raise ValueError("model must be supplied explicitly")
 
@@ -85,6 +93,7 @@ class InstructorClient:
         self._temperature = temperature
         self._timeout_seconds = timeout_seconds
         self._last_http_body: dict[str, Any] | str | None = None
+        self._last_http_echo = False
         self._sdk = OpenAI(
             base_url=base_url,
             api_key=api_key,
@@ -108,10 +117,28 @@ class InstructorClient:
             body = response.json()
         except ValueError:
             body = response.text
+        self._last_http_echo = self._echoes(body)
         self._last_http_body = self._raw(body)
 
+    def _echoes(self, value: Any) -> bool:
+        """Whether the credential occurs anywhere in a value, its dict keys included."""
+        if hasattr(value, "model_dump"):
+            value = value.model_dump(mode="json")
+        if isinstance(value, str):
+            return self._api_key in value
+        if isinstance(value, dict):
+            return any(self._echoes(str(k)) or self._echoes(v) for k, v in value.items())
+        if isinstance(value, (list, tuple)):
+            return any(self._echoes(entry) for entry in value)
+        return False
+
     def _redact(self, value: Any) -> Any:
-        """Retain response structure without credential values or auth fields."""
+        """Retain response structure without credential values or auth fields.
+
+        Only evidence (raw bodies, diagnostics) is redacted. A parsed item is never
+        rewritten: an echoed credential makes the attempt fail instead. Exact
+        replacement is safe because keys shorter than MIN_API_KEY_LENGTH are refused.
+        """
         if isinstance(value, str):
             return value.replace(self._api_key, "[REDACTED]")
         if isinstance(value, dict):
@@ -119,14 +146,7 @@ class InstructorClient:
             for key, entry in value.items():
                 normalized = str(key).lower().replace("_", "-")
                 safe_key = self._redact(str(key))
-                if normalized in {
-                    "authorization",
-                    "proxy-authorization",
-                    "api-key",
-                    "x-api-key",
-                    "cookie",
-                    "set-cookie",
-                }:
+                if normalized in AUTH_FIELDS:
                     result[safe_key] = "[REDACTED]"
                 else:
                     result[safe_key] = self._redact(entry)
@@ -174,6 +194,7 @@ class InstructorClient:
 
     def _generate_once(self, messages: list[dict[str, str]]) -> AttemptResult:
         self._last_http_body = None
+        self._last_http_echo = False
         completion = None
         try:
             item, completion = self._client.create_with_completion(
@@ -185,14 +206,26 @@ class InstructorClient:
                 temperature=self._temperature,
                 timeout=self._timeout_seconds,
             )
-            # A server can echo a credential in its content. Protect the parsed
-            # payload as well as the raw response before either is persisted.
-            item = self._output_type.model_validate(self._redact(item.model_dump(mode="json")))
+            captured = self._last_http_body is not None
+            raw_response = self._last_http_body if captured else self._raw(completion)
+            echoed = self._echoes(item) or (
+                self._last_http_echo if captured else self._echoes(completion)
+            )
+            if echoed:
+                # The response cannot be kept verbatim, and rewriting the item would
+                # store text the model did not produce. Fail the attempt instead,
+                # keeping the redacted raw body as its evidence.
+                return AttemptResult(
+                    item=None,
+                    raw_response=raw_response,
+                    error="the response echoed the configured credential; the raw "
+                    "response is kept redacted and the item is not kept",
+                    error_type=CREDENTIAL_ECHO,
+                    response_model=self._response_model(completion),
+                )
             return AttemptResult(
                 item=item,
-                raw_response=self._last_http_body
-                if self._last_http_body is not None
-                else self._raw(completion),
+                raw_response=raw_response,
                 error=None,
                 error_type=None,
                 response_model=self._response_model(completion),
@@ -261,6 +294,7 @@ class EmbeddingClient:
             raise ValueError("timeout_seconds must be finite and positive")
         if not api_key or not api_key.strip():
             raise ValueError("api_key must be supplied explicitly")
+        check_api_key_length(api_key)
         if not model or not model.strip():
             raise ValueError("model must be supplied explicitly")
         self._api_key = api_key

@@ -122,19 +122,80 @@ def test_unparseable_or_truncated_completion_still_retains_response_body(kind):
     assert result.raw_response == ("synthetic invalid HTTP response" if kind == "not_json" else raw)
 
 
-def test_successful_payload_and_raw_response_redact_echoed_credentials():
+def test_credential_echoed_in_the_item_is_a_failed_attempt_not_a_rewritten_item():
     payload = synthetic_generation()
     payload["item"]["answer"] += f" Echoed credential: {KEY}"
-    raw = completion(json.dumps(payload))
-    raw["extra_metadata"] = {"authorization": "Bearer unrelated-secret", "nested": [KEY]}
+    fake = fixed_response(completion(json.dumps(payload)))
+    with make_client(fake) as client:
+        result = client.generate(MESSAGES)
+
+    assert len(fake.calls) == 1
+    assert result.item is None
+    assert result.error_type == "CredentialEcho"
+    assert "credential" in result.error and KEY not in result.error
+    raw = json.dumps(result.raw_response)
+    assert KEY not in raw and "[REDACTED]" in raw
+    assert result.response_model == "synthetic-model-revision"
+
+
+@pytest.mark.parametrize("where", ["metadata", "dict_key", "model"])
+def test_credential_echoed_only_in_the_raw_body_is_a_failed_attempt(where):
+    raw = completion(json.dumps(synthetic_generation()))
+    if where == "metadata":
+        raw["extra_metadata"] = {"nested": [f"echo {KEY}"]}
+    elif where == "dict_key":
+        raw["extra_metadata"] = {KEY: "synthetic"}
+    else:
+        raw["model"] = f"model-{KEY}"
     with make_client(fixed_response(raw)) as client:
         result = client.generate(MESSAGES)
 
-    assert result.item is not None
-    serialized = json.dumps(result.raw_response) + result.item.model_dump_json()
-    assert KEY not in serialized
-    assert "unrelated-secret" not in serialized
-    assert "[REDACTED]" in serialized
+    assert result.item is None
+    assert result.error_type == "CredentialEcho"
+    assert KEY not in json.dumps(result.raw_response) + result.error
+    assert KEY not in (result.response_model or "")
+
+
+def test_clean_item_is_kept_verbatim_and_auth_fields_are_redacted():
+    payload = synthetic_generation()
+    payload["item"]["answer"] = "If none of the walls appear, check the next tips panel."
+    payload["item"]["tips"] = ["Keep the tip short; none of the API keys belong here."]
+    content = json.dumps(payload)
+    raw = completion(content)
+    raw["extra_metadata"] = {"authorization": "Bearer unrelated-secret", "note": "plain"}
+    with make_client(fixed_response(raw)) as client:
+        result = client.generate(MESSAGES)
+
+    assert result.error is None and result.error_type is None
+    assert result.item.model_dump() == payload
+    assert result.raw_response["choices"][0]["message"]["content"] == content
+    assert result.raw_response["extra_metadata"] == {
+        "authorization": "[REDACTED]",
+        "note": "plain",
+    }
+
+
+@pytest.mark.parametrize("short", ["tip", "none", "x", "local-key-0123"])
+def test_short_api_key_is_refused_before_network(short):
+    fake = fake_transport(lambda request: pytest.fail("No HTTP request should be made"))
+    with pytest.raises(ValueError, match="at least 16 characters") as caught:
+        InstructorClient(
+            base_url=FAKE_BASE_URL,
+            model=FAKE_MODEL,
+            api_key=short,
+            response_model=GenerationOutput,
+            _transport=fake.transport,
+        )
+    assert short not in str(caught.value)
+    with pytest.raises(ValueError, match="at least 16 characters") as caught:
+        EmbeddingClient(
+            base_url=FAKE_BASE_URL,
+            model="synthetic-embedding",
+            api_key=short,
+            _transport=fake.transport,
+        )
+    assert short not in str(caught.value)
+    assert not fake.calls
 
 
 @pytest.mark.parametrize("prefix", ["", "malformed response containing "])
