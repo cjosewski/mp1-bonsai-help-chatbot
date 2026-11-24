@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import get_args
 
+from bonsai_help.config import REPOSITORY
 from bonsai_help.doc_sources import (
     CATEGORIES,
     Category,
@@ -33,7 +34,8 @@ MAX_MANUAL = 1
 EXCLUDED_TAGS = frozenset({"developer", "fragment"})
 SPLITS = ("development", "assessed")
 _ID = re.compile(r"(?P<source>[^:]+):(?P<path>.+)#L(?P<first>\d+)-L(?P<last>\d+)")
-MANIFEST = Path(__file__).resolve().parents[2] / "config" / "doc-manifest.json"
+# The committed manifest of the repository checkout the package runs from.
+MANIFEST = REPOSITORY / "config" / "doc-manifest.json"
 
 if tuple(get_args(Category)) != CATEGORIES:
     raise ImportError("doc_sources.Category and CATEGORIES disagree")
@@ -73,8 +75,23 @@ def plan_slots(profiles: SetupProfiles, split: str, count: int) -> list[Slot]:
     return slots
 
 
-def _manifest(manifest: dict | None) -> dict:
-    return manifest if manifest is not None else json.loads(MANIFEST.read_bytes())
+def _manifest() -> dict:
+    try:
+        document = json.loads(MANIFEST.read_bytes())
+    except (OSError, ValueError) as error:
+        raise FixtureError(
+            f"committed manifest {MANIFEST.name} is missing or unreadable ({type(error).__name__})"
+        ) from None
+    if not isinstance(document, dict) or not isinstance(document.get("sources"), dict):
+        raise FixtureError(f"committed manifest {MANIFEST.name} has no sources")
+    return document
+
+
+def _entry(document: dict, source: Source) -> dict:
+    entry = document["sources"].get(source.id)
+    if not isinstance(entry, dict):
+        raise FixtureError(f"{source.id}: not in the manifest")
+    return entry
 
 
 def _read_verified(source: Source, entry: dict, fixtures_dir: Path, path: str) -> bytes:
@@ -90,12 +107,12 @@ def _read_verified(source: Source, entry: dict, fixtures_dir: Path, path: str) -
     return data
 
 
-def verify_fixtures(config: DocSources, fixtures_dir: Path, manifest: dict | None = None) -> None:
+def verify_fixtures(config: DocSources, fixtures_dir: Path) -> None:
     """Raise FixtureError unless every listed fixture page matches its manifest hash."""
-    document = _manifest(manifest)
+    document = _manifest()
     for source in config.sources:
         for page in source.fixture_pages:
-            _read_verified(source, document["sources"][source.id], fixtures_dir, page.path)
+            _read_verified(source, _entry(document, source), fixtures_dir, page.path)
 
 
 def _has_body(record: dict) -> bool:
@@ -110,16 +127,14 @@ def _has_body(record: dict) -> bool:
     return False
 
 
-def fixture_sections(
-    config: DocSources, fixtures_dir: Path, manifest: dict | None = None
-) -> list[dict]:
+def fixture_sections(config: DocSources, fixtures_dir: Path) -> list[dict]:
     """Section records of every fixture page of the docs sources, with `categories` added."""
-    document = _manifest(manifest)
+    document = _manifest()
     records: list[dict] = []
     for source in config.sources:
         if source.role != "docs":
             continue
-        entry = document["sources"][source.id]
+        entry = _entry(document, source)
         pages = frozenset(item["path"] for item in entry["pages"])
         for page in source.fixture_pages:
             data = _read_verified(source, entry, fixtures_dir, page.path)

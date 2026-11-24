@@ -13,6 +13,7 @@ import re
 import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
+from itertools import pairwise
 from pathlib import Path
 from typing import Literal
 
@@ -46,6 +47,41 @@ GENERIC_PHRASES = frozenset(
 GENERIC_RESIDUAL_WORDS = 5
 REFUSAL_PHRASES = ("as an ai", "i cannot help", "i'm unable to")
 EVIDENCE_ONLY = frozenset({"blender_operators_known", "menu_paths_known"})
+# Capitalized words, or two-word phrases, that may open a step just before a menu label
+# ("Open Object > Apply", "Right click Object > Apply"). Any other capitalized word there
+# is read as part of an invented label, unless it ends in "," or ":" (a clause break).
+LEAD_IN_WORDS = frozenset(
+    {
+        "open",
+        "go",
+        "click",
+        "right click",
+        "double click",
+        "select",
+        "choose",
+        "pick",
+        "use",
+        "press",
+        "navigate",
+        "find",
+        "locate",
+        "expand",
+        "switch",
+        "then",
+        "next",
+        "now",
+        "finally",
+        "first",
+        "also",
+        "using",
+        "access",
+        "enter",
+        "in",
+        "from",
+        "under",
+        "via",
+    }
+)
 # Bonsai-source lexicon entries that are invocable ``bpy.ops.bim.*`` ids.
 BIM_OPERATOR_KINDS = ("operator", "macro")
 
@@ -73,8 +109,8 @@ class Lexicons:
     """Per version line: Bonsai operator ids, Blender operator ids and menu labels.
 
     ``bim_ids`` holds only registered operators and macros. ``menu_segments`` holds the
-    normalized labels of the Manual's menu paths and gui labels, the Bonsai docs' menu
-    and ui paths, and the Bonsai source's button texts and class labels.
+    normalized labels of the Manual's menu paths, gui labels and operator labels, the
+    Bonsai docs' menu and ui paths, and the Bonsai source's button texts and class labels.
     """
 
     bim_ids: dict[str, frozenset[str]]
@@ -123,6 +159,9 @@ def load_lexicons(reference_dir: Path) -> Lexicons:
                 continue
             if entry["kind"] in ("blender_operator", "operator_ref"):
                 ops.add(value.casefold())
+                # The Manual documents each operator under its UI label ("Cube").
+                if isinstance(entry.get("label"), str):
+                    segs.add(_segment(entry["label"]))
             elif entry["kind"] == "menu_path":
                 segs.update(_segment(part) for part in _MENU_SPLIT.split(value))
             elif entry["kind"] == "guilabel":
@@ -146,24 +185,45 @@ def _initial_is_upper(word: str) -> bool:
     return next((c for c in word if c.isalpha()), "").isupper()
 
 
+def _lead_in_ok(words: list[str], i: int) -> bool:
+    """Whether ``words[:i]`` may stand before a label that starts at ``words[i]``.
+
+    The word just before the label must be lowercase prose, or, when it opens the
+    path, one of ``LEAD_IN_WORDS`` or a word ending in "," or ":" (a clause break,
+    "Finally, File"). A two-word lead-in ("Right Click") may open the path the same way.
+    Any other capitalized word is part of the label.
+    """
+    before = words[i - 1]
+    if not _initial_is_upper(before):
+        return True
+    if i == 1:
+        return before.endswith((",", ":")) or _segment(before) in LEAD_IN_WORDS
+    return i == 2 and _segment(" ".join(words[:2])) in LEAD_IN_WORDS
+
+
 def _menu_part_known(part: str, segments: frozenset[str], *, first: bool, last: bool) -> bool:
     """Whole-label match of one menu-path part; prose may only sit outside the path.
 
     A part is known when it equals a lexicon label after normalization. The first part
     may carry lead-in prose ("In Object Mode, open Object"): some trailing run of its
-    words must be a label, and the word just before that run must not be capitalized
-    unless it starts the path. The last part may carry trailing prose ("Scale and
-    confirm"): some leading run must be a label, followed by a word that is not
-    capitalized. Labels never match inside a word or as a fragment of a longer label.
+    words must be a label, preceded by a lowercase word or by a lead-in or clause break
+    that opens the path ("Open Object", "Finally, File"; see ``_lead_in_ok``); leading
+    words with no letters ("1)") are skipped. The last
+    part may carry trailing prose ("Scale and confirm"): some leading run must be a
+    label, followed by a word that is not capitalized. Labels never match inside a word
+    or as a fragment of a longer label.
     """
     if _segment(part) in segments:
         return True
     words = part.split()
     if first:
-        for i in range(1, len(words)):
-            if _segment(" ".join(words[i:])) in segments and (
-                i == 1 or not _initial_is_upper(words[i - 1])
-            ):
+        lead = words
+        while lead and not any(c.isalpha() for c in lead[0]):
+            lead = lead[1:]
+        if lead and _segment(" ".join(lead)) in segments:
+            return True
+        for i in range(1, len(lead)):
+            if _segment(" ".join(lead[i:])) in segments and _lead_in_ok(lead, i):
                 return True
     if last:
         for j in range(len(words) - 1, 0, -1):
@@ -172,13 +232,28 @@ def _menu_part_known(part: str, segments: frozenset[str], *, first: bool, last: 
     return False
 
 
+_WILDCARD_WORDS = "[a-z0-9]+(?:_[a-z0-9]+)*"
+
+
 def _wildcard_patterns(operators: Iterable[str]) -> list[re.Pattern[str]]:
-    """The Manual's wildcard operator entries (``*.select_box``) as whole-id patterns."""
-    return [
-        re.compile("".join("[a-z0-9_]*" if c == "*" else re.escape(c) for c in o))
-        for o in sorted(operators)
-        if "*" in o
-    ]
+    """The Manual's wildcard operator entries as whole-id patterns.
+
+    Each ``*`` stands for one or more whole underscore-separated words, never for the
+    empty string: ``*.select_box`` matches ``view3d.select_box``, ``object.*clear``
+    matches ``object.location_clear`` but not ``object.clear`` or ``object.xclear``.
+    """
+    patterns = []
+    for o in sorted(operators):
+        if "*" not in o:
+            continue
+        pieces = o.split("*")
+        parts = [re.escape(pieces[0])]
+        for before, after in pairwise(pieces):
+            lead = "_" if before[-1:].isalnum() else ""
+            tail = "_" if after[:1].isalnum() else ""
+            parts.append(f"{lead}{_WILDCARD_WORDS}{tail}{re.escape(after)}")
+        patterns.append(re.compile("".join(parts)))
+    return patterns
 
 
 def _normalize_keep_dots(text: str) -> str:

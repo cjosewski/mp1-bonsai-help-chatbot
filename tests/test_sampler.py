@@ -235,3 +235,23 @@ def test_render_refuses_missing_page(tmp_path):
     (copy / first.source / first.id.split(":", 1)[1].split("#", 1)[0]).unlink()
     with pytest.raises(sampler.FixtureError):
         sampler.render_sections(sections, copy)
+
+
+def test_missing_committed_manifest_is_a_fixture_error(tmp_path, monkeypatch):
+    monkeypatch.setattr(sampler, "MANIFEST", tmp_path / "doc-manifest.json")
+    with pytest.raises(sampler.FixtureError, match="manifest"):
+        sampler.verify_fixtures(CONFIG, FIXTURES)
+    with pytest.raises(sampler.FixtureError, match="manifest"):
+        sampler.fixture_sections(CONFIG, FIXTURES)
+
+
+def test_source_missing_from_the_manifest_is_a_fixture_error(tmp_path, monkeypatch):
+    document = json.loads(sampler.MANIFEST.read_bytes())
+    del document["sources"]["bonsai-docs"]
+    edited = tmp_path / "doc-manifest.json"
+    edited.write_text(json.dumps(document))
+    monkeypatch.setattr(sampler, "MANIFEST", edited)
+    with pytest.raises(sampler.FixtureError, match="bonsai-docs: not in the manifest"):
+        sampler.verify_fixtures(CONFIG, FIXTURES)
+    with pytest.raises(sampler.FixtureError, match="bonsai-docs: not in the manifest"):
+        sampler.fixture_sections(CONFIG, FIXTURES)

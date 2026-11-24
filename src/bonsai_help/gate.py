@@ -46,9 +46,21 @@ class Embedder(Protocol):
     def embed(self, texts: list[str]) -> list[list[float]]: ...
 
 
+def _norm(vector: Sequence[float]) -> float:
+    return math.sqrt(sum(x * x for x in vector))
+
+
+def _usable(vector: Sequence[float]) -> bool:
+    """A zero or non-finite vector has no direction, so no similarity can be computed."""
+    norm = _norm(vector)
+    return all(math.isfinite(x) for x in vector) and math.isfinite(norm) and norm > 0
+
+
 def _cosine(a: Sequence[float], b: Sequence[float]) -> float:
-    norm = math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b))
-    return sum(x * y for x, y in zip(a, b, strict=True)) / norm if norm else 0.0
+    """Cosine similarity of two usable vectors; a zero or non-finite one is a GateError."""
+    if not (_usable(a) and _usable(b)):
+        raise GateError("embedding vector is zero or non-finite")
+    return sum(x * y for x, y in zip(a, b, strict=True)) / (_norm(a) * _norm(b))
 
 
 def evaluate_gate(
@@ -125,6 +137,9 @@ def evaluate_gate(
             raise GateError(f"expected {len(texts)} vectors, received {len(vectors)}")
         if len({len(v) for v in vectors}) != 1:
             raise GateError("embedding vectors have mismatched dimensions")
+        broken = [r.item_id for r, v in zip(candidates, vectors, strict=True) if not _usable(v)]
+        if broken:
+            raise GateError(f"embedding vector is zero or non-finite for {broken}")
         kept: list[tuple[str, Sequence[float]]] = []
         for record, vector in zip(candidates, vectors, strict=True):
             best = max(((_cosine(vector, v), k) for k, v in kept), default=None)
@@ -183,9 +198,16 @@ def _load_run(directory: Path) -> tuple[list[GeneratedItem], dict[str, list[str]
         if name not in recorded or actual.get(name) != recorded[name]:
             raise ValueError(f"changed or missing {name}; preserve the run for inspection")
     successful: dict[str, dict] = {}
+    slots_done: set[str] = set()
     for a in read_records(directory / "attempts.jsonl"):
         if a.get("schema_valid") is True:
-            successful[a["record"]["item_id"]] = a
+            item_id, slot_id = a["record"]["item_id"], a["record"]["slot_id"]
+            if item_id in successful or slot_id in slots_done:
+                raise ValueError(
+                    f"more than one successful attempt for slot {slot_id}; inspect the run"
+                )
+            successful[item_id] = a
+            slots_done.add(slot_id)
     items: list[GeneratedItem] = []
     unoffered: dict[str, list[str]] = {}
     for raw in read_records(directory / ITEMS):

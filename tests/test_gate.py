@@ -393,7 +393,8 @@ def test_deleted_item_row_is_refused_even_when_rehashed(config):
         run_gate(config)
 
 
-def test_incomplete_run_is_gated_and_discloses_exhausted_slots(config):
+def test_retried_slot_is_gated_with_no_exhausted_slots(config):
+    # The first attempt fails and its retry succeeds, so the run is complete.
     client = GoodClient()
     inner = client.generate
 
@@ -406,11 +407,31 @@ def test_incomplete_run_is_gated_and_discloses_exhausted_slots(config):
     client.generate = flaky
     manifest = execute(config, client)
     report = run_gate(config)
-    assert report["run_status"] == manifest["status"]
-    assert report["slot_count"] == 5
+    assert manifest["status"] == report["run_status"] == "complete"
+    assert (report["slot_count"], report["input_count"], report["exhausted_slots"]) == (5, 5, [])
     assert report["gate_pass_rate_denominator"] == "schema-valid items entering the gate"
-    assert report["input_count"] == len(report["per_item"])
-    assert len(report["exhausted_slots"]) == 5 - report["input_count"]
+    assert len(report["retained_ids"]) == 5
+
+
+def test_incomplete_run_is_gated_and_discloses_its_exhausted_slot(config):
+    client = GoodClient()
+    inner = client.generate
+    failing = {}
+
+    def one_slot_fails(messages):
+        slot = re.search(r"slot (?P<slot>\S+), attempt", messages[-1]["content"])["slot"]
+        failing.setdefault("slot", slot)
+        if slot == failing["slot"]:
+            return AttemptResult(None, "{broken", "invalid JSON", "ValidationError")
+        return inner(messages)
+
+    client.generate = one_slot_fails
+    manifest = execute(config, client)
+    report = run_gate(config)
+    assert manifest["status"] == report["run_status"] == "incomplete"
+    assert report["exhausted_slots"] == [failing["slot"]]
+    assert (report["slot_count"], report["input_count"]) == (5, 4)
+    assert len(report["retained_ids"]) == 4
 
 
 def test_exhausted_slots_are_recorded(config):
@@ -481,3 +502,27 @@ def test_pass_rates_are_empty_for_an_empty_gate_input():
     report = evaluate([])
     assert report["pass_rates_per_check"] == {}
     assert report["gate_pass_rate"] is None
+
+
+def test_two_successful_attempts_for_one_slot_are_refused(config):
+    execute(config, GoodClient())
+    directory = run_dir(config)
+    path = directory / "attempts.jsonl"
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    copy = dict(next(r for r in rows if r["schema_valid"]), attempt_id="synthetic-copy")
+    path.write_text("\n".join(json.dumps(r) for r in [*rows, copy]) + "\n")
+    rehash(directory)
+    with pytest.raises(ValueError, match="more than one successful attempt"):
+        run_gate(config)
+    assert not (directory / "gate-report.json").exists()
+
+
+@pytest.mark.parametrize("bad", [[0.0, 0.0], [float("nan"), 1.0], [float("inf"), 1.0]])
+@pytest.mark.parametrize("count", [1, 2])
+def test_zero_or_non_finite_embedding_vector_is_controlled(bad, count):
+    class Broken(FakeEmbedder):
+        def embed(self, texts):
+            return [[1.0, 0.0]] * (len(texts) - 1) + [bad]
+
+    with pytest.raises(GateError, match="zero or non-finite"):
+        evaluate([record(i) for i in range(count)], Broken())

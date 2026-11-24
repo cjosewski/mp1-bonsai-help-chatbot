@@ -306,7 +306,10 @@ def test_every_pinned_manual_and_bonsai_docs_path_passes(line, names):
     flagged = [p for p in paths if not _menu([p], line).passed]
     assert flagged == []
     wrapped = [
-        p for p in paths if not _menu([f"In the editor, open {p} and confirm."], line).passed
+        p
+        for p in paths
+        for step in (f"In the editor, open {p} and confirm.", f"Open {p}.", f"Go to {p}.")
+        if not _menu([step], line).passed
     ]
     assert wrapped == []
 
@@ -367,8 +370,126 @@ def test_wildcard_manual_operators_do_not_accept_unrelated_ids():
     assert "view3d.select_bogus_xyz" in result.detail
 
 
-def test_evidence_only_checks_are_named():
-    assert checks.EVIDENCE_ONLY == frozenset({"blender_operators_known", "menu_paths_known"})
+def test_failing_every_evidence_only_check_drops_nothing():
+    steps = ["Run object.zzyzx_not_real here.", "Open Zorbo Wizard > Bogus Exporter.", "Three."]
+    results = run_checks(record(steps=steps), LEX)
+    assert sorted(failed(results)) == ["blender_operators_known", "menu_paths_known"]
+    assert [r.name for r in results if r.drop] == []
+
+
+@pytest.mark.parametrize(
+    "step",
+    [
+        "Fabricated Settings > Export.",
+        "Hyper Tool > Wall.",
+        "Imaginary Properties > Object > Transform.",
+        "Quantum Edit > Preferences > Add-ons.",
+        "Teleport Object > Apply > Scale.",
+        "Step 1: Fake Object > Apply.",
+        "Teleport Mesh > Add > Cube.",
+    ],
+)
+def test_invented_first_word_before_a_real_label_is_flagged(step):
+    # The word before the label starts the path, but it is neither lowercase prose nor
+    # a lead-in verb, so it is part of an invented label.
+    result = _menu([step])
+    assert (result.passed, result.drop) == (False, False)
+
+
+@pytest.mark.parametrize(
+    "step",
+    [
+        "Open Object > Apply > Scale.",
+        "Click Object > Apply > Scale.",
+        "Select Object > Apply > Scale.",
+        "Navigate to Edit > Preferences > Add-ons.",
+        "open Object > Apply > Scale.",
+        "1) Open Object > Apply > Scale.",
+        "Finally, File > Export.",
+        "Now, Object > Apply > Scale.",
+        "Using Edit > Preferences > Add-ons, enable it.",
+        "Access File > Export.",
+        "Enter Edit > Preferences > Add-ons.",
+        "First open Object > Apply > Scale.",
+        "Also File > Export.",
+        "Right Click Object > Apply > Scale.",
+        "Double Click Object > Apply > Scale.",
+        "Afterwards, Object > Apply > Scale.",
+    ],
+)
+def test_lead_in_verb_before_a_real_label_passes(step):
+    assert _menu([step]).passed
+
+
+@pytest.mark.parametrize(
+    "step",
+    [
+        "Fabricated Settings > Export.",
+        "Hyper Tool > Wall.",
+        "Open Bogus Object > Apply.",
+        "Finally, Bogus File > Export.",
+        "Right Click Bogus Object > Apply.",
+        "Teleport Click Object > Apply > Scale.",
+        "Now Bogus, Object > Apply > Scale.",
+    ],
+)
+def test_lead_ins_do_not_admit_invented_words_before_a_label(step):
+    # A clause break or lead-in opens the step; a capitalized word after it that is not
+    # part of a lexicon label still makes the label invented.
+    result = _menu([step])
+    assert (result.passed, result.drop) == (False, False)
+
+
+def test_first_word_ending_in_a_colon_is_a_clause_break():
+    # The step-level path pattern already ends a path at ":", so this exercises the
+    # part check directly for a part that carries one.
+    segments = LEX.menu_segments["VL-current"]
+    assert checks._menu_part_known("Afterwards: File", segments, first=True, last=False)
+    assert not checks._menu_part_known("Afterwards File", segments, first=True, last=False)
+
+
+@pytest.mark.parametrize("line", ["VL-current", "VL-older"])
+def test_manual_operator_labels_are_menu_labels(line):
+    assert _menu(["Click Add > Mesh > Cube, then scale it."], line).passed
+    result = _menu(["Click Add > Mesh > Bogus Cube."], line)
+    assert (result.passed, result.detail) == (
+        False,
+        "not in the pinned UI lexicons: ['Bogus Cube']",
+    )
+
+
+@pytest.mark.parametrize("op", ["object.clear", "object.bogusclear", "curve.primitiveadd"])
+def test_wildcard_manual_operators_need_a_whole_word_in_the_wildcard(op):
+    results = run_checks(record(steps=[f"Run {op} here.", "Two.", "Three."]), LEX)
+    result = by_name(results, "blender_operators_known")
+    assert (result.passed, result.drop) == (False, False)
+    assert op in result.detail
+
+
+@pytest.mark.parametrize(
+    "op",
+    [
+        "object.rotation_clear",
+        "curve.primitive_bezier_curve_add",
+        "surface.primitive_nurbs_surface_torus_add",
+    ],
+)
+def test_wildcard_manual_operators_accept_whole_words(op):
+    results = run_checks(record(steps=[f"Run {op} here.", "Two.", "Three."]), LEX)
+    assert by_name(results, "blender_operators_known").passed
+
+
+@pytest.mark.parametrize(
+    "tip",
+    [
+        "Take your time to set the CRS before the false origin.",
+        "Be careful with Purge: it deletes unused types.",
+    ],
+)
+def test_short_specific_tip_with_a_stock_phrase_is_not_generic(tip):
+    # Every remaining word counts toward the residual, so a short specific tip that
+    # opens with a stock phrase is not dropped as generic.
+    assert by_name(run_checks(record(tips=[tip]), LEX), "tip_not_generic").passed
 
 
 def test_two_paths_joined_by_prose_are_checked_separately():
