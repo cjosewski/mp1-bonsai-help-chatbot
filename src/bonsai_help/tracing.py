@@ -47,13 +47,16 @@ def read_records(path: Path) -> list[dict]:
     records = []
     # Only LF ends a record. str.splitlines() would also cut a valid record at U+2028,
     # U+2029 or U+0085 inside a string (append_record writes them unescaped), and
-    # universal-newline decoding would rewrite a stray CR; decode the bytes exactly.
-    for number, line in enumerate(path.read_bytes().decode("utf-8").split("\n"), 1):
-        if not line.strip():
-            continue
+    # universal-newline decoding would rewrite a stray CR; decode the bytes exactly. Each
+    # line is decoded on its own, so a record cut inside a multi-byte character is
+    # reported at its line like any other broken record.
+    for number, data in enumerate(path.read_bytes().split(b"\n"), 1):
         try:
+            line = data.decode("utf-8")
+            if not line.strip():
+                continue
             record = json.loads(line)
-        except json.JSONDecodeError as exc:
+        except ValueError as exc:  # UnicodeDecodeError and JSONDecodeError
             raise ValueError(
                 f"invalid JSONL record at {path.name}:{number}; preserve and inspect it"
             ) from exc

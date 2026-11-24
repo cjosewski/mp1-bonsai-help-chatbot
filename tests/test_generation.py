@@ -6,6 +6,7 @@ committed fixture slice.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -803,3 +804,260 @@ def test_lone_surrogate_in_a_reported_model_or_error_is_recorded_escaped(config)
     attempts = read_records(run_dir(config, "error-run") / "attempts.jsonl")
     assert len(attempts) == errors.calls
     assert {a["error"] for a in attempts} == {"synthetic failure \\ud83d"}
+
+
+class _Unrepresentable:
+    """A synthetic raw value whose repr itself fails."""
+
+    def __repr__(self) -> str:
+        raise RuntimeError("synthetic repr failure")
+
+
+def _cyclic() -> dict:
+    loop: dict = {"note": "synthetic cycle"}
+    loop["self"] = loop
+    return loop
+
+
+def _deep() -> list:
+    nested: list = []
+    for _ in range(100_000):
+        nested = [nested]
+    return nested
+
+
+class _RaisingMapping(dict):
+    """A synthetic mapping whose items() fails with an error JSON encoding does not expect."""
+
+    def items(self):
+        raise RuntimeError("synthetic items failure")
+
+
+# Values no JSON or repr fallback can always spell: a custom ModelClient's raw response
+# must still never raise between a start and its attempt record.
+@pytest.mark.parametrize(
+    "extra,keeps_item",
+    [
+        ({("synthetic", "tuple-key"): 1}, True),
+        (_cyclic(), True),
+        (_Unrepresentable(), True),
+        (_deep(), False),
+        (_RaisingMapping(note="synthetic"), True),
+    ],
+    ids=["tuple-key", "cycle", "unrepresentable", "deep", "raising-mapping"],
+)
+def test_raw_response_that_cannot_be_spelled_is_still_a_recorded_failed_attempt(
+    config, extra, keeps_item
+):
+    client = FakeClient(raw=lambda envelope: {**envelope, "timing": extra})
+    manifest = execute(config, client)
+    assert manifest["status"] == "incomplete"
+    starts, attempts = ledger(config, "starts.jsonl"), ledger(config, "attempts.jsonl")
+    assert len(starts) == len(attempts) == client.calls == 5 * config.max_attempts
+    assert manifest["metrics"]["unknown_outcomes"] == 0
+    assert ledger(config, "items.jsonl") == []
+    for attempt in attempts:
+        assert attempt["schema_valid"] is False and attempt["record"] is None
+        assert attempt["error_type"] == "UnserializableResponse"
+        assert isinstance(attempt["raw_response"], str) and attempt["raw_response"]
+        if keeps_item:
+            assert "synthetic Bonsai test project" in attempt["raw_response"]
+
+
+@pytest.mark.parametrize("failure", ["connect", "timeout", "server-error"])
+def test_transport_failure_is_a_recorded_failed_attempt(config, failure):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if failure == "connect":
+            raise httpx.ConnectError("synthetic connection refused", request=request)
+        if failure == "timeout":
+            raise httpx.ReadTimeout("synthetic read timeout", request=request)
+        return httpx.Response(503, json={"error": {"message": "synthetic overload"}})
+
+    transport = FakeTransport(handler)
+    with InstructorClient(
+        base_url=FAKE_BASE_URL,
+        model=FAKE_MODEL,
+        api_key=FAKE_KEY,
+        response_model=GenerationOutput,
+        _transport=transport.transport,
+    ) as client:
+        manifest = execute(config, client)
+    assert manifest["status"] == "incomplete"
+    metrics = manifest["metrics"]
+    assert metrics["unknown_outcomes"] == 0
+    assert metrics["exhausted"] == 5 and metrics["initial_valid"] == 0
+    starts, attempts = ledger(config, "starts.jsonl"), ledger(config, "attempts.jsonl")
+    # One request per attempt: no hidden SDK retries, every attempt bounded and recorded.
+    assert len(transport.calls) == len(starts) == len(attempts) == 5 * config.max_attempts
+    for attempt in attempts:
+        assert attempt["schema_valid"] is False and attempt["record"] is None
+        assert attempt["verdict"] == "generation_failed"
+        assert attempt["error"] and attempt["error_type"]
+        assert FAKE_KEY not in json.dumps(attempt)
+    again = FakeClient()
+    assert execute(config, again, resume=True)["status"] == "incomplete"
+    assert again.calls == 0
+
+
+def _package_copy(tmp_path: Path) -> Path:
+    """A copy of the package tree, pyproject.toml and uv.lock; returns the package dir."""
+    root = tmp_path / "tree"
+    package = root / "src/bonsai_help"
+    package.mkdir(parents=True)
+    for module in (ROOT / "src/bonsai_help").glob("*.py"):
+        shutil.copyfile(module, package / module.name)
+    for name in ("pyproject.toml", "uv.lock"):
+        shutil.copyfile(ROOT / name, root / name)
+    return package
+
+
+def test_resume_refuses_a_changed_or_added_module(config, tmp_path, monkeypatch):
+    package = _package_copy(tmp_path)
+    real = generate.implementation_identity()
+    monkeypatch.setattr(generate, "_package_dir", lambda: package)
+    assert generate.implementation_identity() == real
+    with pytest.raises(KeyboardInterrupt):
+        execute(config, FakeClient(interrupt_call=2))
+    manifest_bytes = (run_dir(config) / "manifest.json").read_bytes()
+    module = package / "sampler.py"
+    original = module.read_bytes()
+    for change in ("edit", "add"):
+        if change == "edit":
+            module.write_bytes(original + b"\n# synthetic edit\n")
+        else:
+            module.write_bytes(original)
+            (package / "synthetic_extra.py").write_text("VALUE = 1\n")
+        client = FakeClient()
+        with pytest.raises(ValueError, match="original"):
+            execute(config, client, resume=True)
+        assert client.calls == 0
+        assert (run_dir(config) / "manifest.json").read_bytes() == manifest_bytes
+
+
+@pytest.mark.parametrize("name", ["pyproject.toml", "uv.lock"])
+def test_missing_project_file_refuses_before_any_write(config, tmp_path, monkeypatch, name):
+    package = _package_copy(tmp_path)
+    (package.parents[1] / name).unlink()
+    monkeypatch.setattr(generate, "_package_dir", lambda: package)
+    client = FakeClient()
+    with pytest.raises(FileNotFoundError, match="implementation identity") as raised:
+        execute(config, client)
+    assert Path(raised.value.filename).name == name
+    assert client.calls == 0
+    assert not run_dir(config).exists()
+
+
+@pytest.mark.parametrize("change", ["alter", "delete"])
+def test_resume_refuses_a_changed_or_missing_prompt_copy(config, change):
+    with pytest.raises(KeyboardInterrupt):
+        execute(config, FakeClient(interrupt_call=3))
+    directory = run_dir(config)
+    manifest_bytes = (directory / "manifest.json").read_bytes()
+    copy = directory / "prompt.md"
+    if change == "delete":
+        copy.unlink()
+    else:
+        copy.write_text(copy.read_text() + "\nSynthetic extra instruction.\n")
+    client = FakeClient()
+    with pytest.raises(ValueError, match="prompt.md"):
+        execute(config, client, resume=True)
+    assert client.calls == 0
+    assert (directory / "manifest.json").read_bytes() == manifest_bytes
+
+
+def test_resume_refuses_a_prompt_copy_edited_with_its_manifest_hash(config):
+    with pytest.raises(KeyboardInterrupt):
+        execute(config, FakeClient(interrupt_call=3))
+    directory = run_dir(config)
+    copy = directory / "prompt.md"
+    edited = copy.read_text() + "\nSynthetic extra instruction.\n"
+    copy.write_text(edited)
+    manifest = json.loads((directory / "manifest.json").read_text())
+    manifest["prompt_sha256"] = hashlib.sha256(edited.encode("utf-8")).hexdigest()
+    (directory / "manifest.json").write_text(json.dumps(manifest))
+    manifest_bytes = (directory / "manifest.json").read_bytes()
+    client = FakeClient()
+    with pytest.raises(ValueError, match="manifest prompt_sha256 differs from the run's prompt"):
+        execute(config, client, resume=True)
+    assert client.calls == 0
+    assert (directory / "manifest.json").read_bytes() == manifest_bytes
+    assert copy.read_text() == edited
+
+
+class _BrokenClient(FakeClient):
+    def generate(self, messages):
+        if self.calls == 1:
+            self.calls += 1
+            raise RuntimeError("synthetic client bug")
+        return super().generate(messages)
+
+
+@pytest.mark.parametrize("client", [FakeClient(interrupt_call=2), _BrokenClient()])
+def test_failed_interrupted_checkpoint_keeps_the_original_error(config, monkeypatch, client):
+    real_checkpoint = generate.write_checkpoint
+
+    def failing_checkpoint(path, record):
+        if record.get("status") == "interrupted":
+            raise OSError("synthetic disk full")
+        real_checkpoint(path, record)
+
+    monkeypatch.setattr(generate, "write_checkpoint", failing_checkpoint)
+    with pytest.raises((KeyboardInterrupt, RuntimeError)) as raised:
+        execute(config, client)
+    assert not isinstance(raised.value, OSError)
+    assert any("synthetic disk full" in note for note in raised.value.__notes__)
+    assert not (run_dir(config) / ".generation.lock").exists()
+
+
+def test_resume_refuses_a_start_after_a_successful_completion(config):
+    first = sorted(first_slots(1)).pop()
+    # A second run supplies the exact request the plan would make for attempt 2.
+    execute(config, FakeClient(fail=lambda s, a: s == first and a == 1), run_id="other-run")
+    other = read_records(run_dir(config, "other-run") / "starts.jsonl")
+    second = next(s for s in other if s["slot_id"] == first and s["attempt_number"] == 2)
+    with pytest.raises(KeyboardInterrupt):
+        execute(config, FakeClient(interrupt_call=2))
+    directory = run_dir(config)
+    starts = read_records(directory / "starts.jsonl")
+    success = next(s for s in starts if s["slot_id"] == first)
+    forged = second | {
+        "run_id": "test-run",
+        "item_id": success["item_id"],
+        "trace_id": success["trace_id"],
+        "parent_attempt_id": success["attempt_id"],
+    }
+    with (directory / "starts.jsonl").open("a") as stream:
+        stream.write(json.dumps(forged) + "\n")
+    manifest = json.loads((directory / "manifest.json").read_text())
+    manifest["artifacts_sha256"] = artifact_hashes(directory)
+    (directory / "manifest.json").write_text(json.dumps(manifest))
+    client = FakeClient()
+    with pytest.raises(ValueError, match="after its successful completion"):
+        execute(config, client, resume=True)
+    assert client.calls == 0
+
+
+def test_assessed_check_is_shared_and_exact(config):
+    assessed = config.model_copy(update={"purpose": "baseline", "split": "assessed"})
+    with pytest.raises(ValueError) as raised:
+        generate.check_assessed(assessed)
+    with pytest.raises(ValueError) as from_run:
+        execute(assessed, FakeClient())
+    assert type(raised.value) is type(from_run.value)
+    assert str(raised.value) == str(from_run.value)
+    assert generate.check_assessed(config) is None
+    complete = assessed.model_copy(
+        update={"model_identity": "synthetic-weights-v1", "model_sha256": "a" * 64}
+    )
+    assert generate.check_assessed(complete) is None
+
+
+@pytest.mark.parametrize("count", [0, 4, 6, 505, True, 5.0, "5"])
+def test_public_count_check_refuses_what_a_run_refuses(count):
+    with pytest.raises(ValueError, match="multiple of 5"):
+        generate.check_count(count)
+
+
+@pytest.mark.parametrize("count", [5, 50, 500])
+def test_public_count_check_accepts_valid_counts(count):
+    assert generate.check_count(count) is None

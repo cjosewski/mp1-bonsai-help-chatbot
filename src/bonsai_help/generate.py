@@ -11,6 +11,7 @@ settings, prompt, code, inputs and count, and verifies the ledgers against the m
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import importlib.metadata
 import importlib.resources
@@ -50,8 +51,10 @@ from bonsai_help.tracing import (
 )
 
 STARTS, ATTEMPTS, ITEMS = "starts.jsonl", "attempts.jsonl", "items.jsonl"
+PROMPT_COPY = "prompt.md"
 LEDGERS = (STARTS, ATTEMPTS, ITEMS)
-GATE_FILES = ("gate-report.json", "gate-items.jsonl")
+# What the gate writes; its presence freezes the run (gate.REPORT).
+GATE_FILES = ("gate-report.json",)
 ASSESSED_PURPOSES = ("baseline", "corrected")
 DEPENDENCIES = ("pydantic", "instructor", "openai", "httpx")
 MIN_COUNT, MAX_COUNT, STEP = 5, 500, 5
@@ -66,16 +69,29 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _package_dir() -> Path:
+    return Path(str(importlib.resources.files(__package__)))
+
+
 def implementation_identity(prompt_file: Path | None = None) -> dict:
-    """SHA-256 of every package module, pyproject.toml, uv.lock and the prompt file."""
-    package = Path(str(importlib.resources.files(__package__)))
+    """SHA-256 of every package module, pyproject.toml, uv.lock and the prompt file.
+
+    pyproject.toml and uv.lock must sit beside `src/` (a repository checkout); a missing
+    one raises FileNotFoundError rather than leaving it out of the identity.
+    """
+    package = _package_dir()
     root = package.parents[1]
-    files = sorted(package.glob("*.py")) + [root / "pyproject.toml", root / "uv.lock"]
-    hashes = {
-        path.relative_to(root).as_posix(): _sha256(path.read_bytes())
-        for path in files
-        if path.is_file()
-    }
+    project = [root / "pyproject.toml", root / "uv.lock"]
+    for path in project:
+        if not path.is_file():
+            raise FileNotFoundError(
+                errno.ENOENT,
+                "missing; the implementation identity needs it beside src/ "
+                "(run from the repository checkout)",
+                str(path),
+            )
+    files = sorted(p for p in package.glob("*.py") if p.is_file()) + project
+    hashes = {path.relative_to(root).as_posix(): _sha256(path.read_bytes()) for path in files}
     if prompt_file is not None:
         hashes["prompt"] = _sha256(prompt_file.read_bytes())
     return {"source_files": hashes, "source_tree_sha256": digest(hashes)}
@@ -248,13 +264,27 @@ def validate_evidence(
     starts: list[dict],
     attempts: list[dict],
     records: list[dict],
+    *,
+    prompt_sha256: str,
 ) -> None:
-    """Require unchanged ledgers whose starts, attempts and items agree with the plan."""
+    """Require unchanged ledgers whose starts, attempts and items agree with the plan.
+
+    `prompt_sha256` is the hash of the prompt the run is started or resumed with (bound
+    by the fingerprint); the prompt copy and the manifest's unsealed `prompt_sha256`
+    field must both match it, so editing the copy and that field together is refused.
+    """
     recorded = manifest.get("artifacts_sha256", {})
     actual = artifact_hashes(directory)
     for name in LEDGERS:
         if name not in recorded or actual.get(name) != recorded[name]:
             raise ValueError(f"changed or missing {name}; preserve the run for inspection")
+    if manifest.get("prompt_sha256") != prompt_sha256:
+        raise ValueError(
+            "manifest prompt_sha256 differs from the run's prompt; preserve the run for inspection"
+        )
+    prompt_copy = directory / PROMPT_COPY
+    if not prompt_copy.is_file() or _sha256(prompt_copy.read_bytes()) != prompt_sha256:
+        raise ValueError(f"changed or missing {PROMPT_COPY}; preserve the run for inspection")
     by_id: dict[str, dict] = {}
     per_slot: dict[str, list[dict]] = {}
     for start in starts:
@@ -301,6 +331,11 @@ def validate_evidence(
                 unoffered != attempt.get("unoffered_citations")
             ):
                 raise ValueError("recorded citations differ from the attempt's cited ids")
+            if per_slot[record["slot_id"]][-1]["attempt_id"] != record["attempt_id"]:
+                raise ValueError(
+                    f"a request start for {record['slot_id']} follows after its successful "
+                    "completion"
+                )
             successful[record["item_id"]] = record
         elif attempt.get("schema_valid") is not False or attempt.get("record") is not None:
             raise ValueError("failed attempt contains a successful record")
@@ -312,9 +347,16 @@ def validate_evidence(
         seen.add(validated["item_id"])
 
 
-def _check_count(count: object) -> None:
+def check_count(count: object) -> None:
+    """Refuse a slot count a run cannot plan: a multiple of STEP in [MIN_COUNT, MAX_COUNT]."""
     if type(count) is not int or not MIN_COUNT <= count <= MAX_COUNT or count % STEP:
         raise ValueError(f"count must be a multiple of {STEP} between {MIN_COUNT} and {MAX_COUNT}")
+
+
+def check_assessed(config: RunConfig) -> None:
+    """Refuse an assessed purpose that does not name the model it measures."""
+    if config.purpose in ASSESSED_PURPOSES and not (config.model_identity and config.model_sha256):
+        raise ValueError("assessed generation requires model_identity and model_sha256")
 
 
 def generate_run(
@@ -335,9 +377,8 @@ def generate_run(
     Exhausted slots leave the run `incomplete` (the CLI maps that to exit 3). An
     interruption leaves it `interrupted` with every started request on record.
     """
-    _check_count(count)
-    if config.purpose in ASSESSED_PURPOSES and not (config.model_identity and config.model_sha256):
-        raise ValueError("assessed generation requires model_identity and model_sha256")
+    check_count(count)
+    check_assessed(config)
     if _sha256(prompt.encode("utf-8")) != prompt_sha256:
         raise ValueError("prompt_sha256 does not match the prompt text")
     directory = run_directory(config.artifact_path(), run_id)
@@ -387,7 +428,7 @@ def generate_run(
         directory.mkdir(parents=True, exist_ok=False)
         for name in LEDGERS:
             (directory / name).touch(exist_ok=False)
-        with (directory / "prompt.md").open("x", encoding="utf-8", newline="") as stream:
+        with (directory / PROMPT_COPY).open("x", encoding="utf-8", newline="") as stream:
             stream.write(prompt)
         manifest = {
             "schema_version": "1",
@@ -427,7 +468,14 @@ def generate_run(
             ledger.attempts = read_records(directory / ATTEMPTS)
             ledger.records = read_records(directory / ITEMS)
             validate_evidence(
-                manifest, directory, plan, expected, ledger.starts, ledger.attempts, ledger.records
+                manifest,
+                directory,
+                plan,
+                expected,
+                ledger.starts,
+                ledger.attempts,
+                ledger.records,
+                prompt_sha256=prompt_sha256,
             )
             validated = True
             ledger.recover_items()
@@ -441,10 +489,16 @@ def generate_run(
             manifest["status"] = "complete" if len(ledger.records) == len(slots) else "incomplete"
             ledger.checkpoint()
             return manifest
-        except BaseException:
+        except BaseException as error:
             if validated:
                 manifest["status"] = "interrupted"
-                ledger.checkpoint()
+                try:
+                    ledger.checkpoint()
+                except Exception as failure:  # keep the original error; note this one
+                    error.add_note(
+                        f"the interrupted checkpoint also failed ({failure!r}); "
+                        "preserve the run for inspection"
+                    )
             raise
 
 
@@ -527,16 +581,40 @@ def _storable(raw: object) -> tuple[object, str | None]:
     surrogate escape, which `response.json()` accepts and UTF-8 cannot encode; or a
     non-JSON value) it is kept as its JSON text, with non-finite numbers spelled out,
     lone surrogates as their escapes and other values as their repr. Raw text is kept
-    as text. The client has already redacted it.
+    as text. The client has already redacted it. Any Exception from the check (a custom
+    client's mapping whose `items()` raises, say) takes the text path, so this never
+    raises between a request start and its attempt record.
     """
     try:
         json.dumps(raw, ensure_ascii=False, allow_nan=False).encode("utf-8")
-    except (TypeError, ValueError) as exc:  # UnicodeEncodeError is a ValueError
+    except Exception as exc:  # TypeError, ValueError (UnicodeEncodeError), RecursionError, ...
         if isinstance(raw, str):
             return _utf8_text(raw), str(exc)
-        text = json.dumps(raw, ensure_ascii=False, allow_nan=True, default=repr)
-        return _utf8_text(text), str(exc)
+        return _utf8_text(_spelled(raw)), str(exc)
     return raw, None
+
+
+def _safe_repr(value: object) -> str:
+    try:
+        return repr(value)
+    except Exception:
+        return f"<unrepresentable {type(value).__name__}>"
+
+
+def _spelled(raw: object) -> str:
+    """The raw value as text; never raises, whatever a custom client returned.
+
+    JSON text first (non-string keys, cycles, deep nesting or a mapping whose `items()`
+    raises make it fail), then repr, then only the type's name.
+    """
+    try:
+        return json.dumps(raw, ensure_ascii=False, allow_nan=True, default=_safe_repr)
+    except Exception:  # whatever a custom value raises; RecursionError included
+        pass
+    try:
+        return repr(raw)
+    except Exception:  # RecursionError included
+        return f"<unrepresentable {type(raw).__name__}>"
 
 
 def _optional_text(value: str | None) -> str | None:
@@ -622,3 +700,7 @@ def _complete(
         "record": record,
         "verdict": "schema_valid" if record is not None else "generation_failed",
     }
+
+
+# Temporary: collection.py still calls the old name until its own commit moves it to check_count.
+_check_count = check_count

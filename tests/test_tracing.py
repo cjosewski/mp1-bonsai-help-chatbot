@@ -77,6 +77,17 @@ def test_truncated_jsonl_is_an_error(tmp_path: Path) -> None:
         tracing.read_records(path)
 
 
+@pytest.mark.parametrize("line", [1, 2])
+def test_record_cut_inside_a_multibyte_character_is_an_error(tmp_path: Path, line: int) -> None:
+    # A synthetic record cut after the first byte of a two-byte UTF-8 character ("é").
+    path = tmp_path / "a.jsonl"
+    cut = '{"t": "caf\u00e9"}'.encode("utf-8")[:-3]
+    whole = b'{"n": 1}'
+    path.write_bytes(cut + b"\n" + whole + b"\n" if line == 1 else whole + b"\n" + cut)
+    with pytest.raises(ValueError, match=f"a.jsonl:{line}; preserve and inspect it"):
+        tracing.read_records(path)
+
+
 def test_non_object_record_is_an_error(tmp_path: Path) -> None:
     path = tmp_path / "a.jsonl"
     path.write_text("[1]\n", encoding="utf-8")
