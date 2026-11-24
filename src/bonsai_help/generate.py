@@ -14,12 +14,15 @@ from __future__ import annotations
 import hashlib
 import importlib.metadata
 import importlib.resources
+import json
 import platform
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
+
+from pydantic import ValidationError
 
 from bonsai_help.config import RunConfig
 from bonsai_help.doc_sources import DocSources
@@ -162,11 +165,35 @@ def _plan(
     return planned
 
 
+def _offered_id(listed_id: str, offered_ids: set[str]) -> str:
+    """The id a listed citation names: as listed, or without one pair of surrounding brackets.
+
+    The prompt shows each offered section under its id in square brackets (`[id]`), so a
+    model that copies the brackets still names that section. This is the only
+    normalization: one leading `[` and one trailing `]` are removed, and only when the
+    listed text is not itself an offered id and the result is one. Anything else (two pairs,
+    unbalanced or other brackets, an id never offered) is returned unchanged and so stays
+    unoffered.
+    """
+    if listed_id in offered_ids:
+        return listed_id
+    inner = listed_id[1:-1]
+    if listed_id.startswith("[") and listed_id.endswith("]") and inner in offered_ids:
+        return inner
+    return listed_id
+
+
 def _cited(offered: list[CitedSection], listed: list[str]) -> tuple[list[CitedSection], list]:
-    """Offered sections the model listed, in offered order, and the listed ids not offered."""
-    wanted = set(listed)
+    """Offered sections the model listed, in offered order, and the listed ids not offered.
+
+    Unoffered ids are reported exactly as the model listed them.
+    """
     offered_ids = {s.id for s in offered}
-    unoffered = list(dict.fromkeys(i for i in listed if i not in offered_ids))
+    resolved = [_offered_id(i, offered_ids) for i in listed]
+    wanted = set(resolved)
+    unoffered = list(
+        dict.fromkeys(raw for raw, i in zip(listed, resolved, strict=True) if i not in offered_ids)
+    )
     return [s for s in offered if s.id in wanted], unoffered
 
 
@@ -264,7 +291,9 @@ def validate_evidence(
                 raise ValueError("successful attempt holds a non-canonical record")
             if record["item_id"] in successful:
                 raise ValueError("multiple successful completions for one slot")
-            if any(record[key] != attempt[key] for key in _RECORD_KEYS):
+            if any(record[key] != attempt[key] for key in _RECORD_KEYS) or (
+                record["generated_at"] != attempt.get("completed_at")
+            ):
                 raise ValueError("successful record provenance differs from its attempt")
             offered = [CitedSection.model_validate(s) for s in record["offered_sections"]]
             cited, unoffered = _cited(offered, attempt.get("cited_section_ids") or [])
@@ -485,10 +514,54 @@ class _Ledger:
             self.checkpoint()
 
 
+def _utf8_text(text: str) -> str:
+    """The text as UTF-8 can store it: a lone surrogate is spelled as its escape."""
+    return text.encode("utf-8", "backslashreplace").decode("utf-8")
+
+
+def _storable(raw: object) -> tuple[object, str | None]:
+    """The raw response as it can be recorded, and why it had to be changed, if it did.
+
+    A strict-JSON value that UTF-8 can encode is kept unchanged. Otherwise (NaN or
+    Infinity, which an HTTP body can carry and `allow_nan=False` refuses; a lone UTF-16
+    surrogate escape, which `response.json()` accepts and UTF-8 cannot encode; or a
+    non-JSON value) it is kept as its JSON text, with non-finite numbers spelled out,
+    lone surrogates as their escapes and other values as their repr. Raw text is kept
+    as text. The client has already redacted it.
+    """
+    try:
+        json.dumps(raw, ensure_ascii=False, allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError) as exc:  # UnicodeEncodeError is a ValueError
+        if isinstance(raw, str):
+            return _utf8_text(raw), str(exc)
+        text = json.dumps(raw, ensure_ascii=False, allow_nan=True, default=repr)
+        return _utf8_text(text), str(exc)
+    return raw, None
+
+
+def _optional_text(value: str | None) -> str | None:
+    return None if value is None else _utf8_text(value)
+
+
+def _validation_summary(exc: ValidationError) -> str:
+    """Field locations and messages only; input values are not repeated."""
+    return "; ".join(
+        f"{'.'.join(str(part) for part in e['loc']) or 'record'}: {e['msg']}"
+        for e in exc.errors(include_url=False, include_input=False)
+    )
+
+
 def _complete(
     result: AttemptResult, config: RunConfig, start: dict, offered: list[CitedSection]
 ) -> dict:
-    """The completion fields of an attempt record, including its envelope when valid."""
+    """The completion fields of an attempt record, including its envelope when valid.
+
+    A completion that cannot be recorded as returned (raw response not strict JSON) or
+    turned into an envelope is a failed attempt with its raw response kept, never an
+    exception: the attempt is used up and the retry loop goes on.
+    """
+    completed_at = now()
+    raw_response, unserializable = _storable(result.raw_response)
     error, error_type = result.error, result.error_type
     output = result.item
     if output is not None and not isinstance(output, GenerationOutput):
@@ -501,36 +574,48 @@ def _complete(
         output = None
         error = "reported generator model differs from the configured model"
         error_type = "ModelIdentityMismatch"
+    if output is not None and unserializable is not None:
+        output = None
+        error = f"raw response is not strict JSON ({unserializable}); recorded as text"
+        error_type = "UnserializableResponse"
     record = None
     listed = list(output.cited_section_ids) if output is not None else None
     unoffered: list[str] = []
     if output is not None:
         cited, unoffered = _cited(offered, listed)
-        record = GeneratedItem(
-            run_id=start["run_id"],
-            trace_id=start["trace_id"],
-            item_id=start["item_id"],
-            attempt_id=start["attempt_id"],
-            parent_attempt_id=start["parent_attempt_id"],
-            slot_id=start["slot_id"],
-            category=start["category"],
-            setup_id=start["setup_id"],
-            version_line=start["version_line"],
-            prompt_variant=start["prompt_variant"],
-            prompt_hash=start["prompt_hash"],
-            model=result.response_model or config.model,
-            sampler_seed=start["sampler_seed"],
-            offered_sections=offered,
-            cited_sections=cited,
-            item=output.item,
-        ).model_dump(mode="json")
+        # Not reported (None) falls back to the configured id; a reported id must be valid.
+        model = result.response_model if result.response_model is not None else config.model
+        try:
+            record = GeneratedItem(
+                run_id=start["run_id"],
+                trace_id=start["trace_id"],
+                item_id=start["item_id"],
+                attempt_id=start["attempt_id"],
+                parent_attempt_id=start["parent_attempt_id"],
+                slot_id=start["slot_id"],
+                category=start["category"],
+                setup_id=start["setup_id"],
+                version_line=start["version_line"],
+                prompt_variant=start["prompt_variant"],
+                prompt_hash=start["prompt_hash"],
+                model=model,
+                sampler_seed=start["sampler_seed"],
+                generated_at=completed_at,
+                offered_sections=offered,
+                cited_sections=cited,
+                item=output.item,
+            ).model_dump(mode="json")
+        except ValidationError as exc:
+            error = f"envelope invalid: {_validation_summary(exc)}"
+            error_type = "EnvelopeInvalid"
     return {
         "event": "attempt_completed",
-        "completed_at": now(),
-        "raw_response": result.raw_response,
-        "error": error,
-        "error_type": error_type,
-        "response_model": result.response_model,
+        "completed_at": completed_at,
+        "raw_response": raw_response,
+        # Server-derived text; the item and cited ids passed strict unicode validation.
+        "error": _optional_text(error),
+        "error_type": _optional_text(error_type),
+        "response_model": _optional_text(result.response_model),
         "schema_valid": record is not None,
         "cited_section_ids": listed,
         "unoffered_citations": unoffered,

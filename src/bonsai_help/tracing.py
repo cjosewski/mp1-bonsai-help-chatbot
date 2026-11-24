@@ -32,8 +32,10 @@ def run_directory(root: Path, run_id: str) -> Path:
 
 
 def append_record(path: Path, record: dict) -> None:
-    line = json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n"
-    with path.open("a", encoding="utf-8", newline="\n") as stream:
+    # Encoded before the file is opened: a record UTF-8 cannot store (a lone surrogate)
+    # raises here and leaves no partial line behind.
+    line = (json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
+    with path.open("ab") as stream:
         stream.write(line)
         stream.flush()
         os.fsync(stream.fileno())
@@ -43,7 +45,10 @@ def read_records(path: Path) -> list[dict]:
     if not path.exists():
         return []
     records = []
-    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    # Only LF ends a record. str.splitlines() would also cut a valid record at U+2028,
+    # U+2029 or U+0085 inside a string (append_record writes them unescaped), and
+    # universal-newline decoding would rewrite a stray CR; decode the bytes exactly.
+    for number, line in enumerate(path.read_bytes().decode("utf-8").split("\n"), 1):
         if not line.strip():
             continue
         try:

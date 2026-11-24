@@ -47,13 +47,14 @@ def offered_ids(messages) -> list[str]:
 class FakeClient:
     """Synthetic model: valid output citing the first offered section, unless told to fail."""
 
-    def __init__(self, *, fail=None, interrupt_call=None, cite=None, model=None):
+    def __init__(self, *, fail=None, interrupt_call=None, cite=None, model=None, raw=None):
         self.calls = 0
         self.messages = []
         self.fail = fail or (lambda slot_id, attempt: False)
         self.interrupt_call = interrupt_call
         self.cite = cite or (lambda ids: ids[:1])
-        self.model = model or "synthetic-model-revision"
+        self.model = "synthetic-model-revision" if model is None else model
+        self.raw = raw or (lambda envelope: envelope)
 
     def generate(self, messages):
         self.calls += 1
@@ -65,7 +66,8 @@ class FakeClient:
             return AttemptResult(None, "{synthetic-broken-json", "invalid JSON", "ValidationError")
         body = synthetic_generation(cited=self.cite(offered_ids(messages)))
         output = GenerationOutput.model_validate(body)
-        return AttemptResult(output, completion(json.dumps(body)), None, None, self.model)
+        raw = self.raw(completion(json.dumps(body)))
+        return AttemptResult(output, raw, None, None, self.model)
 
 
 @pytest.fixture
@@ -526,3 +528,278 @@ def test_prompt_with_an_unknown_placeholder_is_refused_before_any_write(config, 
         execute(config, client)
     assert client.calls == 0
     assert not run_dir(config).exists()
+
+
+def test_item_timestamp_is_the_attempt_completion_time(config):
+    execute(config)
+    attempts = {a["attempt_id"]: a for a in ledger(config, "attempts.jsonl")}
+    items = ledger(config, "items.jsonl")
+    assert len(items) == 5
+    for record in items:
+        attempt = attempts[record["attempt_id"]]
+        assert record["generated_at"] == attempt["completed_at"]
+        assert attempt["record"]["generated_at"] == attempt["completed_at"]
+        assert "generated_at" not in record["item"]
+
+
+def test_resume_refuses_an_item_timestamp_that_differs_from_its_attempt(config):
+    with pytest.raises(KeyboardInterrupt):
+        execute(config, FakeClient(interrupt_call=3))
+    directory = run_dir(config)
+    attempts = read_records(directory / "attempts.jsonl")
+    items = read_records(directory / "items.jsonl")
+    shifted = "2000-01-01T00:00:00+00:00"
+    attempts[0]["record"]["generated_at"] = shifted
+    items[0]["generated_at"] = shifted
+    for name, records in (("attempts.jsonl", attempts), ("items.jsonl", items)):
+        (directory / name).write_text("".join(json.dumps(r) + "\n" for r in records))
+    manifest = json.loads((directory / "manifest.json").read_text())
+    manifest["artifacts_sha256"] = artifact_hashes(directory)
+    (directory / "manifest.json").write_text(json.dumps(manifest))
+    client = FakeClient()
+    with pytest.raises(ValueError, match="provenance differs from its attempt"):
+        execute(config, client, resume=True)
+    assert client.calls == 0
+
+
+@pytest.mark.parametrize(
+    "extra,marker",
+    [(float("nan"), "NaN"), (float("inf"), "Infinity"), ({"synthetic-set"}, "synthetic-set")],
+)
+def test_unserializable_raw_response_is_a_recorded_failed_attempt(config, extra, marker):
+    client = FakeClient(raw=lambda envelope: {**envelope, "timing": extra})
+    manifest = execute(config, client)
+    assert manifest["status"] == "incomplete"
+    starts, attempts = ledger(config, "starts.jsonl"), ledger(config, "attempts.jsonl")
+    assert len(starts) == len(attempts) == client.calls == 5 * config.max_attempts
+    assert manifest["metrics"]["unknown_outcomes"] == 0
+    assert manifest["metrics"]["exhausted"] == 5
+    assert ledger(config, "items.jsonl") == []
+    for attempt in attempts:
+        assert attempt["schema_valid"] is False and attempt["record"] is None
+        assert attempt["error_type"] == "UnserializableResponse"
+        assert attempt["verdict"] == "generation_failed"
+        # The raw completion is kept, as text, with the synthetic item inside it.
+        assert isinstance(attempt["raw_response"], str)
+        assert marker in attempt["raw_response"]
+        assert "synthetic Bonsai test project" in attempt["raw_response"]
+    # Exhausted slots get no further attempts: a resume makes no requests.
+    again = FakeClient()
+    assert execute(config, again, resume=True)["status"] == "incomplete"
+    assert again.calls == 0
+
+
+def test_nan_in_a_real_response_body_is_recorded_not_raised(config):
+    def handler(request: httpx.Request) -> httpx.Response:
+        messages = json.loads(request.content)["messages"]
+        body = json.dumps(completion(json.dumps(synthetic_generation(offered_ids(messages)[:1]))))
+        body = body[:-1] + ', "timing": NaN}'
+        return httpx.Response(
+            200, content=body.encode(), headers={"content-type": "application/json"}
+        )
+
+    transport = FakeTransport(handler)
+    with InstructorClient(
+        base_url=FAKE_BASE_URL,
+        model=FAKE_MODEL,
+        api_key=FAKE_KEY,
+        response_model=GenerationOutput,
+        _transport=transport.transport,
+    ) as client:
+        manifest = execute(config, client)
+    assert manifest["status"] == "incomplete"
+    attempts = ledger(config, "attempts.jsonl")
+    assert len(attempts) == len(ledger(config, "starts.jsonl")) == len(transport.calls)
+    assert {a["error_type"] for a in attempts} == {"UnserializableResponse"}
+    assert all('"timing": NaN' in a["raw_response"] for a in attempts)
+    assert all(FAKE_KEY not in a["raw_response"] for a in attempts)
+
+
+@pytest.mark.parametrize("reported", [" ", ""])
+def test_blank_reported_model_is_a_recorded_failed_attempt(config, reported):
+    client = FakeClient(model=reported)
+    manifest = execute(config, client)
+    assert manifest["status"] == "incomplete"
+    attempts = ledger(config, "attempts.jsonl")
+    assert len(attempts) == len(ledger(config, "starts.jsonl")) == client.calls
+    assert manifest["metrics"]["unknown_outcomes"] == 0
+    for attempt in attempts:
+        assert attempt["error_type"] == "EnvelopeInvalid"
+        assert "model" in attempt["error"]
+        assert attempt["schema_valid"] is False and attempt["record"] is None
+        assert attempt["raw_response"]["choices"]
+        assert attempt["response_model"] == reported
+    again = FakeClient()
+    assert execute(config, again, resume=True)["status"] == "incomplete"
+    assert again.calls == 0
+
+
+def test_unreported_model_still_falls_back_to_the_configured_model(config):
+    # Not reported (None) is unchanged: the configured id is recorded for non-assessed runs.
+    client = FakeClient()
+    client.model = None
+    assert execute(config, client)["status"] == "complete"
+    assert {r["model"] for r in ledger(config, "items.jsonl")} == {config.model}
+
+
+def test_bracketed_citation_of_an_offered_id_counts_as_that_section(config):
+    execute(config, FakeClient(cite=lambda ids: [f"[{ids[0]}]"]))
+    attempts = ledger(config, "attempts.jsonl")
+    items = ledger(config, "items.jsonl")
+    assert len(items) == 5
+    for record, attempt in zip(items, attempts):
+        first = record["offered_sections"][0]
+        assert record["cited_sections"] == [first]
+        assert attempt["unoffered_citations"] == []
+        # The model's own text is kept as listed.
+        assert attempt["cited_section_ids"] == [f"[{first['id']}]"]
+
+
+def test_resume_accepts_bracketed_citations(config):
+    with pytest.raises(KeyboardInterrupt):
+        execute(config, FakeClient(cite=lambda ids: [f"[{ids[0]}]"], interrupt_call=3))
+    manifest = execute(config, FakeClient(cite=lambda ids: [f"[{ids[0]}]"]), resume=True)
+    assert manifest["status"] == "complete"
+
+
+def test_bracket_normalization_never_accepts_an_id_that_was_not_offered():
+    offered = [
+        CitedSection(id="bonsai-docs:a.rst#L1-L5", page_sha256="a" * 64, source="s", pin_id="p"),
+        CitedSection(id="bonsai-docs:b.rst#L1-L5", page_sha256="b" * 64, source="s", pin_id="p"),
+    ]
+    listed = [
+        "[bonsai-docs:b.rst#L1-L5]",  # one pair of brackets: offered id b
+        "bonsai-docs:a.rst#L1-L5",  # exact: offered id a
+        "[[bonsai-docs:a.rst#L1-L5]]",  # two pairs: only one is removed
+        "[bonsai-docs:a.rst#L1-L5",  # unbalanced
+        "bonsai-docs:a.rst#L1-L5]",  # unbalanced
+        "[bonsai-docs:invented.rst#L1-L2]",  # bracketed but never offered
+        "(bonsai-docs:a.rst#L1-L5)",  # other brackets are not stripped
+    ]
+    cited, unoffered = generate.split_citations(offered, listed)
+    assert [s.id for s in cited] == ["bonsai-docs:a.rst#L1-L5", "bonsai-docs:b.rst#L1-L5"]
+    assert unoffered == listed[2:]
+
+
+# A lone UTF-16 surrogate escape (here from a synthetic broken emoji) is valid JSON that
+# response.json() accepts but UTF-8 cannot encode. It must never stop the run between a
+# start and its attempt record.
+LONE_SURROGATE = "\ud83d"
+
+
+def surrogate_body(messages, *, where: str) -> bytes:
+    body = synthetic_generation(offered_ids(messages)[:1])
+    body["item"]["tips"] = ["Use the synthetic marker SURROGATE-HERE."]
+    text = json.dumps(completion(json.dumps(body)))
+    if where == "content":
+        # The HTTP body's content string itself holds the lone surrogate.
+        text = text.replace("SURROGATE-HERE", "\\ud83d")
+    elif where == "inner":
+        # Escaped once more: the body is clean text and only the parsed item holds it.
+        text = text.replace("SURROGATE-HERE", "\\\\ud83d")
+    else:
+        text = text[:-1] + ', "system_fingerprint": "synthetic-\\ud800"}'
+    return text.encode()
+
+
+@pytest.mark.parametrize("where", ["content", "inner", "envelope"])
+def test_lone_surrogate_in_a_real_response_body_is_recorded_not_raised(config, where):
+    def handler(request: httpx.Request) -> httpx.Response:
+        messages = json.loads(request.content)["messages"]
+        return httpx.Response(
+            200,
+            content=surrogate_body(messages, where=where),
+            headers={"content-type": "application/json"},
+        )
+
+    transport = FakeTransport(handler)
+    with InstructorClient(
+        base_url=FAKE_BASE_URL,
+        model=FAKE_MODEL,
+        api_key=FAKE_KEY,
+        response_model=GenerationOutput,
+        _transport=transport.transport,
+    ) as client:
+        manifest = execute(config, client)
+    assert manifest["status"] == "incomplete"
+    assert manifest["metrics"]["unknown_outcomes"] == 0
+    assert manifest["metrics"]["exhausted"] == 5
+    starts, attempts = ledger(config, "starts.jsonl"), ledger(config, "attempts.jsonl")
+    assert len(starts) == len(attempts) == len(transport.calls) == 5 * config.max_attempts
+    assert ledger(config, "items.jsonl") == []
+    for attempt in attempts:
+        assert attempt["schema_valid"] is False and attempt["record"] is None
+        assert attempt["raw_response"] is not None
+        assert FAKE_KEY not in json.dumps(attempt)
+        if where == "inner":
+            # Strict JSON body, kept unchanged; the client rejected the item.
+            assert attempt["raw_response"]["choices"]
+            assert attempt["error_type"] not in (None, "UnserializableResponse")
+            continue
+        if where == "content":
+            # The item cannot parse as a unicode string: the client's error type is kept.
+            assert attempt["error_type"] not in (None, "UnserializableResponse")
+            marker = "\\ud83d"
+        else:
+            # The item itself is valid; only the envelope cannot be stored as returned.
+            assert attempt["error_type"] == "UnserializableResponse"
+            assert "not strict JSON" in attempt["error"]
+            marker = "\\ud800"
+        # The raw completion is kept as text, the surrogate spelled as its escape.
+        assert isinstance(attempt["raw_response"], str)
+        assert "synthetic Bonsai test project" in attempt["raw_response"]
+        assert marker in attempt["raw_response"]
+    again = FakeClient()
+    assert execute(config, again, resume=True)["status"] == "incomplete"
+    assert again.calls == 0
+
+
+def test_lone_surrogate_in_a_raw_envelope_field_fails_a_valid_item(config):
+    client = FakeClient(raw=lambda envelope: {**envelope, "system_fingerprint": LONE_SURROGATE})
+    manifest = execute(config, client)
+    assert manifest["metrics"]["unknown_outcomes"] == 0
+    attempts = ledger(config, "attempts.jsonl")
+    assert len(attempts) == len(ledger(config, "starts.jsonl")) == client.calls
+    assert {a["error_type"] for a in attempts} == {"UnserializableResponse"}
+    assert all("\\ud83d" in a["raw_response"] for a in attempts)
+    assert ledger(config, "items.jsonl") == []
+
+
+def test_lone_surrogate_in_a_raw_text_response_is_kept_escaped(config):
+    class TextClient(FakeClient):
+        def generate(self, messages):
+            super().generate(messages)
+            text = "{synthetic-broken" + LONE_SURROGATE
+            return AttemptResult(None, text, "synthetic parse failure", "ValidationError")
+
+    client = TextClient()
+    manifest = execute(config, client)
+    assert manifest["metrics"]["unknown_outcomes"] == 0
+    attempts = ledger(config, "attempts.jsonl")
+    assert len(attempts) == len(ledger(config, "starts.jsonl")) == client.calls
+    for attempt in attempts:
+        assert attempt["raw_response"] == "{synthetic-broken\\ud83d"
+        assert attempt["error_type"] == "ValidationError"
+
+
+def test_lone_surrogate_in_a_reported_model_or_error_is_recorded_escaped(config):
+    client = FakeClient(model="synthetic-model-" + LONE_SURROGATE)
+    manifest = execute(config, client)
+    assert manifest["metrics"]["unknown_outcomes"] == 0
+    attempts = ledger(config, "attempts.jsonl")
+    assert len(attempts) == len(ledger(config, "starts.jsonl")) == client.calls
+    for attempt in attempts:
+        assert attempt["error_type"] == "EnvelopeInvalid"
+        assert attempt["response_model"] == "synthetic-model-\\ud83d"
+        assert attempt["record"] is None
+
+    class ErrorClient(FakeClient):
+        def generate(self, messages):
+            super().generate(messages)
+            return AttemptResult(None, None, "synthetic failure " + LONE_SURROGATE, "APIError")
+
+    errors = ErrorClient()
+    execute(config, errors, run_id="error-run")
+    attempts = read_records(run_dir(config, "error-run") / "attempts.jsonl")
+    assert len(attempts) == errors.calls
+    assert {a["error"] for a in attempts} == {"synthetic failure \\ud83d"}

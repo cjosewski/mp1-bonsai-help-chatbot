@@ -2,13 +2,35 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 from bonsai_help.doc_sources import Category
 
 NonBlank = Annotated[str, StringConstraints(strict=True, strip_whitespace=True, min_length=1)]
+
+
+def _aware_iso_timestamp(value: str) -> str:
+    """Keep the exact text (it must equal the attempt's `completed_at`); check its form."""
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        raise ValueError("must be an ISO-8601 date and time") from None
+    if parsed.tzinfo is None or "T" not in value:
+        raise ValueError("must be an ISO-8601 date and time with a UTC offset")
+    return value
+
+
+Timestamp = Annotated[NonBlank, AfterValidator(_aware_iso_timestamp)]
 
 
 class QAItem(BaseModel):
@@ -33,7 +55,15 @@ class QAItem(BaseModel):
         normalized = dict(value)
         legacy = normalized.pop("problem")
         if "equipment_problem" in normalized:
-            if normalized["equipment_problem"] != legacy:
+            current = normalized["equipment_problem"]
+            # Both are stripped by NonBlank later, so values that differ only in surrounding
+            # whitespace store the same text and do not conflict. Non-strings are compared
+            # as given; the strict field check then rejects their type.
+            if isinstance(current, str) and isinstance(legacy, str):
+                same = current.strip() == legacy.strip()
+            else:
+                same = current == legacy
+            if not same:
                 raise ValueError("conflicting problem and equipment_problem values")
         else:
             normalized["equipment_problem"] = legacy
@@ -79,6 +109,8 @@ class GeneratedItem(BaseModel):
     prompt_hash: NonBlank
     model: NonBlank
     sampler_seed: int
+    # When the completion was recorded: the same text as the attempt's `completed_at`.
+    generated_at: Timestamp
     offered_sections: list[CitedSection]
     cited_sections: list[CitedSection]
     item: QAItem

@@ -58,6 +58,7 @@ def record(**changes) -> GeneratedItem:
         prompt_hash="h",
         model="m",
         sampler_seed=1,
+        generated_at="2026-11-24T00:00:00+00:00",
         offered_sections=[_section(1), _section(2)],
         cited_sections=[_section(1)],
         item=item,

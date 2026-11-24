@@ -62,6 +62,7 @@ def record(index: int, category: str | None = None, **changes) -> GeneratedItem:
         prompt_hash="h",
         model="m",
         sampler_seed=1,
+        generated_at="2026-11-24T00:00:00+00:00",
         offered_sections=[section(1), section(2)],
         cited_sections=[section(1)],
         item=item,

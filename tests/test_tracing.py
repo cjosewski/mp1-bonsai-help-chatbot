@@ -37,6 +37,37 @@ def test_append_and_read_round_trip(tmp_path: Path) -> None:
     assert tracing.read_records(path) == [{"n": 1, "t": "é"}, {"n": 2}]
 
 
+@pytest.mark.parametrize("bad", ["\ud800", "\udfff", "synthetic-\ud83d-emoji"])
+def test_unencodable_record_is_refused_and_leaves_no_partial_line(tmp_path: Path, bad: str) -> None:
+    path = tmp_path / "a.jsonl"
+    tracing.append_record(path, {"n": 1})
+    before = path.read_bytes()
+    with pytest.raises(UnicodeEncodeError):
+        tracing.append_record(path, {"raw": "x" * 100_000 + bad})
+    assert path.read_bytes() == before
+    assert tracing.read_records(path) == [{"n": 1}]
+
+
+@pytest.mark.parametrize("separator", ["\u2028", "\u2029", "\u0085", "\x1c", "\r", "\x0b"])
+def test_unicode_line_separators_inside_strings_round_trip(tmp_path: Path, separator: str) -> None:
+    # Synthetic raw response: only LF ends a JSONL record, never a separator inside a string.
+    path = tmp_path / "a.jsonl"
+    record = {"raw": f"Press Tab{separator}to switch modes.", "n": 1}
+    tracing.append_record(path, record)
+    tracing.append_record(path, {"n": 2})
+    assert path.read_bytes().count(b"\n") == 2
+    assert tracing.read_records(path) == [record, {"n": 2}]
+
+
+def test_truncated_record_after_a_separator_record_is_still_an_error(tmp_path: Path) -> None:
+    path = tmp_path / "a.jsonl"
+    tracing.append_record(path, {"raw": "a\u2028b"})
+    with path.open("a", encoding="utf-8") as stream:
+        stream.write('{"raw": "c\u2029')
+    with pytest.raises(ValueError, match="a.jsonl:2"):
+        tracing.read_records(path)
+
+
 def test_truncated_jsonl_is_an_error(tmp_path: Path) -> None:
     path = tmp_path / "a.jsonl"
     tracing.append_record(path, {"n": 1})

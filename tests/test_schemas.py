@@ -44,6 +44,7 @@ def envelope():
         "prompt_hash": "b" * 64,
         "model": "synthetic-test-fixture",
         "sampler_seed": 7,
+        "generated_at": "2026-11-24T12:00:00.000001+00:00",
         "offered_sections": [section("s1"), section("s2")],
         "cited_sections": [section("s1")],
         "item": payload(),
@@ -112,6 +113,39 @@ def test_legacy_problem_normalized_and_conflict_rejected():
         QAItem.model_validate({**payload(), "problem": "A different problem"})
 
 
+@pytest.mark.parametrize(
+    "legacy,current",
+    [
+        ("A synthetic project has no walls yet.", "A synthetic project has no walls yet. "),
+        ("  A synthetic project has no walls yet.", "A synthetic project has no walls yet.\n"),
+    ],
+)
+def test_legacy_problem_differing_only_in_surrounding_whitespace_is_not_a_conflict(legacy, current):
+    item = QAItem.model_validate({**payload(), "problem": legacy, "equipment_problem": current})
+    assert item.equipment_problem == "A synthetic project has no walls yet."
+
+
+@pytest.mark.parametrize(
+    "legacy,current",
+    [
+        ("A synthetic project has no walls yet.", "A synthetic project has no doors yet. "),
+        ("A synthetic project has no walls yet.", "A synthetic project  has no walls yet."),
+        (" ", "A synthetic project has no walls yet."),
+    ],
+)
+def test_legacy_problem_with_a_real_difference_is_still_a_conflict(legacy, current):
+    with pytest.raises(ValidationError, match="conflicting problem"):
+        QAItem.model_validate({**payload(), "problem": legacy, "equipment_problem": current})
+
+
+def test_legacy_problem_type_errors_are_left_to_the_field_check():
+    with pytest.raises(ValidationError) as caught:
+        QAItem.model_validate({**payload(), "problem": 7, "equipment_problem": 7})
+    assert "conflicting" not in str(caught.value)
+    with pytest.raises(ValidationError, match="conflicting problem"):
+        QAItem.model_validate({**payload(), "problem": 7, "equipment_problem": "7"})
+
+
 def test_payload_never_serializes_problem():
     data = payload()
     data["problem"] = data.pop("equipment_problem")
@@ -129,6 +163,26 @@ def test_envelope_round_trip_keeps_lineage_and_payload_clean():
     assert restored.parent_attempt_id == "attempt-0"
     assert restored.cited_sections == [CitedSection.model_validate(section("s1"))]
     assert "trace_id" not in restored.item.model_dump()
+
+
+def test_envelope_requires_a_generation_timestamp():
+    data = envelope()
+    del data["generated_at"]
+    with pytest.raises(ValidationError, match="generated_at"):
+        GeneratedItem.model_validate(data)
+    record = GeneratedItem.model_validate(envelope())
+    assert record.generated_at == envelope()["generated_at"]
+    assert record.model_dump(mode="json")["generated_at"] == envelope()["generated_at"]
+    assert "generated_at" not in record.item.model_dump()
+
+
+@pytest.mark.parametrize(
+    "value",
+    [" ", "", "yesterday", "2026-11-24T12:00:00", "2026-11-24", 1764000000, None],
+)
+def test_envelope_rejects_a_blank_naive_or_non_iso_timestamp(value):
+    with pytest.raises(ValidationError, match="generated_at"):
+        GeneratedItem.model_validate({**envelope(), "generated_at": value})
 
 
 def test_envelope_rejects_unknown_category():
