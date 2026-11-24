@@ -248,3 +248,130 @@ def test_unknown_version_line_raises():
     bad = record().model_copy(update={"version_line": "VL-nope"})
     with pytest.raises(ValueError, match="VL-nope"):
         run_checks(bad, LEX)
+
+
+def _menu(steps: list[str], line: str = "VL-current") -> CheckResult:
+    rec = record(steps=[*steps, "Second step goes here.", "Third step goes here."])
+    return by_name(
+        run_checks(rec.model_copy(update={"version_line": line}), LEX), "menu_paths_known"
+    )
+
+
+@pytest.mark.parametrize(
+    ("step", "invented"),
+    [
+        (
+            "Open Imaginary Wizard > Fabricated Settings > Bogus Exporter.",
+            ["Bogus Exporter", "Fabricated Settings", "Open Imaginary Wizard"],
+        ),
+        (
+            "Go to Nonexistent Panel > Teleport Building.",
+            ["Go to Nonexistent Panel", "Teleport Building"],
+        ),
+        ("Click Zorbo > Flimflam Toolbar.", ["Click Zorbo", "Flimflam Toolbar"]),
+        ("Open Bogus Settings > Add Fake Wall.", ["Add Fake Wall", "Open Bogus Settings"]),
+    ],
+)
+def test_invented_menu_labels_are_flagged_even_when_they_contain_lexicon_words(step, invented):
+    # Each invented label contains a short lexicon segment ("pan", "port", "tool",
+    # "settings", "add") as a substring or a word; none is a lexicon label.
+    result = _menu([step])
+    assert (result.passed, result.drop) == (False, False)
+    assert result.detail == f"not in the pinned UI lexicons: {invented}"
+
+
+def _lexicon_paths(name: str) -> list[str]:
+    import json
+
+    data = json.loads((ROOT / "reference" / "lexicons" / f"{name}.json").read_bytes())
+    return sorted(
+        e["value"]
+        for e in data["entries"]
+        if e["kind"] in ("menu_path", "ui_path")
+        and checks._MENU_SPLIT.search(e["value"])
+        and not any(c in e["value"] for c in ".;:\n")
+    )
+
+
+@pytest.mark.parametrize(
+    ("line", "names"),
+    [
+        ("VL-current", ("blender-manual", "bonsai-docs")),
+        ("VL-older", ("blender-manual-4-5", "bonsai-docs-0-8-5-post1")),
+    ],
+)
+def test_every_pinned_manual_and_bonsai_docs_path_passes(line, names):
+    paths = [p for name in names for p in _lexicon_paths(name)]
+    assert len(paths) > 100
+    flagged = [p for p in paths if not _menu([p], line).passed]
+    assert flagged == []
+    wrapped = [
+        p for p in paths if not _menu([f"In the editor, open {p} and confirm."], line).passed
+    ]
+    assert wrapped == []
+
+
+def test_bonsai_docs_install_path_passes():
+    # Verbatim from the pinned Bonsai docs (quickstart/installation.rst).
+    path = "Topbar --> Edit --> Preferences --> Get Extensions --> Install from Disk"
+    assert _menu([f"Go to {path}."]).passed
+
+
+def test_menu_path_prose_around_a_real_path_passes():
+    assert _menu(["In Object Mode, open Object > Apply > All Transforms and confirm."]).passed
+    assert _menu(["Open Object > Apply > Scale."]).passed
+
+
+def test_menu_path_lead_in_must_end_at_a_label_boundary():
+    # A real label preceded by an invented capitalized word is not a known path.
+    assert not _menu(["Open Bogus Object > Apply."]).passed
+    assert not _menu(["Open Object > Apply Bogus."]).passed
+
+
+@pytest.mark.parametrize(
+    "op",
+    [
+        "bim.fetch_object_passport",
+        "bim.select_ifc_clash_results",
+        "bim.assign_structural_load_case",
+        "bim.annotation_tool",
+        "bim.wall_tool",
+    ],
+)
+def test_d3_unregistered_operator_classes_and_workspace_tools_fail(op):
+    for line in ("VL-current", "VL-older"):
+        rec = record(tools_required=[op]).model_copy(update={"version_line": line})
+        result = by_name(run_checks(rec, LEX), "bim_operators_known")
+        assert (result.passed, result.drop) == (False, True)
+        assert op in result.detail
+
+
+@pytest.mark.parametrize(
+    "op", ["bim.override_move_macro", "bim.enable_editing_roof", "bim.assign_class"]
+)
+def test_d3_registered_operators_and_macros_pass(op):
+    result = by_name(run_checks(record(tools_required=[op]), LEX), "bim_operators_known")
+    assert result.passed
+
+
+@pytest.mark.parametrize("op", ["view3d.select_box", "mesh.select_circle", "object.location_clear"])
+def test_wildcard_manual_operators_match_concrete_ids(op):
+    results = run_checks(record(steps=[f"Run {op} here.", "Two.", "Three."]), LEX)
+    assert by_name(results, "blender_operators_known").passed
+
+
+def test_wildcard_manual_operators_do_not_accept_unrelated_ids():
+    results = run_checks(record(steps=["Run view3d.select_bogus_xyz here.", "Two.", "Three."]), LEX)
+    result = by_name(results, "blender_operators_known")
+    assert (result.passed, result.drop) == (False, False)
+    assert "view3d.select_bogus_xyz" in result.detail
+
+
+def test_evidence_only_checks_are_named():
+    assert checks.EVIDENCE_ONLY == frozenset({"blender_operators_known", "menu_paths_known"})
+
+
+def test_two_paths_joined_by_prose_are_checked_separately():
+    assert _menu(["Go to Edit > Preferences, then Add-ons > Install."]).passed
+    result = _menu(["Go to Edit > Preferences, then Bogus Wizard > Install."])
+    assert result.detail == "not in the pinned UI lexicons: ['then Bogus Wizard']"

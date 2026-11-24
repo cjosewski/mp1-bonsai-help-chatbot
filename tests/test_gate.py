@@ -302,6 +302,17 @@ def test_gate_run_reads_unoffered_citations_from_the_attempt(config):
     assert report["drops_per_check"]["cited_sections_offered"] == 5
 
 
+def test_bracketed_citation_of_an_offered_id_passes_the_gate(config):
+    # The prompt shows each section as `[id]`; a model that copies the brackets still
+    # cites that offered section, in generation and again when the gate recomputes it.
+    execute(config, GoodClient(cite=lambda ids: [f"[{ids[0]}]"]))
+    report = run_gate(config)
+    assert len(report["retained_ids"]) == 5
+    assert report["drops_per_check"]["cited_sections_offered"] == 0
+    for entry in report["per_item"].values():
+        assert "D3:cited_sections_offered" not in entry["dropped_by"]
+
+
 def test_embedding_failure_writes_no_report(config):
     execute(config, GoodClient())
     with pytest.raises(GateError):
@@ -432,3 +443,41 @@ def test_mismatched_embedding_dimensions_are_controlled():
 
     with pytest.raises(GateError, match="dimensions"):
         evaluate([record(0), record(1)], Ragged())
+
+
+def test_per_check_failures_and_pass_rates_include_evidence_only_checks():
+    invented = ["Run mesh.fake_operator_xyz.", "Open Zorbo Wizard > Bogus Exporter.", "Three."]
+    records = [record(i, steps=invented) for i in range(3)]
+    records += [record(3, tips=["Short tip."]), record(4)]
+    report = evaluate(records)
+    rates = report["pass_rates_per_check"]
+    assert set(rates) == {c["name"] for c in report["per_item"]["r-000"]["checks"]}
+    for name in ("blender_operators_known", "menu_paths_known"):
+        assert rates[name] == {
+            "dimension": "D3",
+            "evidence_only": True,
+            "evaluated": 5,
+            "passed": 2,
+            "failed": 3,
+            "dropped": 0,
+            "pass_rate": 0.4,
+        }
+        assert report["drops_per_check"][name] == 0
+    assert rates["tip_length"] == {
+        "dimension": "D6",
+        "evidence_only": False,
+        "evaluated": 5,
+        "passed": 4,
+        "failed": 1,
+        "dropped": 1,
+        "pass_rate": 0.8,
+    }
+    assert report["pass_rates_denominator"] == gate.DENOMINATOR
+    # The three evidence-only failures stay retained; only the short tip is dropped.
+    assert report["retained_ids"] == ["r-000", "r-001", "r-002", "r-004"]
+
+
+def test_pass_rates_are_empty_for_an_empty_gate_input():
+    report = evaluate([])
+    assert report["pass_rates_per_check"] == {}
+    assert report["gate_pass_rate"] is None

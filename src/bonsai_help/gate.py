@@ -2,8 +2,10 @@
 
 Order: per-item deterministic checks, exact duplicates, then near duplicates by embedding
 similarity. Dropped items are never embedded. Category counts and the distribution are
-computed over the final retained set. The gate screens heuristically and never certifies
-rubric quality, so ``quality_status`` stays pending; the report is written exactly once.
+computed over the final retained set. Every check also gets its failure count and pass
+rate over the items entering the gate, including the evidence-only checks that never
+drop an item. The gate screens heuristically and never certifies rubric quality, so
+``quality_status`` stays pending; the report is written exactly once.
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Protocol
 
-from bonsai_help.checks import Lexicons, normalize, run_checks
+from bonsai_help.checks import EVIDENCE_ONLY, Lexicons, normalize, run_checks
 from bonsai_help.doc_sources import CATEGORIES
 from bonsai_help.generate import ITEMS, LEDGERS, split_citations
 from bonsai_help.model_client import EmbeddingError
@@ -66,12 +68,27 @@ def evaluate_gate(
         raise ValueError("gate input contains duplicate item_id")
     per_item: dict[str, dict] = {}
     drops: dict[str, int] = {}
+    rates: dict[str, dict] = {}
     for record in ordered:
         results = run_checks(record, lexicons, unoffered.get(record.item_id, ()))
         dropped = [f"{r.dimension}:{r.name}" for r in results if r.drop]
         for r in results:
             drops.setdefault(r.name, 0)
             drops[r.name] += r.drop
+            rate = rates.setdefault(
+                r.name,
+                {
+                    "dimension": r.dimension,
+                    "evidence_only": r.name in EVIDENCE_ONLY,
+                    "evaluated": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "dropped": 0,
+                },
+            )
+            rate["evaluated"] += 1
+            rate["passed" if r.passed else "failed"] += 1
+            rate["dropped"] += r.drop
         per_item[record.item_id] = {
             "category": record.category,
             "checks": [asdict(r) for r in results],
@@ -79,6 +96,8 @@ def evaluate_gate(
             "dropped_by": dropped,
         }
     drops[EXACT] = drops[NEAR] = 0
+    for rate in rates.values():
+        rate["pass_rate"] = rate["passed"] / rate["evaluated"]
 
     exact: list[dict] = []
     seen: dict[str, str] = {}
@@ -134,6 +153,8 @@ def evaluate_gate(
         "input_count": len(ordered),
         "per_item": per_item,
         "drops_per_check": drops,
+        "pass_rates_per_check": rates,
+        "pass_rates_denominator": DENOMINATOR,
         "exact_duplicates": exact,
         "near_duplicates": near,
         "per_category": per_category,

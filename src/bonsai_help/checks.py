@@ -2,7 +2,8 @@
 
 These are heuristics. A failed check is evidence for the first-pass gate and the judge;
 none of them replaces a human or judge decision. ``drop`` marks a failure the gate may
-act on by itself; unknown Blender operators and menu paths are evidence only.
+act on by itself; unknown Blender operators and menu paths are evidence only
+(``EVIDENCE_ONLY``).
 """
 
 from __future__ import annotations
@@ -44,11 +45,17 @@ GENERIC_PHRASES = frozenset(
 )
 GENERIC_RESIDUAL_WORDS = 5
 REFUSAL_PHRASES = ("as an ai", "i cannot help", "i'm unable to")
+EVIDENCE_ONLY = frozenset({"blender_operators_known", "menu_paths_known"})
+# Bonsai-source lexicon entries that are invocable ``bpy.ops.bim.*`` ids.
+BIM_OPERATOR_KINDS = ("operator", "macro")
 
 _BIM_ID = re.compile(r"\bbim\.[a-z0-9_]+")
 _OPERATOR = re.compile(r"\b([a-z][a-z0-9_]*)\.([a-z][a-z0-9_]*)\b")
 _MENU_SPLIT = re.compile(r"\s*(?:-->|->|=>|→|›|>)\s*")
 _MENU_PATH = re.compile(r"[^\n.;:]*(?:-->|->|=>|→|›|>)[^\n.;:]*")
+# A comma followed by a lowercase word ends one path and starts prose ("Edit > Preferences,
+# then Add-ons > Install"); a comma between capitalized labels ("Move, Rotate") does not.
+_PATH_BREAK = re.compile(r",\s+(?=[a-z])")
 _TIP_NUMBER = re.compile(r"^\d+\s+")
 
 
@@ -63,7 +70,12 @@ class CheckResult:
 
 @dataclass(frozen=True)
 class Lexicons:
-    """Per version line: Bonsai operator ids, Blender operator ids and menu labels."""
+    """Per version line: Bonsai operator ids, Blender operator ids and menu labels.
+
+    ``bim_ids`` holds only registered operators and macros. ``menu_segments`` holds the
+    normalized labels of the Manual's menu paths and gui labels, the Bonsai docs' menu
+    and ui paths, and the Bonsai source's button texts and class labels.
+    """
 
     bim_ids: dict[str, frozenset[str]]
     blender_operators: dict[str, frozenset[str]]
@@ -96,8 +108,12 @@ def load_lexicons(reference_dir: Path) -> Lexicons:
         sources = line["sources"]
         source = json.loads((lex_dir / f"{sources['bonsai_source']}.json").read_bytes())
         bim[line["id"]] = frozenset(
-            e["id"].casefold() for e in source["entries"] if isinstance(e.get("id"), str)
-        ) | frozenset(t["id"].casefold() for t in source.get("ui_texts", []) if "id" in t)
+            e["id"].casefold()
+            for e in source["entries"]
+            if isinstance(e.get("id"), str)
+            and e.get("kind") in BIM_OPERATOR_KINDS
+            and e.get("registered") is True
+        )
         manual = json.loads((lex_dir / f"{sources['blender_manual']}.json").read_bytes())
         ops: set[str] = set()
         segs: set[str] = set()
@@ -111,6 +127,11 @@ def load_lexicons(reference_dir: Path) -> Lexicons:
                 segs.update(_segment(part) for part in _MENU_SPLIT.split(value))
             elif entry["kind"] == "guilabel":
                 segs.add(_segment(value))
+        docs = json.loads((lex_dir / f"{sources['bonsai_docs']}.json").read_bytes())
+        for entry in docs["entries"]:
+            value = entry.get("value")
+            if isinstance(value, str) and entry["kind"] in ("menu_path", "ui_path"):
+                segs.update(_segment(part) for part in _MENU_SPLIT.split(value))
         for text in source.get("ui_texts", []):
             segs.add(_segment(text["text"]))
         for entry in source["entries"]:
@@ -119,6 +140,45 @@ def load_lexicons(reference_dir: Path) -> Lexicons:
         operators[line["id"]] = frozenset(ops)
         segments[line["id"]] = frozenset(s for s in segs if s)
     return Lexicons(bim, operators, segments)
+
+
+def _initial_is_upper(word: str) -> bool:
+    return next((c for c in word if c.isalpha()), "").isupper()
+
+
+def _menu_part_known(part: str, segments: frozenset[str], *, first: bool, last: bool) -> bool:
+    """Whole-label match of one menu-path part; prose may only sit outside the path.
+
+    A part is known when it equals a lexicon label after normalization. The first part
+    may carry lead-in prose ("In Object Mode, open Object"): some trailing run of its
+    words must be a label, and the word just before that run must not be capitalized
+    unless it starts the path. The last part may carry trailing prose ("Scale and
+    confirm"): some leading run must be a label, followed by a word that is not
+    capitalized. Labels never match inside a word or as a fragment of a longer label.
+    """
+    if _segment(part) in segments:
+        return True
+    words = part.split()
+    if first:
+        for i in range(1, len(words)):
+            if _segment(" ".join(words[i:])) in segments and (
+                i == 1 or not _initial_is_upper(words[i - 1])
+            ):
+                return True
+    if last:
+        for j in range(len(words) - 1, 0, -1):
+            if _segment(" ".join(words[:j])) in segments and not _initial_is_upper(words[j]):
+                return True
+    return False
+
+
+def _wildcard_patterns(operators: Iterable[str]) -> list[re.Pattern[str]]:
+    """The Manual's wildcard operator entries (``*.select_box``) as whole-id patterns."""
+    return [
+        re.compile("".join("[a-z0-9_]*" if c == "*" else re.escape(c) for c in o))
+        for o in sorted(operators)
+        if "*" in o
+    ]
 
 
 def _normalize_keep_dots(text: str) -> str:
@@ -158,8 +218,10 @@ def run_checks(
         raise ValueError(f"unknown version line {line!r}; known: {sorted(lexicons.bim_ids)}")
     results: list[CheckResult] = []
 
-    def add(dimension: Dimension, name: str, ok: bool, detail: str, *, drop: bool = True) -> None:
-        results.append(CheckResult(dimension, name, ok, drop and not ok, detail))
+    def add(dimension: Dimension, name: str, ok: bool, detail: str) -> None:
+        results.append(
+            CheckResult(dimension, name, ok, name not in EVIDENCE_ONLY and not ok, detail)
+        )
 
     words = _words(item.answer)
     add("D1", "answer_length", words >= MIN_ANSWER_WORDS, f"{words} words, need {MIN_ANSWER_WORDS}")
@@ -203,28 +265,33 @@ def run_checks(
             if a in prefixes
         }
     )
-    unknown_ops = [o for o in candidates if o not in blender_known]
+    wildcards = _wildcard_patterns(blender_known)
+    unknown_ops = [
+        o
+        for o in candidates
+        if o not in blender_known and not any(w.fullmatch(o) for w in wildcards)
+    ]
     add(
         "D3",
         "blender_operators_known",
         not unknown_ops,
         f"not in the Manual lexicon: {unknown_ops}" if unknown_ops else "ok",
-        drop=False,
     )
     segments = lexicons.menu_segments.get(line, frozenset())
     unknown_menu: list[str] = []
     for step in item.steps:
-        for path in _MENU_PATH.findall(step):
-            for part in _MENU_SPLIT.split(path.strip()):
-                seg = _segment(part)
-                if seg and not any(seg in s or s in seg for s in segments):
+        pieces = [p for m in _MENU_PATH.findall(step) for p in _PATH_BREAK.split(m)]
+        for path in (p for p in pieces if _MENU_SPLIT.search(p)):
+            parts = _MENU_SPLIT.split(path.strip())
+            for index, part in enumerate(parts):
+                first, last = index == 0, index == len(parts) - 1
+                if _segment(part) and not _menu_part_known(part, segments, first=first, last=last):
                     unknown_menu.append(part.strip())
     add(
         "D3",
         "menu_paths_known",
         not unknown_menu,
-        f"not in the Manual lexicon: {sorted(set(unknown_menu))}" if unknown_menu else "ok",
-        drop=False,
+        f"not in the pinned UI lexicons: {sorted(set(unknown_menu))}" if unknown_menu else "ok",
     )
 
     fields = normalize(f"{item.answer} {item.safety_info} {' '.join(item.tips)}")
