@@ -17,6 +17,7 @@ from test_gate import good_item
 from test_generation import offered_ids
 
 from bonsai_help import cli
+from bonsai_help.tracing import artifact_hashes
 
 KEY_ENV = "BONSAI_HELP_SYNTHETIC_TEST_KEY"
 
@@ -142,17 +143,35 @@ def test_cli_config_errors_exit_2(tmp_path, run_config, capsys):
     capsys.readouterr()
 
 
+def leaky(request: httpx.Request) -> httpx.Response:
+    # A hostile endpoint echoes the credential in every failure it returns.
+    return httpx.Response(401, json={"error": {"message": f"bad key {FAKE_KEY}"}})
+
+
+def leaky_embeddings() -> FakeTransport:
+    """Chat completions as in `model_transport`; every embedding request is a leaky 401."""
+    good = model_transport()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/embeddings"):
+            return leaky(request)
+        return good._handler(request)
+
+    return FakeTransport(handler)
+
+
+def embedding_requests(transport: FakeTransport) -> int:
+    return sum(call.url.path.endswith("/embeddings") for call in transport.calls)
+
+
 def test_cli_never_prints_credentials(tmp_path, run_config, monkeypatch, capsys, caplog):
     config = str(run_config)
-
-    def leaky(request: httpx.Request) -> httpx.Response:
-        # A hostile endpoint echoes the credential in every failure it returns.
-        return httpx.Response(401, json={"error": {"message": f"bad key {FAKE_KEY}"}})
-
+    gate_leak = FakeTransport(leaky)
+    collect_leak = leaky_embeddings()
     paths = [
         (["generate", "--config", config, "--run-id", "x1"], FakeTransport(leaky)),
-        (["generate", "--config", config, "--run-id", "x2"], model_transport(broken=True)),
-        (["gate", "--config", config, "--run-id", "x2"], FakeTransport(leaky)),
+        (["generate", "--config", config, "--run-id", "x2"], model_transport()),
+        (["gate", "--config", config, "--run-id", "x2"], gate_leak),
         (["gate", "--config", config, "--run-id", "absent"], None),
         (
             [
@@ -170,6 +189,20 @@ def test_cli_never_prints_credentials(tmp_path, run_config, monkeypatch, capsys,
         ),
         (
             [
+                "collect",
+                "--config",
+                config,
+                "--collection-id",
+                "c-embed",
+                "--batch-count",
+                "5",
+                "--max-batches",
+                "1",
+            ],
+            collect_leak,
+        ),
+        (
+            [
                 "generate",
                 "--config",
                 config,
@@ -183,19 +216,78 @@ def test_cli_never_prints_credentials(tmp_path, run_config, monkeypatch, capsys,
         (["generate", "--config", config, "--run-id", "../escape"], None),
     ]
     results = [invoke(capsys, argv, transport) for argv, transport in paths]
-    # exhaustion 3, exhaustion 3, distribution failed 1, no run 1, collection out of
-    # batches 3, fixture slice does not verify 1, escaping run ID 2.
-    assert [code for code, _, _ in results] == [3, 3, 1, 1, 3, 1, 2]
+    # exhaustion 3, complete 0, embedding failed 1, no run 1, collection out of batches 3,
+    # embedding failed inside collect 1, fixture slice does not verify 1, escaping ID 2.
+    assert [code for code, _, _ in results] == [3, 0, 1, 1, 3, 1, 1, 2]
     for code, _, err in results:
         # Failures are one stderr line: no library log output beside the error.
         assert len(err.splitlines()) <= 1
         assert err == "" or err.startswith("error:")
+    # Both embedding failures reached the key-echoing endpoint, and wrote no gate report.
+    assert embedding_requests(gate_leak) >= 1 and embedding_requests(collect_leak) >= 1
+    for (_, _, err), run in ((results[2], "x2"), (results[5], "c-embed-b01")):
+        assert err.startswith("error: embedding failed") and "[REDACTED]" in err
+        assert not (tmp_path / "runs" / run / "gate-report.json").exists()
     # The instructor library logs each failed call; the CLI keeps it quiet (the attempt
     # ledger is the record), so a terminal shows only the error line.
     assert not [r for r in caplog.records if r.name.startswith("instructor")]
-    # The key file path: a missing key and an unreadable key file are config errors.
+    # A missing key and an unreadable key file are config errors (2).
     monkeypatch.delenv(KEY_ENV)
     code, _, err = invoke(capsys, ["generate", "--config", config, "--run-id", "x4"])
     assert code == 2 and "API key" in err
+    by_file = json.loads(run_config.read_text())
+    by_file["api_key_env"] = None  # exactly one credential source: the (missing) key file
+    by_file["api_key_file"] = str(tmp_path / "no-such-key-file")
+    keyfile_config = tmp_path / "keyfile-config.json"
+    keyfile_config.write_text(json.dumps(by_file))
+    code, _, err = invoke(capsys, ["generate", "--config", str(keyfile_config), "--run-id", "x5"])
+    assert code == 2 and "API-key file" in err
+    assert not (tmp_path / "runs/x4").exists() and not (tmp_path / "runs/x5").exists()
     attempts = Path(tmp_path / "runs/x1/attempts.jsonl").read_text()
     assert FAKE_KEY not in attempts
+
+
+def test_cli_invalid_saved_record_is_evidence_not_config(tmp_path, run_config, capsys):
+    config = str(run_config)
+    code, _, _ = invoke(capsys, ["generate", "--config", config, "--run-id", "r1"])
+    assert code == 0
+    run = tmp_path / "runs/r1"
+    lines = (run / "items.jsonl").read_text().splitlines()
+    record = json.loads(lines[0])
+    record["item"]["steps"] = ["one"]  # fails the payload schema (three steps or more)
+    lines[0] = json.dumps(record)
+    (run / "items.jsonl").write_text("\n".join(lines) + "\n")
+    # Synthetic tampering that refreshes the ledger hashes, so only the schema catches it.
+    manifest = json.loads((run / "manifest.json").read_text())
+    manifest["artifacts_sha256"] = artifact_hashes(run)
+    (run / "manifest.json").write_text(json.dumps(manifest))
+    code, _, err = invoke(capsys, ["gate", "--config", config, "--run-id", "r1"])
+    assert code == 1 and err.startswith("error:")
+    assert "run config" not in err and "item.steps" in err and "inspect" in err
+    assert not (run / "gate-report.json").exists()
+
+
+def test_cli_interrupt_exits_130_and_keeps_the_evidence(tmp_path, run_config, capsys):
+    config = str(run_config)
+    good = model_transport()
+    chats = itertools.count(1)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if next(chats) == 3:
+            raise KeyboardInterrupt  # synthetic Ctrl-C during the third request
+        return good._handler(request)
+
+    code, out, err = invoke(
+        capsys, ["generate", "--config", config, "--run-id", "r1"], FakeTransport(handler)
+    )
+    assert code == 130 and out == ""
+    assert err.startswith("error: interrupted") and "--resume" in err
+    assert len(err.splitlines()) == 1
+    run = tmp_path / "runs/r1"
+    assert json.loads((run / "manifest.json").read_text())["status"] == "interrupted"
+    starts = (run / "starts.jsonl").read_text().splitlines()
+    assert len(starts) == 3 and (run / "attempts.jsonl").read_text().count("\n") == 2
+    code, out, _ = invoke(capsys, ["generate", "--config", config, "--run-id", "r1", "--resume"])
+    assert code == 0 and json.loads(out)["status"] == "complete"
+    # The interrupted request stays disclosed as an unknown outcome.
+    assert json.loads(out)["metrics"]["unknown_outcomes"] == 1

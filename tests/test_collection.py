@@ -2,21 +2,25 @@
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 import re
+import shutil
 from pathlib import Path
 
 import pytest
 from test_gate import FakeEmbedder, good_item
 from test_generation import FIXTURES, offered_ids
 
-from bonsai_help import cohort, collection
+from bonsai_help import cohort, collection, gate, generate
+from bonsai_help.checks import load_lexicons
 from bonsai_help.collection import CollectionError, collect, collection_status
-from bonsai_help.config import RunConfig
-from bonsai_help.doc_sources import CATEGORIES
+from bonsai_help.config import RunConfig, load_prompt
+from bonsai_help.doc_sources import CATEGORIES, load_config
 from bonsai_help.model_client import AttemptResult
 from bonsai_help.schemas import GenerationOutput
+from bonsai_help.setup import SetupProfiles
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = ROOT / "reference"
@@ -325,6 +329,201 @@ def test_unscreened_gated_batch_is_refused(config):
     collection.checkpoint(path.parent, manifest)
     with pytest.raises(CollectionError, match="cross-batch screen"):
         collection_status(root, "col-1")
+
+
+def standalone_run(config, run_id, count=5):
+    """A run made by `generate`, outside any collection (its seed is not a batch seed)."""
+    prompt, prompt_sha256 = load_prompt(config)
+    generate.generate_run(
+        config,
+        prompt,
+        prompt_sha256,
+        count=count,
+        run_id=run_id,
+        client=UniqueClient(),
+        profiles=SetupProfiles.model_validate(
+            json.loads((REFERENCE / "setup-profiles.json").read_bytes())
+        ),
+        doc_config=load_config(collection.DOC_SOURCES),
+        fixtures_dir=FIXTURES,
+    )
+    return config.artifact_path() / run_id
+
+
+def test_new_collection_refuses_a_foreign_run_with_a_batch_id(config):
+    foreign = standalone_run(config, "col-1-b02")
+    before = hashes(foreign)
+    with pytest.raises(ValueError, match="col-1-b02 already exists"):
+        run_collect(config, UniqueClient(), max_batches=3)
+    # Refused before anything is written: no collection, the foreign run unchanged.
+    assert not (config.artifact_path() / "collections").exists()
+    assert hashes(foreign) == before and not (foreign / gate.REPORT).exists()
+
+
+def test_collection_never_adopts_a_run_created_after_it_started(config):
+    with pytest.raises(KeyboardInterrupt):
+        run_collect(config, UniqueClient(interrupt_call=1), max_batches=3)
+    foreign = standalone_run(config, "col-1-b02")
+    before = hashes(foreign)
+    with pytest.raises(CollectionError, match="col-1-b02 already exists"):
+        run_collect(config, UniqueClient(), max_batches=3, resume=True)
+    assert hashes(foreign) == before and not (foreign / gate.REPORT).exists()
+    manifest = json.loads((config.artifact_path() / "collections/col-1/manifest.json").read_text())
+    assert [b["run_id"] for b in manifest["batches"]] == ["col-1-b01"]
+
+
+def test_foreign_run_under_a_committed_batch_id_is_never_gated(config):
+    with pytest.raises(KeyboardInterrupt):
+        run_collect(config, UniqueClient(interrupt_call=1), max_batches=3)
+    root = config.artifact_path()
+    # Synthetic setup: the committed batch's run is replaced by an unrelated standalone run.
+    shutil.rmtree(root / "col-1-b01")
+    foreign = standalone_run(config, "col-1-b01", count=30)
+    before = hashes(foreign)
+    client = UniqueClient()
+    with pytest.raises(CollectionError, match="differs from the frozen collection inputs"):
+        run_collect(config, client, max_batches=3, resume=True)
+    assert client.calls == 0
+    assert hashes(foreign) == before and not (foreign / gate.REPORT).exists()
+
+
+class OperatorClient(UniqueClient):
+    """Synthetic items whose steps name a Bonsai operator, so lexicons decide a check."""
+
+    def generate(self, messages):
+        result = super().generate(messages)
+        if result.item is None:
+            return result
+        steps = [*result.item.item.steps, "Run bim.align_wall from the Bonsai wall tool panel."]
+        output = result.item.model_copy(
+            update={"item": result.item.item.model_copy(update={"steps": steps})}
+        )
+        return AttemptResult(output, result.raw_response, None, None, result.response_model)
+
+
+@pytest.mark.parametrize("change", ["embedding_model", "lexicons"])
+def test_batch_gated_outside_the_collection_is_refused(config, change):
+    def start():
+        return collect(
+            config,
+            "col-1",
+            OperatorClient(),
+            embedder,
+            batch_count=5,
+            max_batches=2,
+            fixtures_dir=FIXTURES,
+            reference_dir=REFERENCE,
+            resume=resume,
+        )
+
+    embedder, resume = FakeEmbedder(fail=True), False
+    with pytest.raises(gate.GateError, match="embedding failed"):
+        start()
+    root = config.artifact_path()
+    lexicons = load_lexicons(REFERENCE)
+    model = "synthetic-embedding"
+    if change == "embedding_model":
+        model = "OTHER-synthetic-embedding"
+    else:
+        lexicons = dataclasses.replace(
+            lexicons, bim_ids={line: frozenset() for line in lexicons.bim_ids}
+        )
+    gate.gate_run(
+        root, "col-1-b01", lexicons=lexicons, embedder=FakeEmbedder(), embedding_model=model
+    )
+    embedder, resume = FakeEmbedder(), True
+    with pytest.raises(CollectionError, match="gate report"):
+        start()
+    manifest = json.loads((root / "collections/col-1/manifest.json").read_text())
+    assert manifest["batches"][0]["gated"] is None
+    assert not (root / "col-1-b02").exists()
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [
+        {"metrics": {"initial_valid": 30, "retry_recovered": 0}},
+        {"metrics": {"exhausted": 0, "exhausted_slot_ids": []}},
+        {"status": "complete"},
+    ],
+)
+def test_batch_metrics_are_recomputed_from_the_ledgers(config, edit):
+    # Batch 1: slot 1 is exhausted and slot 2 recovers on its third attempt.
+    summary = run_collect(config, UniqueClient(fail_first=5), max_batches=3)
+    first = summary["batches"][0]
+    assert first["initial_valid"] == 28 and first["retry_recovered"] == 1
+    assert first["exhausted"] == 1 and first["status"] == "incomplete"
+    root = config.artifact_path()
+    path = root / "col-1-b01/manifest.json"
+    run = json.loads(path.read_text())
+    run["metrics"] |= edit.get("metrics", {})
+    run["status"] = edit.get("status", run["status"])
+    path.write_text(json.dumps(run))  # a plain edit: the run manifest itself is not sealed
+    with pytest.raises(CollectionError, match="col-1-b01: batch .*ledgers"):
+        collection_status(root, "col-1")
+    with pytest.raises(CollectionError, match="ledgers"):
+        cohort.freeze_cohort(root, "col-1", "cohort-1")
+
+
+def test_assessed_collect_without_model_identity_writes_nothing(tmp_path):
+    config = make_config(tmp_path, purpose="baseline", model="synthetic-model")
+    with pytest.raises(ValueError, match="model_identity and model_sha256"):
+        run_collect(config, UniqueClient(), batch_count=5, max_batches=1)
+    assert not (config.artifact_path() / "collections").exists()
+    # The corrected config can start the same collection ID: nothing was burned.
+    fixed = make_config(
+        tmp_path,
+        purpose="baseline",
+        model="synthetic-model",
+        model_identity="synthetic-model-identity",
+        model_sha256="a" * 64,
+    )
+    summary = run_collect(fixed, UniqueClient(), batch_count=5, max_batches=1)
+    assert summary["retained"] == 5
+
+
+class DroppedQuestionClient(UniqueClient):
+    """Batches of 5. Call 1 (A) and call 6 (D) are near-twins by their answers; call 11 (Q)
+    repeats D's question with an ordinary answer, near to nothing."""
+
+    SHARED = "How do I add a synthetic shared slab question to this Bonsai project?"
+
+    def generate(self, messages):
+        result = super().generate(messages)
+        changes = {}
+        if self.calls in (1, 6):
+            changes["answer"] = result.item.item.answer + " Check the twin wall afterwards."
+        if self.calls in (6, 11):
+            changes["question"] = self.SHARED
+        if changes:
+            item = result.item.item.model_copy(update=changes)
+            output = result.item.model_copy(update={"item": item})
+            result = AttemptResult(output, result.raw_response, None, None, "synthetic-model")
+        return result
+
+
+def test_exact_duplicates_are_decided_against_members_only(config):
+    summary = collect(
+        config,
+        "col-1",
+        DroppedQuestionClient(),
+        TwinEmbedder(),
+        batch_count=5,
+        max_batches=3,
+        fixtures_dir=FIXTURES,
+        reference_dir=REFERENCE,
+    )
+    members = {m["item_id"] for m in summary["members"]}
+    by_run = {}
+    for decision in summary["decisions"]:
+        by_run.setdefault(decision["run_id"], []).append(decision)
+    near = [d for d in by_run["col-1-b02"] if d["reasons"] == ["cross_batch_near_duplicate"]]
+    assert len(near) == 1 and near[0]["duplicate_of"] in members
+    # Q matches only D's question, and D is not a member: Q is screened and retained.
+    assert all(d["retained"] for d in by_run["col-1-b03"])
+    assert summary["retained"] == 14
+    assert all(d["duplicate_of"] in members for d in summary["decisions"] if d["duplicate_of"])
+    assert collection_status(config.artifact_path(), "col-1") == summary
 
 
 def test_modules_do_not_import_cli_or_assessment():

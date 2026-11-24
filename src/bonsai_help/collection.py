@@ -2,11 +2,16 @@
 
 A collection is a sequence of batches. Each batch is one `generate_run` of `batch_count`
 slots followed by one `gate_run`. The collection is ready when the union of retained
-items across its gated batches (exact duplicate questions across batches dropped, first
-kept) reaches `target_retained` with every category at `MIN_PER_CATEGORY` or more. A batch
-is committed to the collection manifest before its first request, so a resume can never
-reset the batch budget. A failed or incomplete batch is never rewritten; it counts toward
-`max_batches`, and its numbers stay in every summary.
+items across its gated batches (a question that exactly repeats an accepted member's is
+dropped) reaches `target_retained` with every category at `MIN_PER_CATEGORY` or more. A
+batch is committed to the collection manifest before its first request, so a resume can
+never reset the batch budget. A failed or incomplete batch is never rewritten; it counts
+toward `max_batches`, and its numbers stay in every summary.
+
+A batch's run ID belongs to the collection: a run that already exists under that ID is
+refused, never generated into or gated. A batch's gate report is accepted only with the
+collection's embedding model, threshold, minimum share and lexicons (its per-item checks
+are recomputed), and its denominators are recomputed from its hash-bound ledgers.
 
 Each batch samples with its own seed, derived from the run seed and the batch number and
 recorded in the collection manifest, so later batches are offered other sections. After a
@@ -17,15 +22,19 @@ accepted, with the gate's embedder and threshold; the decisions are recorded so 
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 from bonsai_help import gate, generate
-from bonsai_help.checks import load_lexicons, normalize
+from bonsai_help.checks import Lexicons, load_lexicons, normalize, run_checks
 from bonsai_help.config import REPOSITORY, RunConfig, load_prompt
 from bonsai_help.doc_sources import CATEGORIES, load_config
 from bonsai_help.model_client import EmbeddingError
+from bonsai_help.sampler import Slot, verify_fixtures
+from bonsai_help.schemas import GeneratedItem
 from bonsai_help.setup import SetupProfiles
 from bonsai_help.tracing import (
     artifact_hashes,
@@ -126,8 +135,61 @@ def load_collection(root: Path, collection_id: str) -> tuple[Path, dict]:
     return directory, manifest
 
 
+def _check_identity(manifest: dict, entry: dict, identity: dict) -> None:
+    """A batch run must be this collection's own: its ID, settings, seed, count, prompt, code."""
+    run_id = entry["run_id"]
+    settings = identity["settings"] | {"seed": entry["seed"]}
+    if (
+        manifest.get("run_id") != run_id
+        or manifest.get("settings") != settings
+        or manifest.get("count") != identity["policy"]["batch_count"]
+        or manifest.get("prompt_sha256") != identity["prompt_sha256"]
+        or (manifest.get("implementation") or {}).get("source_tree_sha256")
+        != identity["implementation"]
+    ):
+        raise CollectionError(f"{run_id}: batch differs from the frozen collection inputs")
+
+
+def _check_report_settings(run_id: str, report: dict, identity: dict) -> None:
+    """A gate report counts only if made with the collection's embedder and thresholds."""
+    if (
+        report.get("run_id") != run_id
+        or report.get("embedding_model") != identity["settings"]["embedding_model"]
+        or report.get("threshold") != gate.DEFAULT_THRESHOLD
+        or (report.get("distribution") or {}).get("min_share") != gate.DEFAULT_MIN_SHARE
+    ):
+        raise CollectionError(
+            f"{run_id}: gate report was made with other settings than the collection's "
+            "(embedding model, threshold or minimum share); inspect it"
+        )
+
+
+def _ledger_metrics(run_id: str, directory: Path, manifest: dict, items: list[dict]) -> dict:
+    """Denominators and status recomputed from the (hash-verified) ledgers, never trusted."""
+    slots = manifest.get("slots") or []
+    slot_ids = [s.get("slot_id") for s in slots]
+    if len(slots) != manifest.get("count") or len(set(slot_ids)) != len(slot_ids):
+        raise CollectionError(f"{run_id}: batch slot plan differs from its count")
+    metrics = generate.generation_metrics(
+        read_records(directory / generate.STARTS),
+        read_records(directory / generate.ATTEMPTS),
+        items,
+        [Slot(**s) for s in slots],
+    )
+    status = "complete" if metrics["exhausted"] == 0 else "incomplete"
+    if manifest.get("metrics") != metrics or manifest.get("status") != status:
+        raise CollectionError(
+            f"{run_id}: batch manifest metrics or status differ from its ledgers; inspect it"
+        )
+    return {"metrics": metrics, "status": status}
+
+
 def _batch(root: Path, entry: dict, identity: dict) -> dict:
-    """One batch's verified manifest, items and gate report (None until gated)."""
+    """One batch's verified manifest, items and gate report (None until gated).
+
+    For a gated batch, `metrics` and `status` are recomputed from its ledgers; for an
+    ungated one they are the run manifest's own, shown but never counted.
+    """
     run_id = entry["run_id"]
     directory = run_directory(root, run_id)
     try:
@@ -136,19 +198,17 @@ def _batch(root: Path, entry: dict, identity: dict) -> dict:
         if entry.get("gated") is not None:
             raise CollectionError(f"{run_id}: gated batch is missing") from None
         return {"run_id": run_id, "manifest": None, "items": [], "gate": None}
-    settings = identity["settings"] | {"seed": entry["seed"]}
-    if (
-        manifest.get("run_id") != run_id
-        or manifest.get("settings") != settings
-        or manifest.get("count") != identity["policy"]["batch_count"]
-        or manifest.get("prompt_sha256") != identity["prompt_sha256"]
-        or manifest.get("implementation", {}).get("source_tree_sha256")
-        != identity["implementation"]
-    ):
-        raise CollectionError(f"{run_id}: batch differs from the frozen collection inputs")
+    _check_identity(manifest, entry, identity)
     gated = entry.get("gated")
     if gated is None:
-        return {"run_id": run_id, "manifest": manifest, "items": [], "gate": None}
+        return {
+            "run_id": run_id,
+            "manifest": manifest,
+            "items": [],
+            "gate": None,
+            "metrics": manifest.get("metrics") or {},
+            "status": manifest.get("status"),
+        }
     ledgers = artifact_hashes(directory)
     if any(ledgers.get(name) != gated["ledgers_sha256"].get(name) for name in generate.LEDGERS):
         raise CollectionError(f"{run_id}: batch ledgers changed after gating")
@@ -161,7 +221,11 @@ def _batch(root: Path, entry: dict, identity: dict) -> dict:
     items = read_records(directory / generate.ITEMS)
     if report.get("run_id") != run_id or set(report["per_item"]) != {i["item_id"] for i in items}:
         raise CollectionError(f"{run_id}: gate report does not match the batch items")
-    return {"run_id": run_id, "manifest": manifest, "items": items, "gate": report}
+    _check_report_settings(run_id, report, identity)
+    recomputed = _ledger_metrics(run_id, directory, manifest, items)
+    if report.get("run_status") != recomputed["status"]:
+        raise CollectionError(f"{run_id}: gate report status differs from the batch ledgers")
+    return {"run_id": run_id, "manifest": manifest, "items": items, "gate": report} | recomputed
 
 
 def _check_screen(run_id: str, screen: dict | None, screened: list[str], accepted: set, model):
@@ -218,7 +282,7 @@ def summarize(root: Path, manifest: dict, *, pending: bool = False) -> dict:
         if run is None:
             reasons.append("batch_not_started")
             continue
-        metrics = run.get("metrics") or {}
+        metrics = batch["metrics"]
         if report is None:
             reasons.append("batch_not_gated")
         else:
@@ -230,7 +294,7 @@ def summarize(root: Path, manifest: dict, *, pending: bool = False) -> dict:
         batches.append(
             {
                 "run_id": batch["run_id"],
-                "status": run["status"],
+                "status": batch["status"],
                 "initial_slots": metrics.get("initial_slots"),
                 "initial_valid": metrics.get("initial_valid"),
                 "retry_recovered": metrics.get("retry_recovered"),
@@ -250,10 +314,12 @@ def summarize(root: Path, manifest: dict, *, pending: bool = False) -> dict:
         for record in sorted(batch["items"], key=lambda r: r["item_id"]):
             if record["item_id"] not in retained:
                 continue
+            # Exact duplicates are decided against accepted members only, so
+            # `duplicate_of` always names a member; within a batch the gate has
+            # already dropped exact duplicates.
             key = normalize(record["item"]["question"])
             exact = seen.get(key)
             if exact is None:
-                seen[key] = record["item_id"]
                 candidates.append(record)
             batch_decisions.append((record, key, exact))
         screen = entry["gated"].get("cross_batch")
@@ -288,6 +354,7 @@ def summarize(root: Path, manifest: dict, *, pending: bool = False) -> dict:
             )
             if not rejection:
                 members.append(record)
+                seen.setdefault(key, record["item_id"])
                 counts[record["category"]] += 1
     if len(members) < budget["target_retained"]:
         reasons.append("below_target")
@@ -350,16 +417,27 @@ def collect(
     fixtures_dir: Path = FIXTURES,
     reference_dir: Path = REFERENCE,
 ) -> dict:
-    """Run batches until the collection is ready or its batch budget is spent."""
+    """Run batches until the collection is ready or its batch budget is spent.
+
+    Every precondition `generate_run` would refuse on (assessed model identity, fixture
+    slice) is checked before the collection or a batch is written, so a refused start
+    never burns its collection ID.
+    """
     budget = policy(target_retained, batch_count, max_batches)
     root = config.artifact_path()
     directory = collection_directory(root, collection_id)
+    # Duplicates generate_run's own refusal (generate.py has no public check to share).
+    if config.purpose in generate.ASSESSED_PURPOSES and not (
+        config.model_identity and config.model_sha256
+    ):
+        raise ValueError("assessed generation requires model_identity and model_sha256")
     prompt, prompt_sha256 = load_prompt(config)
     profiles = SetupProfiles.model_validate(
         json.loads((reference_dir / "setup-profiles.json").read_bytes())
     )
     lexicons = load_lexicons(reference_dir)
     doc_config = load_config(DOC_SOURCES)
+    verify_fixtures(doc_config, fixtures_dir)
     identity = {
         "settings": config.public_settings(),
         "prompt_sha256": prompt_sha256,
@@ -373,6 +451,15 @@ def collect(
         if not (directory / "manifest.json").exists():
             raise ValueError(f"no collection {collection_id!r} to resume")
     else:
+        if directory.exists():  # the collection's own batches are not foreign runs
+            raise FileExistsError(errno.EEXIST, "collection already exists", str(directory))
+        for number in range(1, budget["max_batches"] + 1):
+            run_id = batch_id(collection_id, number)
+            if run_directory(root, run_id).exists():
+                raise ValueError(
+                    f"run {run_id} already exists outside this collection; "
+                    "choose another collection ID"
+                )
         directory.mkdir(parents=True, exist_ok=False)
         checkpoint(
             directory,
@@ -404,12 +491,18 @@ def collect(
                     "seed": batch_seed(config.seed, number),
                     "gated": None,
                 }
+                if run_directory(root, last["run_id"]).exists():
+                    raise CollectionError(
+                        f"run {last['run_id']} already exists outside this collection; "
+                        "it is not adopted, inspect it"
+                    )
                 manifest["batches"].append(last)
                 checkpoint(directory, manifest)  # commit the budget before any request
             _run_batch(
                 config.model_copy(update={"seed": last["seed"]}),
                 root,
-                last["run_id"],
+                last,
+                identity,
                 prompt,
                 prompt_sha256,
                 client=client,
@@ -421,6 +514,7 @@ def collect(
                 count=budget["batch_count"],
             )
             batch_dir = run_directory(root, last["run_id"])
+            _verify_gate_report(batch_dir, last["run_id"], identity, lexicons)
             last["gated"] = {
                 "gate_report_sha256": _file_sha(batch_dir / gate.REPORT),
                 "ledgers_sha256": artifact_hashes(batch_dir),
@@ -462,12 +556,45 @@ def _screen(accepted: list[dict], candidates: list[dict], embedder, model: str) 
     return record
 
 
-def _run_batch(config, root, run_id, prompt, prompt_sha256, *, count, **inputs) -> None:
-    """Generate (or resume) a batch and gate it; a terminal batch is never regenerated."""
+def _verify_gate_report(directory: Path, run_id: str, identity: dict, lexicons: Lexicons) -> None:
+    """Before a gate report is bound to the collection: same settings, same check results.
+
+    A report gated outside the collection (`bonsai-help gate` with another config or
+    reference directory) is refused rather than adopted. The per-item checks are rerun
+    with the collection's lexicons from the saved items and must match the report's.
+    """
+    report = read_json(directory / gate.REPORT)
+    _check_report_settings(run_id, report, identity)
+    unoffered = {
+        a["record"]["item_id"]: a.get("unoffered_citations") or []
+        for a in read_records(directory / generate.ATTEMPTS)
+        if a.get("schema_valid") is True
+    }
+    per_item = report.get("per_item") or {}
+    items = [GeneratedItem.model_validate(r) for r in read_records(directory / generate.ITEMS)]
+    if set(per_item) != {i.item_id for i in items}:
+        raise CollectionError(f"{run_id}: gate report does not match the batch items")
+    for item in items:
+        checks = [asdict(r) for r in run_checks(item, lexicons, unoffered.get(item.item_id, ()))]
+        if per_item[item.item_id].get("checks") != checks:
+            raise CollectionError(
+                f"{run_id}: gate report checks differ from the collection's lexicons; inspect it"
+            )
+
+
+def _run_batch(config, root, entry, identity, prompt, prompt_sha256, *, count, **inputs) -> None:
+    """Generate (or resume) a batch and gate it; a terminal batch is never regenerated.
+
+    An existing run is verified as this collection's own before anything is generated or
+    gated, so a foreign run under the batch's ID is never changed.
+    """
+    run_id = entry["run_id"]
     directory = run_directory(root, run_id)
     status = None
     if (directory / "manifest.json").exists():
-        status = read_json(directory / "manifest.json").get("status")
+        manifest = read_json(directory / "manifest.json")
+        _check_identity(manifest, entry, identity)
+        status = manifest.get("status")
     elif directory.exists():
         raise CollectionError(f"{run_id}: batch directory without a manifest; inspect it")
     if status not in gate.GATEABLE:

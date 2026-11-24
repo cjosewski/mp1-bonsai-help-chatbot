@@ -37,10 +37,18 @@ COMMANDS = ("generate", "gate", "collect", "collection-status", "cohort", "cohor
 FIXTURES = Path("tests/fixtures/docs")
 REFERENCE = Path("reference")
 ARTIFACTS = Path("runs")
-# ValueErrors raised while verifying saved evidence are check failures (1); every other
-# ValueError comes from settings, arguments or IDs and is a usage error (2).
+# ValueErrors (ValidationErrors among them) raised while verifying saved evidence are
+# check failures (1); every other ValueError comes from settings, arguments or IDs and is
+# a usage error (2).
 EVIDENCE_FUNCTIONS = frozenset(
-    {"validate_evidence", "recover_items", "_load_run", "read_records", "read_json"}
+    {
+        "validate_evidence",
+        "recover_items",
+        "_load_run",
+        "_verify_gate_report",
+        "read_records",
+        "read_json",
+    }
 )
 
 
@@ -146,8 +154,13 @@ def _run(args, transport) -> int:
     except KeyboardInterrupt:
         return _error(secrets, "interrupted; the evidence is kept, continue with --resume", 130)
     except ValidationError as error:
-        fields = sorted({".".join(map(str, e["loc"])) or "(root)" for e in error.errors()})
-        return _error(secrets, f"invalid run config: {', '.join(fields)}", 2)
+        fields = ", ".join(
+            sorted({".".join(map(str, e["loc"])) or "(root)" for e in error.errors()})
+        )
+        if _from_evidence(error):  # a saved record, not the config, fails its schema
+            message = f"saved run evidence fails validation: {fields}; inspect the run"
+            return _error(secrets, message, 1)
+        return _error(secrets, f"invalid run config: {fields}", 2)
     except (collection.CollectionError, gate.GateError, FixtureError) as error:
         return _error(secrets, str(error), 1)
     except (SamplerError, ConfigError) as error:
