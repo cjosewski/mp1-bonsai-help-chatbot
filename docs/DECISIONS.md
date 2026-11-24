@@ -1162,12 +1162,22 @@ Plan decisions:
 4. **Embedding duplicates.** Embeddings come from the same configured endpoint with one
    recorded embedding model for every vector. A cosine of 0.92 or more drops the later
    item. The threshold is configurable and recorded in the gate report.
+   *Correction (November 24, 2026):* "configurable" overstated the code. The threshold
+   is fixed at 0.92 (`gate.DEFAULT_THRESHOLD`): no run-config key or command flag sets
+   it, and a collection accepts a batch gate report only at that value. It is recorded
+   in each gate report and each cross-batch screen. Changing it is a code change and a
+   new dated entry.
 5. **Pre-check values.** D1: answer of at least 60 words. D2: `safety_info` of at least 80
    characters and no generic phrase. D3: every `bim.*` id exists in the version line's
    Bonsai-source lexicon and every cited section was offered. D4: no refusal boilerplate.
    D5: question of at least 6 words and `equipment_problem` of at least 3. D6: every tip at
    least 30 characters, none generic, none a near-copy of a step (token Jaccard 0.8 or
    more). Unknown Blender operators or menu paths are recorded as evidence, never a drop.
+   *Correction (November 24, 2026):* the D3 operator check reads only `tools_required`
+   and `steps`, as plan §6.4 and the B4 plan state; a `bim.*` id in `answer`, `tips`,
+   `safety_info`, `question` or `equipment_problem` is not checked. "Every `bim.*` id"
+   above means every id in those two fields. The lexicon it uses changed on November 24,
+   2026 (registered operators and macros only; see that day's assistant's calls).
 6. **Category balance.** The slot plan is exactly balanced. The gate passes a batch when
    every category is at least 18% of the retained items.
 7. **Slots and profiles.** A run of `count` items (a multiple of 5) gives each category
@@ -1196,6 +1206,195 @@ Rulings made while building:
   tails).
 
 No live model run has happened. B5 needs a reachable local endpoint and Chad's go-ahead.
+
+### November 24, 2026: hosted path refused; rubric moved to B5
+
+The final review of the B4 branch (workflow run `wf_7ed4c7f4-6a3`) found two gaps that
+needed Chad. A run config with `hosted: true` was accepted, and its `cost_cap_usd` was
+only checked to be above zero; nothing counted spend or stopped a run at the cap (finding
+1). The README marked B4 done including "Rubric", but no rubric exists, although plan §9
+lists it for B4 and the departure was not recorded (finding 2). Chad answered on
+November 24, 2026: "Refuse hosted for now; record the rubric as moved to B5".
+
+Owner decisions (Chad):
+
+- **Hosted path refused for now.** A run config with `hosted: true` is refused when it
+  is loaded (`config.HostedRefused`, exit 2, before any request or run directory),
+  whatever its URL, `hosted_authorization` or `cost_cap_usd`. It stays refused until Chad
+  authorizes a hosted path with an enforced cost cap. The fields `hosted`,
+  `hosted_authorization` and `cost_cap_usd` stay in the run-config schema and have no
+  effect. This defers plan §8's documented hosted path for graders; it does not remove
+  it, and the `AGENTS.md` rule (explicit, documented, authorized by Chad and cost-capped,
+  never a silent fallback) is unchanged. `docs/PORTING-MAP.md` §4 item 15 stays future
+  work.
+- **Rubric moved from B4 to B5.** B4 delivered no rubric. The rubric (D1 to D6 with
+  Bonsai anchors and targets; `docs/PORTING-MAP.md` names it `config/rubric.json`, pinned
+  by hash) is now a B5 deliverable, so it exists before B6's labels, which carry the
+  pinned rubric version. Plan §9 is changed on this direction: the B4 row drops "rubric"
+  and the B5 row gains it. The hours are unchanged (B4 6, B5 2, 30 remaining): the plan
+  treats hours as assumptions and sets no rule that moves them with a deliverable.
+
+### November 24, 2026: B4 final-review fixes (assistant's calls)
+
+The final review of the B4 branch (workflow run `wf_7ed4c7f4-6a3`: 46 raw findings, 30
+after deduplication, 29 confirmed by three verifiers each, 3 refuted) led to the fixes
+below. Apart from the hosted refusal, which carries out Chad's decision above, these are
+the assistant's calls, not owner decisions; Chad can overrule any of them, and a change
+is a new dated entry. Each fix arrived with a regression test that failed before it.
+
+Generation, envelope and ledgers:
+
+- **Bracketed citations.** A listed citation equal to an offered id inside exactly one
+  pair of square brackets (`[id]`) counts as that offered section (`generate._offered_id`,
+  used by generation, resume and the gate). This is the only normalization: an id never
+  offered is never accepted, two pairs or unbalanced or other brackets stay unoffered,
+  unoffered ids are reported as listed, and `cited_section_ids` keeps the model's text.
+  Reason: the prompt shows each section under `[id]`, so copying the brackets is a
+  formatting artifact, not a grounding defect, and it should not drop an item under D3.
+- **Unserializable responses.** A completion whose raw response is not strict JSON (NaN,
+  Infinity or a non-JSON value) is a failed attempt with `error_type`
+  `UnserializableResponse`, the raw response kept as JSON text, even when the item itself
+  validated. Reason: before, it raised, left an unknown outcome and exited 2; the evidence
+  cannot be stored verbatim, so the item is not kept, but the attempt must be recorded.
+- **Envelope failures.** A completion that validates but cannot be built into the item
+  envelope is a failed attempt with `error_type` `EnvelopeInvalid` (a field and message
+  summary without input values). Reason: a recorded failure uses up its attempt; an
+  exception lost it.
+- **Reported model id.** Only an unreported model id falls back to the configured model
+  (non-assessed runs). A blank id the server reports fails as `EnvelopeInvalid`. Reason:
+  silently replacing a reported value misstates provenance. Assessed runs still require
+  the configured id (`ModelIdentityMismatch`).
+- **Item timestamp.** The envelope gains the required field `generated_at` (ISO 8601 with a
+  UTC offset), the same text as its attempt's `completed_at`; resume refuses a record whose
+  `generated_at` differs from its attempt. `schema_version` stays `"1"`, because no
+  assessed or submitted run exists. Reason: `AGENTS.md` and plan §7 Step 1 require a
+  timestamp in the metadata; a pre-change `items.jsonl` now fails loudly.
+- **Legacy `problem`.** Values of `problem` and `equipment_problem` that differ only in
+  leading or trailing whitespace are no longer a conflict; any other difference still is.
+  Reason: both are stripped to the same stored text, so rejecting them rejected no real
+  conflict.
+- **JSONL records end at LF only.** `tracing.read_records` no longer splits on U+2028,
+  U+2029, U+0085 or a stray CR inside a string. Reason: `append_record` writes those
+  characters unescaped, so a valid ledger became unreadable. Truncation detection is
+  unchanged.
+
+Run config and model client:
+
+- **Hosted refusal mechanics.** The refusal is a `ConfigError`, not a `ValueError`, so the
+  command shows its reason rather than a validation summary that names only "(root)". The
+  earlier load-time hosted checks (https, `hosted_authorization`, `cost_cap_usd > 0`) are
+  removed, because no hosted config reaches them.
+- **`api_key_env` names a variable.** It must match `[A-Z_][A-Z0-9_]{0,63}`; lower-case
+  names, which POSIX allows, are refused on purpose. The error never shows the value.
+  Reason: a pasted key value was accepted at load (review focus 5); a mixed-case value is
+  far more likely a key than a variable name.
+- **Local-endpoint allowlist.** `base_url` must be `localhost`, or an IP in 127.0.0.0/8,
+  10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, `::1` or fc00::/7, or the IPv4-mapped form of
+  one of those IPv4 ranges. Link-local (169.254.0.0/16, fe80::/10), 6to4, Teredo, NAT64,
+  documentation and benchmarking ranges and CGNAT 100.64.0.0/10 are refused, so a model
+  reached over a Tailscale 100.x address is not supported. Reason: `is_private` accepted
+  publicly routed 6to4 and Teredo addresses; link-local holds cloud metadata services and
+  is not a plausible model host.
+- **Credential echo fails the attempt.** A response whose parsed item or raw body
+  contains the configured key is a failed attempt with `error_type` `CredentialEcho`, its
+  raw body stored redacted and its item not kept; it counts against the slot's attempts
+  and the initial-attempt figure. Reason: before, the item was silently rewritten with
+  `[REDACTED]` and kept as valid, which stored text the model did not write.
+- **Minimum key length 16.** `RunConfig.api_key()` and both model clients refuse a key
+  shorter than 16 characters before any request, without echoing it. Placeholders such as
+  `EMPTY` or `none` are refused even for a local server that ignores the key; use a long
+  random placeholder. Reason: keys are scrubbed by exact match, so a short key would match
+  ordinary words in generated text; matching whole tokens would still flag words.
+
+Deterministic checks and the gate:
+
+- **Menu paths match whole labels.** `menu_paths_known` compares each part of a path,
+  after normalization, with whole lexicon labels, not substrings. Only the first part may
+  carry lead-in prose and only the last part trailing prose, each ending at a label
+  boundary; middle parts must match exactly. Reason: substring matching accepted almost
+  any invented label that contained a short lexicon string ("pan", "port", "tool"). The
+  check stays evidence only.
+- **Chained paths.** A comma followed by a lowercase word ends one path ("Edit >
+  Preferences, then Add-ons > Install"), and each piece with a separator is checked on its
+  own; commas between capitalized labels do not split. Reason: so the stricter rule does
+  not flag a realistic chained phrasing.
+- **Detail text.** A `menu_paths_known` failure now reads "not in the pinned UI lexicons",
+  because the lexicon is more than the Manual.
+- **Menu lexicon widened.** The menu-path lexicon is the version line's Manual (menu paths
+  and `:guilabel:` texts), its pinned Bonsai docs lexicon (menu and UI paths) and the
+  Bonsai source labels and button texts. This goes beyond plan §6.4's "lexicon extracted
+  from the pinned Manual". Reason: paths copied from offered Bonsai docs sections were
+  reported as unknown.
+- **`bim.*` lexicon is registered operators.** `bim_operators_known` (a D3 drop check)
+  accepts only Bonsai-source entries of kind `operator` or `macro` with `registered`
+  true. The 4 operator classes the add-on never registers and the 30 workspace tool ids
+  (`bim.*_tool`) now fail it, so an item naming one in `tools_required` or `steps` is
+  dropped; the `ui_texts` id union is removed (all its ids are registered operators).
+  Reason: plan §6.4 asks for the operator lexicon, and workspace tools are not `bpy.ops`
+  operators.
+- **Wildcard Manual operators.** `blender_operators_known` reads the Manual's wildcard
+  entries (`*.select_box`, `object.*clear`, `curve.primitive*add` and the like) as
+  whole-id patterns where `*` matches `[a-z0-9_]*`. A deliberate loosening for these
+  documented forms only; every other id is checked by exact membership. Reason:
+  `view3d.select_box` and similar real ids were reported as unknown.
+- **Per-check pass rates.** `gate-report.json` gains `pass_rates_per_check` (per check:
+  dimension, `evidence_only`, evaluated, passed, failed, dropped, `pass_rate`) and
+  `pass_rates_denominator` (schema-valid items entering the gate). The evidence-only set is
+  one constant, `checks.EVIDENCE_ONLY` (`blender_operators_known`, `menu_paths_known`).
+  Reason: plan §7 Step 2 asks for pass rates per check, and evidence-only failures were
+  invisible in the aggregate. Every other report key is unchanged.
+
+Collections and the commands:
+
+- **Batch run IDs belong to the collection.** A new `collect` refuses before any write if
+  any batch run ID `<collection-id>-b01` to `-bNN` within `--max-batches` already exists
+  (exit 2, "choose another collection ID"). A batch run directory that appears after the
+  collection started, or an existing batch manifest that differs from the collection's
+  identity, is refused (exit 1) and never generated into or gated. Reason: a collection
+  could gate, and so freeze, an unrelated run.
+- **Gate report acceptance.** A batch gate report counts only with the collection's
+  embedding model, `gate.DEFAULT_THRESHOLD` and `gate.DEFAULT_MIN_SHARE`; before binding a
+  report, `collect` also reruns the per-item checks with the collection's lexicons and
+  refuses any difference. Reason: a batch gated out of band with another embedder or
+  lexicons was accepted.
+- **Denominators from the ledgers.** Collection summaries recompute each gated batch's
+  metrics and status from its hash-bound ledgers and refuse a batch whose manifest metrics,
+  status or gate-report `run_status` disagree. Reason: the denominators came from an
+  unverified manifest.
+- **Preflight before writes.** `collect` checks the assessed-purpose model identity and the
+  fixture slice before it creates the collection, so a refused start leaves the collection
+  ID usable. The model-identity condition duplicates `generate_run`'s.
+- **Cross-batch exact duplicates against members.** A question that exactly repeats an
+  accepted member's is dropped, and `duplicate_of` always names a member; before, a
+  question of an item later dropped as a near-duplicate also counted. A collection
+  recorded under the old rule could now fail its screen check; none is committed.
+- **Saved evidence is exit 1.** A validation error raised while reading saved run evidence
+  is reported as "saved run evidence fails validation: <fields>; inspect the run" with
+  exit 1, not as "invalid run config" with exit 2. Ctrl-C exit 130 (evidence kept, continue
+  with `--resume`) is unchanged and now tested.
+
+Prompt and records:
+
+- **Generator v1 completed before first use.** `prompts/generator-v1.md` now asks for the
+  question phrased the way users ask (their own words, sometimes a half-remembered tool or
+  menu name or an older BlenderBIM-era term), as plan §7 Step 1 item 2 specifies, while the
+  answer names tools as the sections do; it also says to cite each id without the square
+  brackets it is shown in. It stays v1: no committed run, test or record pins the earlier
+  text (SHA-256 `42c5382e…`; now `ced95092…`), and no recorded run used it. This entry is
+  the iteration-log record for the change (date November 24, 2026; change and before/after
+  hashes above; hypothesis: questions in users' own words test grounding better than
+  questions copied from the docs; decision: keep the name v1, since nothing was measured
+  with the earlier text; next step: the B5 baseline run) and carries into the B10
+  iteration log. Reason: otherwise B5 would measure a prompt other than the plan's v1, and
+  adding the instruction later would be a second change confounding Phase B.
+- **Porting map.** `evaluation_schemas` was not ported in B4, which has no consumer for
+  it; it moves to B5–B6 with `assessment` and `labels`. `sources` is not ported: its
+  snapshot-manifest role is covered by B1's `doc_sources` and `doc_snapshot` with
+  `sampler.verify_fixtures`, and its per-slot context by `sampler`.
+- **Departure recorded, not decided.** Plan §6.4's check that "any quoted passage must
+  appear verbatim in the cited section" is not implemented: the item has no quote field,
+  and B4 checks only that every cited section was offered. Whether to add a quote check
+  (and for which fields) is open for Chad; it is not decided here.
 
 ## Open items (not yet decided)
 

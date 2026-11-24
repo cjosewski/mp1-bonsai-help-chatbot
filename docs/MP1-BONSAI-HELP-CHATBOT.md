@@ -217,7 +217,7 @@ Before submission, the repository needs:
 
 ## 9. Milestones
 
-Hours are assumptions, not measurements. The 26 h reference in the program schedule covers the original assignment. The November 23 revision withdrew B3 and narrowed B4, B9 and B10; B0–B2 are done and their hours are spent.
+Hours are assumptions, not measurements. The 26 h reference in the program schedule covers the original assignment. The November 23 revision withdrew B3 and narrowed B4, B9 and B10; B0–B2 are done and their hours are spent. On November 24, 2026 Chad moved the rubric from B4 to B5 ("Refuse hosted for now; record the rubric as moved to B5"; `docs/DECISIONS.md`, November 24, 2026); the hours are unchanged.
 
 | ID | Milestone | Acceptance | Hours |
 | --- | --- | --- | ---: |
@@ -225,8 +225,8 @@ Hours are assumptions, not measurements. The 26 h reference in the program sched
 | B1 | Doc snapshots | Bonsai and Manual snapshots pinned, hashed and rebuildable by one command; attribution and license notices; fixture slice committed | 4 (done) |
 | B2 | Lexicons and setup facts | Operator lexicons extracted; setup profiles; every fact row cited | 3 (done) |
 | B3 | ~~Gold set and requests~~ | Withdrawn November 23, 2026: moves to Mini Project 4. Tooling and 6 published items stay, frozen | — |
-| B4 | `bonsai-help` domain | Categories, rubric, section sampler, generation prompt v1 and pre-checks; each ported module arrives with its tests passing | 6 |
-| B5 | Baseline run | ≥50 retained, ≥95% initial-attempt schema validity, gate report, honest failure rate | 2 |
+| B4 | `bonsai-help` domain | Categories, section sampler, generation prompt v1 and pre-checks; each ported module arrives with its tests passing (rubric moved to B5, November 24, 2026) | 6 |
+| B5 | Rubric and baseline run | Rubric (D1–D6 with Bonsai anchors and targets), versioned for the labels; ≥50 retained, ≥95% initial-attempt schema validity, gate report, honest failure rate | 2 |
 | B6 | Baseline labels | ≥20 blind human labels | 3 |
 | B7 | Judge and Phase A | v1 and v2 judge; agreement per dimension with intervals; ≥80% in each | 6 |
 | B8 | Phase B | Correction pre-registered from the heatmap; corrected run ≥50; ≥20 blind labels; improvement ratio | 7 |

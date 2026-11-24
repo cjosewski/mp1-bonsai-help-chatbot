@@ -24,7 +24,8 @@ edits Chad directed for this public copy are recorded in
 **Milestones B0 (repository readiness), B1 (documentation snapshots) and B2 (lexicons
 and setup facts) are done. B3 (gold set) was withdrawn from MP1 on November 23, 2026**
 and moves to Mini Project 4; its tooling and the 6 published items stay here, frozen, and
-the paused review packets stay unimported. B4 is done (no model run yet). The B3 history below is kept as a
+the paused review packets stay unimported. B4 is done (no model run yet); it has no rubric,
+which Chad moved to B5 on November 24, 2026. The B3 history below is kept as a
 record. Install, the offline tests, the documentation corpus
 rebuild, the section index, the lexicons and the setup-fact checks run today; steps 1 and 2 of the pipeline run offline against fake endpoints;
 every other step below is marked *not yet implemented* and will be filled in when its
@@ -58,8 +59,8 @@ Older packets remain as records. No new review decisions were imported.
 | B1 | Pinned, hashed documentation snapshots; fixture slice | Done |
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (Chad's SR-001 decisions applied) |
 | B3 | Gold set and multi-part and injection requests | Withdrawn from MP1 (moves to Mini Project 4); 6 of 110 items published and frozen; 104 drafts unreviewed |
-| B4 | Rubric, section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet) |
-| B5 | Baseline run | Not yet implemented |
+| B4 | Section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet; the rubric moved to B5 on November 24, 2026) |
+| B5 | Rubric (D1–D6) and baseline run | Not yet implemented |
 | B6 | Baseline human labels | Not yet implemented |
 | B7 | Judge and Phase A calibration | Not yet implemented |
 | B8 | Phase B correction | Not yet implemented |
@@ -111,10 +112,11 @@ injected slot plan, built on real fixture-slice sections: every checker rule, th
 matcher, ingest, packet export and import (tampering, stale blocks, re-decisions, edits),
 publish, the interactive-terminal gate on import and the held-out loading rule.
 The B4 tests use clearly synthetic model outputs and fake transports: trace files and
-no-overwrite rules, the seven-field schema, run config and credential rules, the section
-sampler, the model client (retries, timeouts, redaction), generation (resume, exhaustion,
-unknown outcomes), each deterministic check, the gate, collections, cohorts and the
-generation commands with their exit codes.
+no-overwrite rules, the seven-field schema, run config and credential rules (the hosted
+refusal, the local-endpoint allowlist, key names and key length), the section sampler, the
+model client (retries, timeouts, redaction, credential echo), generation (resume,
+exhaustion, unknown outcomes, unstorable responses), each deterministic check, the gate,
+collections, cohorts and the generation commands with their exit codes.
 
 ## Rebuild the documentation corpus
 
@@ -423,9 +425,15 @@ The published files are CC BY-SA 4.0 data; quotes keep their source license (`NO
 
 No live run has happened yet. B5 needs a reachable local endpoint and Chad's go-ahead;
 until then the commands are exercised only by the offline tests. Copy
-`config/run.example.json` to a git-ignored local file and fill in the endpoint (`base_url`
-ending in `/v1`, served model id, timeout, attempts) and one credential source. Raw runs
-go under `runs/` (git-ignored) or a path outside the repository.
+`config/run.example.json` to `config/run.local.json` (git-ignored by the pattern
+`config/*.local.json`; `config/run.json` would be tracked) or to a path outside the
+repository, and fill in the endpoint (`base_url` ending in `/v1`, served model id,
+timeout, attempts) and one credential source. The endpoint must be `localhost` or a
+loopback, RFC 1918 or IPv6 unique local (fc00::/7) address; other addresses are refused.
+`api_key_env` names an upper-case environment variable (default `BONSAI_HELP_API_KEY`),
+or `api_key_file` names a key file. The key must be at least 16 characters; a local server
+that ignores the key still needs a long random placeholder. Raw runs go under `runs/`
+(git-ignored) or a path outside the repository.
 
 ```text
 bonsai-help generate --config CONFIG --run-id RUN_ID [--count COUNT] [--resume]
@@ -447,9 +455,9 @@ Defaults: `--count` 5 (a multiple of 5), `--target-retained` 50, `--batch-count`
 
 | Command | What it does and writes |
 | --- | --- |
-| `generate` | Plans balanced slots, offers each slot pinned sections from the fixture slice, and calls the configured model once per slot (with bounded retries). Writes a new run: manifest, prompt copy, `starts.jsonl` (a durable start before each call), `attempts.jsonl` (every completion, valid or not, raw), `items.jsonl` (schema-valid items in an envelope with the setup id, category, citations, prompt version, model, timestamp and trace id). `--resume` keeps the original settings, prompt and code identity and verifies hashes. |
-| `gate` | Runs the first-pass gate on a saved run: schema, deterministic checks, exact and near-duplicate removal, category balance. Writes `gate-report.json` and `gate-items.jsonl` next to the run. Checks are heuristics that drop obvious defects and feed the judge; they never replace a human or judge decision. |
-| `collect` | Runs generate and gate in batches until enough items are retained (at least 10 per category) or the batch budget is spent. Each batch has its own derived seed, and retained items are screened for near-duplicates across batches. |
+| `generate` | Plans balanced slots, offers each slot pinned sections from the fixture slice, and calls the configured model once per slot (with bounded retries). Writes a new run: manifest, prompt copy, `starts.jsonl` (a durable start before each call), `attempts.jsonl` (every completion, valid or not, raw), `items.jsonl` (schema-valid items in an envelope with the setup id, category, citations, prompt version, model, `generated_at` timestamp and trace id). `generated_at` is the same text as the attempt's `completed_at`. A completion that cannot be kept as returned is a failed attempt that uses up that attempt (the slot retries within its budget), never an unknown outcome: `UnserializableResponse` (raw response not strict JSON, kept as JSON text), `EnvelopeInvalid` (no valid envelope) or `CredentialEcho` (the response contains the configured key; raw body kept redacted, item not kept). `--resume` keeps the original settings, prompt and code identity and verifies hashes, including each item's `generated_at` against its attempt; a gated run cannot be resumed. |
+| `gate` | Runs the first-pass gate on a saved run: schema, deterministic checks, exact and near-duplicate removal, category balance. Writes one file, `gate-report.json`, next to the run, once: each item's check results and drop reasons (`per_item`), `retained_ids`, `drops_per_check`, `pass_rates_per_check` (every check, the evidence-only ones too, over `pass_rates_denominator`, the schema-valid items entering the gate), exact and near duplicates, per-category counts and the distribution result, the embedding model and the threshold (0.92). Retained payloads are read from `items.jsonl` by `retained_ids`. Unknown Blender operators and menu paths are evidence only; the other checks drop. Checks are heuristics that drop obvious defects and feed the judge; they never replace a human or judge decision. |
+| `collect` | Runs generate and gate in batches until enough items are retained (at least 10 per category) or the batch budget is spent. Each batch has its own derived seed, and retained items are screened for near-duplicates across batches; a question that exactly repeats an accepted member's is dropped. Batch run IDs `<collection-id>-b01` to `-bNN` belong to the collection: a fresh `collect` refuses (exit 2) if any of them within `--max-batches` already exists, and a batch run it does not own, or a gate report made with another embedding model, threshold, minimum share or lexicons, is refused (exit 1), never adopted. An assessed collection (`purpose` `baseline` or `corrected`) without `model_identity` and `model_sha256`, or a fixture slice that fails verification, is refused before anything is written. Batch denominators are recomputed from the hash-bound ledgers. |
 | `collection-status` | Reads a collection and reports its batches, retained counts per category and whether it is ready. |
 | `cohort` | Freezes 10 retained items per category (seeded) from a ready collection into a new cohort. |
 | `cohort-status` | Reads a frozen cohort and verifies its hashes. |
@@ -458,8 +466,10 @@ Runs, gate reports, collections and cohorts are never overwritten; a new experim
 a new ID. After a hard kill between a ledger append and its checkpoint, resume refuses the
 run: inspect it, do not repair it.
 
-Exit codes: 0 done; 1 a check failed or the evidence is not ready; 2 usage or config
-error; 3 controlled exhaustion (attempt or batch budget spent, or an unfinished run).
+Exit codes: 0 done; 1 a check failed or the evidence is not ready (including saved run
+evidence that fails validation); 2 usage or config error (including `hosted: true`); 3
+controlled exhaustion (attempt or batch budget spent, or an unfinished run); 130
+interrupted (Ctrl-C), with the evidence kept: continue with `--resume`.
 
 Three denominators are reported separately and never mixed:
 
@@ -482,9 +492,12 @@ not yet implemented (B6 to B9):
 5. Analyze: pass rates, agreement, intervals and five charts (B9).
 6. Iterate: Phase A judge calibration, Phase B generator correction (B7, B8).
 
-A model is configured explicitly as a local OpenAI-compatible endpoint. A documented,
-opt-in hosted path for graders without local models is planned; it is never used as a
-silent fallback.
+A model is configured explicitly as a local OpenAI-compatible endpoint. The hosted path
+for graders without local models is refused for now (Chad, November 24, 2026): a run
+config with `hosted: true` fails at load with exit 2, before any request, until Chad
+authorizes a hosted path with an enforced cost cap. The fields `hosted`,
+`hosted_authorization` and `cost_cap_usd` are kept only so the schema stays stable. A
+hosted model is never used as a silent fallback.
 
 ## Replay demo
 

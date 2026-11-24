@@ -173,3 +173,35 @@
 ---
 
 **Not in B4:** labels, assessment, judge, calibration, analysis and charts (B6–B9); the corrected prompt (B8, pre-registered from the heatmap); any live model run (B5 needs Chad's go-ahead and a reachable endpoint).
+
+---
+
+## Amendments after the final review (November 24, 2026)
+
+The tasks above are kept as written. After the final whole-branch review (workflow run
+`wf_7ed4c7f4-6a3`), these statements no longer describe the code; `docs/DECISIONS.md`
+(November 24, 2026) records each change.
+
+- **Hosted profile (Global Constraints, Task 3, Review Focus 5).** Chad decided on November
+  24, 2026: "Refuse hosted for now; record the rubric as moved to B5". Any `hosted: true`
+  is refused at load (`config.HostedRefused`, exit 2); `hosted_authorization` and
+  `cost_cap_usd` stay in `RunConfig` without effect. `test_hosted_requires_flag_auth_and_cap`
+  is replaced by the hosted-refusal tests in `tests/test_config.py`. The endpoint guard is an
+  explicit allowlist (loopback, RFC 1918, IPv6 unique local), and `api_key_env` must be an
+  upper-case variable name.
+- **Rubric.** Plan §9 listed a rubric for B4; this plan built none. It moves to B5 on
+  Chad's decision.
+- **Task 2 interface.** `GeneratedItem` also has `generated_at` (ISO 8601 with a UTC offset,
+  equal to the attempt's `completed_at`), after `sampler_seed`.
+- **Task 5.** A credential echoed by the server makes the attempt fail (`CredentialEcho`,
+  raw body redacted) instead of being redacted in the item; keys under 16 characters are
+  refused.
+- **Decision 4.** The 0.92 threshold is fixed (`gate.DEFAULT_THRESHOLD`), not configurable;
+  collections require it.
+- **Task 7 interface.** `load_lexicons` also reads each version line's
+  `bonsai-docs*.json` lexicon; `run_checks` takes `unoffered_citations`; the `bim.*` lexicon
+  holds registered operators and macros only; menu paths match whole labels.
+- **Task 8 interface.** The gate report also has `pass_rates_per_check` and
+  `pass_rates_denominator`; `gate_run` writes only `gate-report.json`.
+- **Task 3 Step 2.** Generator v1 also asks for user-style question phrasing (plan §7
+  Step 1 item 2) and for ids cited without their square brackets.
