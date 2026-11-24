@@ -138,6 +138,36 @@ def test_credential_echoed_in_the_item_is_a_failed_attempt_not_a_rewritten_item(
     assert result.response_model == "synthetic-model-revision"
 
 
+def _json_escaped(text):
+    """The text as a model could write it inside a JSON string: first character escaped."""
+    return f"\\u{ord(text[0]):04x}" + text[1:]
+
+
+@pytest.mark.parametrize("mode", ["json", "tools"])
+@pytest.mark.parametrize("where", ["item", "rejected_field"])
+def test_json_escaped_credential_echo_does_not_survive_in_the_raw_body(mode, where):
+    payload = synthetic_generation()
+    if where == "item":
+        payload["item"]["answer"] += f" Echoed credential: {KEY}"
+    else:
+        payload["item"]["unexpected_field"] = f"Echoed credential: {KEY}"
+    content = json.dumps(payload).replace(KEY, _json_escaped(KEY))
+    assert KEY not in content
+    tool = "GenerationOutput" if mode == "tools" else None
+    with make_client(fixed_response(completion(content, tool_name=tool)), mode=mode) as client:
+        result = client.generate(MESSAGES)
+
+    assert result.item is None
+    if where == "item":
+        assert result.error_type == "CredentialEcho"
+    stored = json.dumps(result.raw_response) + result.error
+    for fragment in (KEY, KEY[1:], _json_escaped(KEY)):
+        assert fragment not in stored
+    assert "[REDACTED" in json.dumps(result.raw_response)
+    assert result.raw_response["id"] == "test-completion-1"
+    assert result.raw_response["usage"]["total_tokens"] == 30
+
+
 @pytest.mark.parametrize("where", ["metadata", "dict_key", "model"])
 def test_credential_echoed_only_in_the_raw_body_is_a_failed_attempt(where):
     raw = completion(json.dumps(synthetic_generation()))
@@ -173,6 +203,19 @@ def test_clean_item_is_kept_verbatim_and_auth_fields_are_redacted():
         "authorization": "[REDACTED]",
         "note": "plain",
     }
+
+
+def test_clean_item_with_json_escapes_keeps_its_raw_content_verbatim():
+    payload = synthetic_generation()
+    payload["item"]["answer"] = "Set the façade offset, then press Enter.\nThe path is C:\\temp."
+    content = json.dumps(payload)
+    assert "\\u00e7" in content and "\\n" in content
+    with make_client(fixed_response(completion(content))) as client:
+        result = client.generate(MESSAGES)
+
+    assert result.error is None
+    assert result.item.model_dump() == payload
+    assert result.raw_response["choices"][0]["message"]["content"] == content
 
 
 @pytest.mark.parametrize("short", ["tip", "none", "x", "local-key-0123"])
@@ -243,23 +286,34 @@ def test_http_error_redacts_credential_from_body_and_message(caplog):
     assert KEY not in caplog.text
 
 
-def test_production_transport_ignores_environment_proxies(monkeypatch):
-    for name in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"):
-        monkeypatch.setenv(name, "http://127.0.0.1:9")
-        monkeypatch.delenv(name.lower(), raising=False)
-    for name in ("NO_PROXY", "no_proxy", "REQUEST_METHOD"):
+PROXY_ENV = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY")
+
+
+def _chat_client(base_url):
+    return InstructorClient(
+        base_url=base_url, model=FAKE_MODEL, api_key=KEY, response_model=GenerationOutput
+    )
+
+
+def _embedding_client(base_url):
+    return EmbeddingClient(base_url=base_url, model="synthetic-embedding", api_key=KEY)
+
+
+@pytest.mark.parametrize("factory", [_chat_client, _embedding_client], ids=["chat", "embedding"])
+@pytest.mark.parametrize("proxy_var", PROXY_ENV)
+def test_production_transport_ignores_environment_proxies(monkeypatch, factory, proxy_var):
+    for name in (*PROXY_ENV, "NO_PROXY", "REQUEST_METHOD"):
         monkeypatch.delenv(name, raising=False)
-    endpoint = httpx.URL(FAKE_BASE_URL + "/chat/completions")
+        monkeypatch.delenv(name.lower(), raising=False)
+    monkeypatch.setenv(proxy_var, "http://127.0.0.1:9")
+    # httpx maps HTTPS_PROXY to https:// URLs only, so that case uses an https endpoint.
+    base_url = FAKE_BASE_URL.replace("http://", "https://", proxy_var == "HTTPS_PROXY")
+    endpoint = httpx.URL(base_url + "/chat/completions")
 
     with httpx.Client(trust_env=True) as control:
         assert control._transport_for_url(endpoint) is not control._transport
 
-    with InstructorClient(
-        base_url=FAKE_BASE_URL,
-        model=FAKE_MODEL,
-        api_key=KEY,
-        response_model=GenerationOutput,
-    ) as client:
+    with factory(base_url) as client:
         transport_client = client._sdk._client
         assert transport_client._transport_for_url(endpoint) is transport_client._transport
         assert not transport_client._mounts
@@ -348,15 +402,3 @@ def test_embedding_timeout_is_typed():
         with pytest.raises(EmbeddingError):
             embedder.embed(["first"])
     assert len(fake.calls) == 1
-
-
-def test_embedding_client_ignores_environment_proxies(monkeypatch):
-    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:9")
-    monkeypatch.delenv("NO_PROXY", raising=False)
-    monkeypatch.delenv("no_proxy", raising=False)
-    endpoint = httpx.URL(FAKE_BASE_URL + "/embeddings")
-    with EmbeddingClient(
-        base_url=FAKE_BASE_URL, model="synthetic-embedding", api_key=KEY, timeout_seconds=2
-    ) as embedder:
-        http = embedder._sdk._client
-        assert http._transport_for_url(endpoint) is http._transport

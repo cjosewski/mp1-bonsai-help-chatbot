@@ -21,6 +21,89 @@ CREDENTIAL_ECHO = "CredentialEcho"
 AUTH_FIELDS = frozenset(
     {"authorization", "proxy-authorization", "api-key", "x-api-key", "cookie", "set-cookie"}
 )
+REDACTED = "[REDACTED]"
+ESCAPED_ECHO = "[REDACTED: credential echo]"
+# A JSON string escape: \uXXXX or a backslash before any one character.
+_JSON_ESCAPE = re.compile(r"\\(u[0-9a-fA-F]{4}|.)", re.DOTALL)
+_SIMPLE_ESCAPES = {"n": "\n", "t": "\t", "r": "\r", "b": "\b", "f": "\f"}
+# Bound on nested escaping (an escaped string inside an escaped string, and so on).
+_MAX_UNESCAPE_DEPTH = 4
+
+
+def _unescape_once(text: str) -> str:
+    def decode(match: re.Match[str]) -> str:
+        token = match.group(1)
+        if len(token) == 5:
+            return chr(int(token[1:], 16))
+        return _SIMPLE_ESCAPES.get(token, token)
+
+    return _JSON_ESCAPE.sub(decode, text)
+
+
+class _Credential:
+    """Find and redact one configured credential, plain or JSON-escaped.
+
+    A model may write the key inside its JSON output with escapes; the decoded
+    HTTP body then still holds the escaped text. Such a string is replaced whole,
+    because the escaped span cannot be cut out exactly. Exact replacement of the
+    plain key is safe because keys shorter than MIN_API_KEY_LENGTH are refused.
+    """
+
+    def __init__(self, api_key: str) -> None:
+        self._key = api_key
+
+    def occurs_in(self, text: str) -> bool:
+        if self._key in text:
+            return True
+        for _ in range(_MAX_UNESCAPE_DEPTH):
+            if "\\" not in text:
+                return False
+            decoded = _unescape_once(text)
+            if decoded == text:
+                return False
+            if self._key in decoded:
+                return True
+            text = decoded
+        return False
+
+    def redact_text(self, text: str) -> str:
+        text = text.replace(self._key, REDACTED)
+        return ESCAPED_ECHO if self.occurs_in(text) else text
+
+
+def _check_endpoint_settings(*, model: str, api_key: str, timeout_seconds: float) -> None:
+    if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be finite and positive")
+    if not api_key or not api_key.strip():
+        raise ValueError("api_key must be supplied explicitly")
+    check_api_key_length(api_key)
+    if not model or not model.strip():
+        raise ValueError("model must be supplied explicitly")
+
+
+def _openai_sdk(
+    *,
+    base_url: str,
+    api_key: str,
+    timeout_seconds: float,
+    transport: httpx.BaseTransport | None,
+    event_hooks: dict[str, list[Callable[..., Any]]] | None = None,
+) -> OpenAI:
+    """One SDK client: no SDK retries, no redirects, and no proxy or other
+    settings read from the environment (``trust_env=False``)."""
+    return OpenAI(
+        base_url=base_url,
+        api_key=api_key,
+        max_retries=0,
+        timeout=timeout_seconds,
+        http_client=httpx.Client(
+            transport=transport,
+            timeout=timeout_seconds,
+            follow_redirects=False,
+            trust_env=False,
+            event_hooks=event_hooks,
+        ),
+    )
 
 
 @dataclass(frozen=True)
@@ -74,19 +157,13 @@ class InstructorClient:
         modes = {"json": instructor.Mode.JSON, "tools": instructor.Mode.TOOLS}
         if mode not in modes:
             raise ValueError("mode must be 'json' or 'tools'")
-        if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be finite and positive")
+        _check_endpoint_settings(model=model, api_key=api_key, timeout_seconds=timeout_seconds)
         if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or max_tokens <= 0:
             raise ValueError("max_tokens must be a positive integer")
         if not math.isfinite(temperature) or not 0 <= temperature <= 2:
             raise ValueError("temperature must be finite and between 0 and 2")
-        if not api_key or not api_key.strip():
-            raise ValueError("api_key must be supplied explicitly")
-        check_api_key_length(api_key)
-        if not model or not model.strip():
-            raise ValueError("model must be supplied explicitly")
 
-        self._api_key = api_key
+        self._credential = _Credential(api_key)
         self._output_type = response_model
         self._model = model
         self._max_tokens = max_tokens
@@ -94,18 +171,12 @@ class InstructorClient:
         self._timeout_seconds = timeout_seconds
         self._last_http_body: dict[str, Any] | str | None = None
         self._last_http_echo = False
-        self._sdk = OpenAI(
+        self._sdk = _openai_sdk(
             base_url=base_url,
             api_key=api_key,
-            max_retries=0,
-            timeout=timeout_seconds,
-            http_client=httpx.Client(
-                transport=_transport,
-                timeout=timeout_seconds,
-                follow_redirects=False,
-                trust_env=False,
-                event_hooks={"response": [self._capture_response]},
-            ),
+            timeout_seconds=timeout_seconds,
+            transport=_transport,
+            event_hooks={"response": [self._capture_response]},
         )
         self._client = instructor.from_openai(self._sdk, mode=modes[mode])
 
@@ -121,11 +192,12 @@ class InstructorClient:
         self._last_http_body = self._raw(body)
 
     def _echoes(self, value: Any) -> bool:
-        """Whether the credential occurs anywhere in a value, its dict keys included."""
+        """Whether the credential occurs anywhere in a value, its dict keys included,
+        plain or JSON-escaped."""
         if hasattr(value, "model_dump"):
             value = value.model_dump(mode="json")
         if isinstance(value, str):
-            return self._api_key in value
+            return self._credential.occurs_in(value)
         if isinstance(value, dict):
             return any(self._echoes(str(k)) or self._echoes(v) for k, v in value.items())
         if isinstance(value, (list, tuple)):
@@ -136,18 +208,17 @@ class InstructorClient:
         """Retain response structure without credential values or auth fields.
 
         Only evidence (raw bodies, diagnostics) is redacted. A parsed item is never
-        rewritten: an echoed credential makes the attempt fail instead. Exact
-        replacement is safe because keys shorter than MIN_API_KEY_LENGTH are refused.
+        rewritten: an echoed credential makes the attempt fail instead.
         """
         if isinstance(value, str):
-            return value.replace(self._api_key, "[REDACTED]")
+            return self._credential.redact_text(value)
         if isinstance(value, dict):
             result = {}
             for key, entry in value.items():
                 normalized = str(key).lower().replace("_", "-")
                 safe_key = self._redact(str(key))
                 if normalized in AUTH_FIELDS:
-                    result[safe_key] = "[REDACTED]"
+                    result[safe_key] = REDACTED
                 else:
                     result[safe_key] = self._redact(entry)
             return result
@@ -290,26 +361,14 @@ class EmbeddingClient:
         timeout_seconds: float = 60,
         _transport: httpx.BaseTransport | None = None,
     ) -> None:
-        if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be finite and positive")
-        if not api_key or not api_key.strip():
-            raise ValueError("api_key must be supplied explicitly")
-        check_api_key_length(api_key)
-        if not model or not model.strip():
-            raise ValueError("model must be supplied explicitly")
-        self._api_key = api_key
+        _check_endpoint_settings(model=model, api_key=api_key, timeout_seconds=timeout_seconds)
+        self._credential = _Credential(api_key)
         self._model = model
-        self._sdk = OpenAI(
+        self._sdk = _openai_sdk(
             base_url=base_url,
             api_key=api_key,
-            max_retries=0,
-            timeout=timeout_seconds,
-            http_client=httpx.Client(
-                transport=_transport,
-                timeout=timeout_seconds,
-                follow_redirects=False,
-                trust_env=False,
-            ),
+            timeout_seconds=timeout_seconds,
+            transport=_transport,
         )
 
     def embed(self, texts: list[str]) -> list[list[float]]:
@@ -321,7 +380,7 @@ class EmbeddingClient:
             )
             vectors = [list(entry.embedding) for entry in response.data]
         except Exception as error:  # provider boundary: type every failure
-            message = str(error).replace(self._api_key, "[REDACTED]")
+            message = self._credential.redact_text(str(error))
             raise EmbeddingError(f"{type(error).__name__}: {message}") from None
         if len(vectors) != len(texts):
             raise EmbeddingError(f"expected {len(texts)} vectors, received {len(vectors)}")
