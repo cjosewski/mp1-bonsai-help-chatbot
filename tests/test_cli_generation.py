@@ -16,7 +16,7 @@ from fakes import embedding_response as embeddings
 from test_gate import good_item
 from test_generation import offered_ids
 
-from bonsai_help import cli
+from bonsai_help import cli, generate
 from bonsai_help.tracing import artifact_hashes
 
 KEY_ENV = "BONSAI_HELP_SYNTHETIC_TEST_KEY"
@@ -291,3 +291,65 @@ def test_cli_interrupt_exits_130_and_keeps_the_evidence(tmp_path, run_config, ca
     assert code == 0 and json.loads(out)["status"] == "complete"
     # The interrupted request stays disclosed as an unknown outcome.
     assert json.loads(out)["metrics"]["unknown_outcomes"] == 1
+
+
+def test_cli_malformed_batch_slot_is_one_error_line(tmp_path, run_config, capsys):
+    root = str(tmp_path / "runs")
+    args = ["--collection-id", "c1", "--batch-count", "5", "--max-batches", "1"]
+    code, _, _ = invoke(capsys, ["collect", "--config", str(run_config), *args])
+    assert code == 3
+    path = tmp_path / "runs/c1-b01/manifest.json"
+    run = json.loads(path.read_text())
+    run["slots"][0]["extra"] = "synthetic"  # a plain edit: the run manifest is not sealed
+    path.write_text(json.dumps(run))
+    status = ["collection-status", "--collection-id", "c1", "--artifact-root", root]
+    code, out, err = invoke(capsys, status)
+    assert code == 1 and out == ""
+    assert err.startswith("error: c1-b01: batch slot plan is malformed")
+    assert len(err.splitlines()) == 1
+
+
+def test_cli_interrupt_with_a_failed_checkpoint_shows_the_note(
+    tmp_path, run_config, capsys, monkeypatch
+):
+    real_checkpoint = generate.write_checkpoint
+
+    def failing_checkpoint(path, record):
+        if record.get("status") == "interrupted":
+            # Synthetic failure whose text carries the key and a line break.
+            raise OSError(f"synthetic disk full\nkey {FAKE_KEY}")
+        real_checkpoint(path, record)
+
+    monkeypatch.setattr(generate, "write_checkpoint", failing_checkpoint)
+    good = model_transport()
+    chats = itertools.count(1)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if next(chats) == 2:
+            raise KeyboardInterrupt  # synthetic Ctrl-C during the second request
+        return good._handler(request)
+
+    code, out, err = invoke(
+        capsys,
+        ["generate", "--config", str(run_config), "--run-id", "r1"],
+        FakeTransport(handler),
+    )
+    assert code == 130 and out == ""
+    assert err.startswith("error: interrupted") and len(err.splitlines()) == 1
+    assert "interrupted checkpoint also failed" in err and "synthetic disk full" in err
+    assert "[REDACTED]" in err and "inspection" in err
+    assert "--resume" not in err  # resume may refuse a run whose checkpoint failed
+    manifest = json.loads((tmp_path / "runs/r1/manifest.json").read_text())
+    assert manifest["status"] == "running"
+
+
+def test_cli_error_line_carries_the_exception_notes(run_config, capsys, monkeypatch):
+    def failing_run(*args, **kwargs):
+        error = ValueError("synthetic refusal")
+        error.add_note(f"synthetic note\nwith key {FAKE_KEY}")
+        raise error
+
+    monkeypatch.setattr(generate, "generate_run", failing_run)
+    code, out, err = invoke(capsys, ["generate", "--config", str(run_config), "--run-id", "r1"])
+    assert code == 2 and out == ""
+    assert err == "error: synthetic refusal; synthetic note with key [REDACTED]\n"

@@ -11,7 +11,8 @@ toward `max_batches`, and its numbers stay in every summary.
 A batch's run ID belongs to the collection: a run that already exists under that ID is
 refused, never generated into or gated. A batch's gate report is accepted only with the
 collection's embedding model, threshold, minimum share and lexicons (its per-item checks
-are recomputed), and its denominators are recomputed from its hash-bound ledgers.
+are recomputed, and its retention decisions re-derived from them, except the embedder's
+near-duplicate drops), and its denominators are recomputed from its hash-bound ledgers.
 
 Each batch samples with its own seed, derived from the run seed and the batch number and
 recorded in the collection manifest, so later batches are offered other sections. After a
@@ -25,7 +26,7 @@ from __future__ import annotations
 import errno
 import hashlib
 import json
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from pathlib import Path
 
 from bonsai_help import gate, generate
@@ -67,7 +68,7 @@ def policy(target_retained: int, batch_count: int, max_batches: int) -> dict:
         raise ValueError("target_retained must be a positive integer")
     if type(max_batches) is not int or not 1 <= max_batches <= MAX_BATCHES:
         raise ValueError(f"max_batches must be between 1 and {MAX_BATCHES}")
-    generate._check_count(batch_count)
+    generate.check_count(batch_count)
     return {
         "target_retained": target_retained,
         "batch_count": batch_count,
@@ -164,10 +165,24 @@ def _check_report_settings(run_id: str, report: dict, identity: dict) -> None:
         )
 
 
+SLOT_FIELDS = frozenset(f.name for f in fields(Slot))
+
+
+def _slot_entry(entry: object) -> bool:
+    """A saved slot is an object with exactly the Slot fields, each a string."""
+    return (
+        isinstance(entry, dict)
+        and entry.keys() == SLOT_FIELDS
+        and all(isinstance(v, str) for v in entry.values())
+    )
+
+
 def _ledger_metrics(run_id: str, directory: Path, manifest: dict, items: list[dict]) -> dict:
     """Denominators and status recomputed from the (hash-verified) ledgers, never trusted."""
     slots = manifest.get("slots") or []
-    slot_ids = [s.get("slot_id") for s in slots]
+    if not isinstance(slots, list) or not all(_slot_entry(s) for s in slots):
+        raise CollectionError(f"{run_id}: batch slot plan is malformed; inspect it")
+    slot_ids = [s["slot_id"] for s in slots]
     if len(slots) != manifest.get("count") or len(set(slot_ids)) != len(slot_ids):
         raise CollectionError(f"{run_id}: batch slot plan differs from its count")
     metrics = generate.generation_metrics(
@@ -426,11 +441,7 @@ def collect(
     budget = policy(target_retained, batch_count, max_batches)
     root = config.artifact_path()
     directory = collection_directory(root, collection_id)
-    # Duplicates generate_run's own refusal (generate.py has no public check to share).
-    if config.purpose in generate.ASSESSED_PURPOSES and not (
-        config.model_identity and config.model_sha256
-    ):
-        raise ValueError("assessed generation requires model_identity and model_sha256")
+    generate.check_assessed(config)  # generate_run's own refusal, before anything is written
     prompt, prompt_sha256 = load_prompt(config)
     profiles = SetupProfiles.model_validate(
         json.loads((reference_dir / "setup-profiles.json").read_bytes())
@@ -546,6 +557,8 @@ def _screen(accepted: list[dict], candidates: list[dict], embedder, model: str) 
         raise CollectionError(f"cross-batch embedding failed: {error}") from None
     if len(vectors) != len(texts) or len({len(v) for v in vectors}) != 1:
         raise CollectionError("cross-batch embedding returned mismatched vectors")
+    if not all(gate._usable(v) for v in vectors):
+        raise CollectionError("cross-batch embedding returned a zero or non-finite vector")
     earlier = list(zip((a["item_id"] for a in accepted), vectors[: len(accepted)], strict=True))
     for candidate, vector in zip(candidates, vectors[len(accepted) :], strict=True):
         score, kept = max((gate._cosine(vector, v), item_id) for item_id, v in earlier)
@@ -561,16 +574,19 @@ def _verify_gate_report(directory: Path, run_id: str, identity: dict, lexicons: 
 
     A report gated outside the collection (`bonsai-help gate` with another config or
     reference directory) is refused rather than adopted. The per-item checks are rerun
-    with the collection's lexicons from the saved items and must match the report's.
+    with the collection's lexicons from the saved items and must match the report's, and
+    the report's decisions are re-derived from them (`_check_decisions`).
     """
     report = read_json(directory / gate.REPORT)
+    if not _decision_shapes(report):  # a malformed report is refused, never a TypeError
+        raise CollectionError(_DECISIONS.format(run_id))
     _check_report_settings(run_id, report, identity)
     unoffered = {
         a["record"]["item_id"]: a.get("unoffered_citations") or []
         for a in read_records(directory / generate.ATTEMPTS)
         if a.get("schema_valid") is True
     }
-    per_item = report.get("per_item") or {}
+    per_item = report["per_item"]
     items = [GeneratedItem.model_validate(r) for r in read_records(directory / generate.ITEMS)]
     if set(per_item) != {i.item_id for i in items}:
         raise CollectionError(f"{run_id}: gate report does not match the batch items")
@@ -580,6 +596,85 @@ def _verify_gate_report(directory: Path, run_id: str, identity: dict, lexicons: 
             raise CollectionError(
                 f"{run_id}: gate report checks differ from the collection's lexicons; inspect it"
             )
+    _check_decisions(run_id, report, items)
+
+
+def _decision_shapes(report: dict) -> bool:
+    """The parts the decisions are re-derived from have the types the gate writes."""
+    per_item, near_pairs = report.get("per_item"), report.get("near_duplicates")
+    return (
+        isinstance(per_item, dict)
+        and all(isinstance(entry, dict) for entry in per_item.values())
+        and isinstance(report.get("distribution"), dict)
+        and isinstance(near_pairs, list)
+        and all(
+            isinstance(pair, dict)
+            and isinstance(pair.get("kept"), str)
+            and isinstance(pair.get("dropped"), str)
+            for pair in near_pairs
+        )
+    )
+
+
+def _check_decisions(run_id: str, report: dict, items: list[GeneratedItem]) -> None:
+    """Re-derive the report's retention decisions from its (already verified) checks.
+
+    An item a check drops is never retained and names exactly those checks; exact
+    duplicates among the check-passing items are recomputed as the gate decides them;
+    `retained_ids`, the per-category counts and the distribution follow from the
+    per-item flags. Near-duplicate drops need the embedder, so they stay trusted, but
+    only for a check-passing item that is not an exact duplicate.
+    """
+    per_item = report["per_item"]
+    ordered = sorted(items, key=lambda i: i.item_id)
+    seen: dict[str, str] = {}
+    exact: list[dict] = []
+    near: set[str] = set()
+    for item in ordered:
+        entry = per_item[item.item_id]
+        drops = [f"{c['dimension']}:{c['name']}" for c in entry["checks"] if c["drop"]]
+        if drops:
+            expected = [(False, drops)]
+        else:
+            key = normalize(item.item.question)
+            if key in seen:
+                exact.append({"kept": seen[key], "dropped": item.item_id})
+                expected = [(False, [gate.EXACT])]
+            else:
+                seen[key] = item.item_id
+                expected = [(True, []), (False, [gate.NEAR])]
+        decision = (entry.get("retained"), entry.get("dropped_by"))
+        if entry.get("category") != item.category or decision not in expected:
+            raise CollectionError(_DECISIONS.format(run_id))
+        if decision == (False, [gate.NEAR]):
+            near.add(item.item_id)
+    retained = [i.item_id for i in ordered if per_item[i.item_id]["retained"]]
+    total, kept = len(retained), set(retained)
+    per_category = {}
+    for category in CATEGORIES:
+        count = sum(1 for i in ordered if i.item_id in kept and i.category == category)
+        per_category[category] = {
+            "input": sum(1 for i in ordered if i.category == category),
+            "retained": count,
+            "share": count / total if total else 0.0,
+        }
+    distribution = report["distribution"]  # shapes checked by _decision_shapes
+    passed = all(c["share"] >= gate.DEFAULT_MIN_SHARE for c in per_category.values())
+    near_pairs = report["near_duplicates"]
+    if (
+        report.get("input_count") != len(ordered)
+        or report.get("retained_ids") != retained
+        or report.get("exact_duplicates") != exact
+        or {pair.get("dropped") for pair in near_pairs} != near
+        or len(near_pairs) != len(near)
+        or any(pair.get("kept") not in kept for pair in near_pairs)
+        or report.get("per_category") != per_category
+        or distribution.get("passed") is not passed
+    ):
+        raise CollectionError(_DECISIONS.format(run_id))
+
+
+_DECISIONS = "{}: gate report decisions differ from its per-item checks; inspect it"
 
 
 def _run_batch(config, root, entry, identity, prompt, prompt_sha256, *, count, **inputs) -> None:

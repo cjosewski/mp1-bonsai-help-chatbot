@@ -5,10 +5,11 @@ Each prints one JSON summary on stdout. Exit codes: 0 done; 1 check failed, not 
 evidence to inspect (changed ledgers, a leftover lock, a refused gate); 2 usage or
 configuration error (bad run config, missing credential, invalid count or ID, an ID that
 already exists); 3 controlled exhaustion (a generation run left `incomplete`, or a
-collection out of batches). Ctrl-C returns 130 with the evidence kept for `--resume`.
-Errors are one `error:` line on stderr, never a traceback, and never contain the API key;
-the `instructor` logger is silenced while a command runs (each attempt's error is in the
-attempt ledger).
+collection out of batches). Ctrl-C returns 130 with the evidence kept for `--resume`;
+an interrupt that carries a note (the interrupted checkpoint failed) shows the note
+instead of the resume advice. Errors are one `error:` line on stderr, the exception's
+notes appended, never a traceback, and never contain the API key; the `instructor`
+logger is silenced while a command runs (each attempt's error is in the attempt ledger).
 """
 
 from __future__ import annotations
@@ -151,7 +152,9 @@ def _run(args, transport) -> int:
     secrets = _Secrets()
     try:
         result, code = _dispatch(args, secrets, transport)
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as error:
+        if _notes(error):  # e.g. the interrupted checkpoint failed: resume may refuse the run
+            return _error(secrets, "interrupted", 130, error)
         return _error(secrets, "interrupted; the evidence is kept, continue with --resume", 130)
     except ValidationError as error:
         fields = ", ".join(
@@ -159,22 +162,23 @@ def _run(args, transport) -> int:
         )
         if _from_evidence(error):  # a saved record, not the config, fails its schema
             message = f"saved run evidence fails validation: {fields}; inspect the run"
-            return _error(secrets, message, 1)
-        return _error(secrets, f"invalid run config: {fields}", 2)
+            return _error(secrets, message, 1, error)
+        return _error(secrets, f"invalid run config: {fields}", 2, error)
     except (collection.CollectionError, gate.GateError, FixtureError) as error:
-        return _error(secrets, str(error), 1)
+        return _error(secrets, str(error), 1, error)
     except (SamplerError, ConfigError) as error:
-        return _error(secrets, str(error), 2)
+        return _error(secrets, str(error), 2, error)
     except FileExistsError as error:
         name = Path(error.filename or "").name
         if name.endswith(".lock"):
-            return _error(secrets, f"lock {name} present: a writer is active; inspect", 1)
-        return _error(secrets, f"{name or 'target'} already exists; choose a new ID", 2)
+            return _error(secrets, f"lock {name} present: a writer is active; inspect", 1, error)
+        return _error(secrets, f"{name or 'target'} already exists; choose a new ID", 2, error)
     except ValueError as error:
-        return _error(secrets, str(error), 1 if _from_evidence(error) else 2)
+        return _error(secrets, str(error), 1 if _from_evidence(error) else 2, error)
     except OSError as error:
         name = Path(error.filename).name if error.filename else "a file"
-        return _error(secrets, f"cannot read {name}: {error.strerror or type(error).__name__}", 2)
+        message = f"cannot read {name}: {error.strerror or type(error).__name__}"
+        return _error(secrets, message, 2, error)
     print(secrets.scrub(json.dumps(result, indent=2, ensure_ascii=False)))
     return code
 
@@ -188,8 +192,14 @@ def _from_evidence(error: BaseException) -> bool:
     return False
 
 
-def _error(secrets: _Secrets, message: str, code: int) -> int:
-    line = " ".join(secrets.scrub(message).split())
+def _notes(error: BaseException) -> list[str]:
+    return [note for note in getattr(error, "__notes__", ()) if isinstance(note, str)]
+
+
+def _error(secrets: _Secrets, message: str, code: int, error: BaseException | None = None) -> int:
+    """One scrubbed `error:` line; an exception's notes follow its message."""
+    notes = _notes(error) if error is not None else []
+    line = " ".join(secrets.scrub("; ".join([message, *notes])).split())
     print(f"error: {line}", file=sys.stderr)
     return code
 

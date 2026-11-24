@@ -2,7 +2,9 @@
 
 The selection is seeded from the collection ID, so the same evidence always gives the
 same cohort. `cohort.json` is written once, and the collection gets a freeze receipt, so
-it can neither resume nor be frozen a second time.
+it can neither resume nor be frozen a second time. The receipt is written before the
+cohort file: a freeze that fails between the two leaves a frozen collection whose cohort
+is missing, evidence to inspect, and never a collection free to freeze a second cohort.
 """
 
 from __future__ import annotations
@@ -76,9 +78,9 @@ def freeze_cohort(root: Path, collection_id: str, cohort_id: str) -> dict:
             "items": items,
         }
         manifest["sha256"] = _sealed(manifest)
-        target.mkdir(parents=True, exist_ok=False)
-        _write_once(target / COHORT, manifest)
+        target.mkdir(parents=True, exist_ok=False)  # an existing cohort ID writes nothing
         _write_once(parent / FROZEN, {"cohort_id": cohort_id, "sha256": manifest["sha256"]})
+        _write_once(target / COHORT, manifest)
         return manifest
 
 

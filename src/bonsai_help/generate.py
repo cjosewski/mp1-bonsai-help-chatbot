@@ -700,7 +700,3 @@ def _complete(
         "record": record,
         "verdict": "schema_valid" if record is not None else "generation_failed",
     }
-
-
-# Temporary: collection.py still calls the old name until its own commit moves it to check_count.
-_check_count = check_count

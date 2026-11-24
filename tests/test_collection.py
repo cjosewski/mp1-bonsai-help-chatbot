@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import errno
 import hashlib
 import json
 import re
@@ -18,7 +19,7 @@ from bonsai_help.checks import load_lexicons
 from bonsai_help.collection import CollectionError, collect, collection_status
 from bonsai_help.config import RunConfig, load_prompt
 from bonsai_help.doc_sources import CATEGORIES, load_config
-from bonsai_help.model_client import AttemptResult
+from bonsai_help.model_client import AttemptResult, EmbeddingError
 from bonsai_help.schemas import GenerationOutput
 from bonsai_help.setup import SetupProfiles
 
@@ -467,9 +468,14 @@ def test_batch_metrics_are_recomputed_from_the_ledgers(config, edit):
 
 def test_assessed_collect_without_model_identity_writes_nothing(tmp_path):
     config = make_config(tmp_path, purpose="baseline", model="synthetic-model")
-    with pytest.raises(ValueError, match="model_identity and model_sha256"):
+    with pytest.raises(ValueError, match="model_identity and model_sha256") as refused:
         run_collect(config, UniqueClient(), batch_count=5, max_batches=1)
     assert not (config.artifact_path() / "collections").exists()
+    # The collection refuses exactly as a standalone generation run does.
+    with pytest.raises(type(refused.value)) as standalone:
+        standalone_run(config, "solo")
+    assert str(standalone.value) == str(refused.value)
+    assert not (config.artifact_path() / "solo").exists()
     # The corrected config can start the same collection ID: nothing was burned.
     fixed = make_config(
         tmp_path,
@@ -530,3 +536,293 @@ def test_modules_do_not_import_cli_or_assessment():
     for module in (collection, cohort):
         text = Path(module.__file__).read_text()
         assert "bonsai_help.cli" not in text and "assessment" not in text
+
+
+@pytest.mark.parametrize("edit", ["extra_key", "missing_key", "not_an_object", "not_text"])
+def test_malformed_slot_entry_of_a_gated_batch_is_refused(config, edit):
+    run_collect(config, UniqueClient(), batch_count=5, max_batches=1)
+    root = config.artifact_path()
+    path = root / "col-1-b01/manifest.json"
+    run = json.loads(path.read_text())
+    slot = run["slots"][0]
+    if edit == "extra_key":
+        slot["extra"] = "synthetic"
+    elif edit == "missing_key":
+        del slot["version_line"]
+    elif edit == "not_an_object":
+        run["slots"][0] = "synthetic-slot"
+    else:
+        slot["setup_id"] = ["synthetic"]
+    path.write_text(json.dumps(run))  # a plain edit: the run manifest itself is not sealed
+    with pytest.raises(CollectionError, match="col-1-b01: batch slot plan is malformed"):
+        collection_status(root, "col-1")
+
+
+class ShortFirstClient(UniqueClient):
+    """Call 1 has a too-short answer, so the gate's answer_length check drops it."""
+
+    def generate(self, messages):
+        result = super().generate(messages)
+        if self.calls == 1:
+            item = result.item.item.model_copy(update={"answer": "Too short."})
+            output = result.item.model_copy(update={"item": item})
+            result = AttemptResult(output, result.raw_response, None, None, "synthetic-model")
+        return result
+
+
+def _tamper(report: dict, edit: str) -> None:
+    per_item = report["per_item"]
+    kept = report["retained_ids"]
+    dropped = next(i for i, v in per_item.items() if not v["retained"])
+    if edit == "retained_ids":
+        report["retained_ids"] = kept[1:]
+    elif edit == "dropped_item_retained":
+        per_item[dropped].update(retained=True, dropped_by=[])
+        report["retained_ids"] = sorted([*kept, dropped])
+    elif edit == "dropped_by":
+        per_item[dropped]["dropped_by"] = ["D2:safety_length"]
+    elif edit == "unfounded_exact_duplicate":
+        per_item[kept[0]].update(retained=False, dropped_by=[gate.EXACT])
+        report["retained_ids"] = kept[1:]
+        report["exact_duplicates"].append({"kept": kept[1], "dropped": kept[0]})
+    elif edit == "category":
+        other = next(c for c in CATEGORIES if c != per_item[kept[0]]["category"])
+        per_item[kept[0]]["category"] = other
+    elif edit == "distribution":
+        report["distribution"]["passed"] = not report["distribution"]["passed"]
+    elif edit == "per_category":
+        category = per_item[kept[0]]["category"]
+        report["per_category"][category]["retained"] += 1
+    # Malformed shapes: each must give the same refusal, never a TypeError.
+    elif edit == "near_duplicates_not_a_list":
+        report["near_duplicates"] = 5
+    elif edit == "near_pair_not_text":
+        report["near_duplicates"] = [{"kept": [kept[0]], "dropped": [dropped], "score": 1.0}]
+    elif edit == "per_item_entry_not_an_object":
+        per_item[dropped] = "synthetic"
+    elif edit == "per_item_not_an_object":
+        report["per_item"] = 5
+    elif edit == "distribution_not_an_object":
+        report["distribution"] = "synthetic"
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [
+        None,
+        "retained_ids",
+        "dropped_item_retained",
+        "dropped_by",
+        "unfounded_exact_duplicate",
+        "category",
+        "distribution",
+        "per_category",
+        "near_duplicates_not_a_list",
+        "near_pair_not_text",
+        "per_item_entry_not_an_object",
+        "per_item_not_an_object",
+        "distribution_not_an_object",
+    ],
+)
+def test_gate_report_decisions_are_rederived_before_adoption(config, edit):
+    def start(embedder, resume):
+        return collect(
+            config,
+            "col-1",
+            ShortFirstClient(),
+            embedder,
+            batch_count=5,
+            max_batches=1,
+            fixtures_dir=FIXTURES,
+            reference_dir=REFERENCE,
+            resume=resume,
+        )
+
+    with pytest.raises(gate.GateError, match="embedding failed"):
+        start(FakeEmbedder(fail=True), False)
+    root = config.artifact_path()
+    # Gated outside the collection with the collection's own settings and lexicons.
+    report = gate.gate_run(
+        root,
+        "col-1-b01",
+        lexicons=load_lexicons(REFERENCE),
+        embedder=FakeEmbedder(),
+        embedding_model="synthetic-embedding",
+    )
+    dropped = [v for v in report["per_item"].values() if not v["retained"]]
+    assert len(dropped) == 1 and "D1:answer_length" in dropped[0]["dropped_by"]
+    if edit is not None:
+        path = root / "col-1-b01" / gate.REPORT
+        report = json.loads(path.read_text())
+        _tamper(report, edit)
+        path.write_text(json.dumps(report))
+        with pytest.raises(CollectionError, match="col-1-b01: gate report decisions"):
+            start(FakeEmbedder(), True)
+        manifest = json.loads((root / "collections/col-1/manifest.json").read_text())
+        assert manifest["batches"][0]["gated"] is None
+    else:
+        summary = start(FakeEmbedder(), True)
+        assert summary["retained"] == 4 and summary["batches"][0]["gated"] is True
+
+
+class InBatchDuplicateClient(UniqueClient):
+    """Call 2 repeats call 1's question; calls 3 and 4 are near-twins (TwinEmbedder)."""
+
+    def generate(self, messages):
+        result = super().generate(messages)
+        if self.calls == 1:
+            self.first_question = result.item.item.question
+        changes = {}
+        if self.calls == 2:
+            changes["question"] = self.first_question
+        if self.calls in (3, 4):
+            changes["question"] = f"How do I add twin wall variant {self.calls} here?"
+        if changes:
+            item = result.item.item.model_copy(update=changes)
+            output = result.item.model_copy(update={"item": item})
+            result = AttemptResult(output, result.raw_response, None, None, "synthetic-model")
+        return result
+
+
+def test_collection_adopts_its_own_in_batch_duplicate_decisions(config):
+    client = InBatchDuplicateClient()
+    summary = collect(
+        config,
+        "col-1",
+        client,
+        TwinEmbedder(),
+        batch_count=5,
+        max_batches=1,
+        fixtures_dir=FIXTURES,
+        reference_dir=REFERENCE,
+    )
+    root = config.artifact_path()
+    report = json.loads((root / "col-1-b01" / gate.REPORT).read_text())
+    assert len(report["exact_duplicates"]) == 1 and len(report["near_duplicates"]) == 1
+    assert summary["retained"] == 3 and summary["batches"][0]["gated"] is True
+    assert collection_status(root, "col-1") == summary
+
+
+class FailOnCallEmbedder(FakeEmbedder):
+    """FakeEmbedder whose call number `fail_call` (1-based) is a synthetic failure."""
+
+    def __init__(self, fail_call):
+        super().__init__()
+        self.fail_call = fail_call
+
+    def embed(self, texts):
+        if len(self.calls) + 1 == self.fail_call:
+            self.calls.append(list(texts))
+            raise EmbeddingError("synthetic embedding failure")
+        return super().embed(texts)
+
+
+def test_resume_after_a_gate_embedding_failure_regenerates_nothing(config):
+    with pytest.raises(gate.GateError, match="embedding failed"):
+        collect(
+            config,
+            "col-1",
+            UniqueClient(),
+            FakeEmbedder(fail=True),
+            batch_count=30,
+            max_batches=3,
+            fixtures_dir=FIXTURES,
+            reference_dir=REFERENCE,
+        )
+    root = config.artifact_path()
+    before = hashes(root / "col-1-b01")
+    assert gate.REPORT not in before
+    client = UniqueClient()
+    client.calls = 30  # its questions continue after batch 1's, so none repeats one
+    summary = run_collect(config, client, max_batches=3, resume=True)
+    assert summary["status"] == "ready" and summary["retained"] == 60
+    assert client.calls == 60  # batch 2 only; batch 1 is gated, never regenerated
+    after = hashes(root / "col-1-b01")
+    assert {k: v for k, v in after.items() if k != gate.REPORT} == before
+    assert collection_status(root, "col-1") == summary
+
+
+def test_resume_after_a_cross_batch_embedding_failure_requests_nothing(config):
+    # Embedding calls: 1 gates batch 1 (no screen, nothing accepted yet), 2 gates
+    # batch 2, 3 screens batch 2 against batch 1 and fails.
+    with pytest.raises(CollectionError, match="cross-batch embedding failed"):
+        collect(
+            config,
+            "col-1",
+            UniqueClient(),
+            FailOnCallEmbedder(3),
+            batch_count=30,
+            max_batches=3,
+            fixtures_dir=FIXTURES,
+            reference_dir=REFERENCE,
+        )
+    root = config.artifact_path()
+    manifest = json.loads((root / "collections/col-1/manifest.json").read_text())
+    assert [b["gated"] is None for b in manifest["batches"]] == [False, True]
+    before = hashes(root / "col-1-b02")
+    assert gate.REPORT in before
+    client = UniqueClient()
+    summary = run_collect(config, client, max_batches=3, resume=True)
+    assert client.calls == 0
+    assert summary["status"] == "ready" and summary["retained"] == 60
+    assert [b["run_id"] for b in summary["batches"]] == ["col-1-b01", "col-1-b02"]
+    assert hashes(root / "col-1-b02") == before
+    assert collection_status(root, "col-1") == summary
+
+
+class UnusableOnCallEmbedder(FakeEmbedder):
+    """FakeEmbedder whose call number `bad_call` returns `value` as the last vector."""
+
+    def __init__(self, bad_call, value):
+        super().__init__()
+        self.bad_call = bad_call
+        self.value = value
+
+    def embed(self, texts):
+        vectors = super().embed(texts)
+        if len(self.calls) == self.bad_call:
+            vectors[-1] = [self.value] * len(vectors[-1])
+        return vectors
+
+
+@pytest.mark.parametrize("value", [0.0, float("nan"), float("inf")])
+def test_unusable_cross_batch_vector_is_a_collection_error(config, value):
+    # Call 3 screens batch 2 against batch 1; its last vector is a candidate's.
+    with pytest.raises(CollectionError, match="cross-batch embedding returned a zero or non"):
+        collect(
+            config,
+            "col-1",
+            UniqueClient(),
+            UnusableOnCallEmbedder(3, value),
+            batch_count=30,
+            max_batches=3,
+            fixtures_dir=FIXTURES,
+            reference_dir=REFERENCE,
+        )
+    manifest = json.loads((config.artifact_path() / "collections/col-1/manifest.json").read_text())
+    assert [b["gated"] is None for b in manifest["batches"]] == [False, True]
+
+
+def test_failed_cohort_write_never_frees_the_collection_for_another_cohort(config, monkeypatch):
+    run_collect(config, UniqueClient(), max_batches=3)
+    root = config.artifact_path()
+    write_once = cohort._write_once
+
+    def full_disk(path, value):
+        if path.name == cohort.COHORT:
+            raise OSError(errno.ENOSPC, "synthetic: no space left on device")
+        write_once(path, value)
+
+    monkeypatch.setattr(cohort, "_write_once", full_disk)
+    with pytest.raises(OSError, match="synthetic"):
+        cohort.freeze_cohort(root, "col-1", "cohort-1")
+    monkeypatch.setattr(cohort, "_write_once", write_once)
+    assert not (root / "collections/col-1/.collection.lock").exists()
+    # The failed freeze is evidence to inspect; a second cohort is never frozen.
+    with pytest.raises(CollectionError, match="already frozen"):
+        cohort.freeze_cohort(root, "col-1", "cohort-2")
+    assert not (root / "cohorts/cohort-2").exists()
+    with pytest.raises(CollectionError, match="no cohort"):
+        cohort.load_cohort(root, "cohort-1")
+    with pytest.raises(ValueError, match="frozen"):
+        run_collect(config, UniqueClient(), max_batches=3, resume=True)
