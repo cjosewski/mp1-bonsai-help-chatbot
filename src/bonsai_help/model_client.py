@@ -8,7 +8,7 @@ import re
 import traceback
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 import httpx
 import instructor
@@ -71,12 +71,14 @@ class _Credential:
         return ESCAPED_ECHO if self.occurs_in(text) else text
 
 
-def _check_endpoint_settings(*, model: str, api_key: str, timeout_seconds: float) -> None:
+def _check_endpoint_settings(
+    *, model: str, api_key: str, timeout_seconds: float, which: Literal["chat", "embedding"]
+) -> None:
     if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
         raise ValueError("timeout_seconds must be finite and positive")
     if not api_key or not api_key.strip():
         raise ValueError("api_key must be supplied explicitly")
-    check_api_key_length(api_key)
+    check_api_key_length(api_key, which)
     if not model or not model.strip():
         raise ValueError("model must be supplied explicitly")
 
@@ -157,7 +159,9 @@ class InstructorClient:
         modes = {"json": instructor.Mode.JSON, "tools": instructor.Mode.TOOLS}
         if mode not in modes:
             raise ValueError("mode must be 'json' or 'tools'")
-        _check_endpoint_settings(model=model, api_key=api_key, timeout_seconds=timeout_seconds)
+        _check_endpoint_settings(
+            model=model, api_key=api_key, timeout_seconds=timeout_seconds, which="chat"
+        )
         if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or max_tokens <= 0:
             raise ValueError("max_tokens must be a positive integer")
         if not math.isfinite(temperature) or not 0 <= temperature <= 2:
@@ -361,7 +365,9 @@ class EmbeddingClient:
         timeout_seconds: float = 60,
         _transport: httpx.BaseTransport | None = None,
     ) -> None:
-        _check_endpoint_settings(model=model, api_key=api_key, timeout_seconds=timeout_seconds)
+        _check_endpoint_settings(
+            model=model, api_key=api_key, timeout_seconds=timeout_seconds, which="embedding"
+        )
         self._credential = _Credential(api_key)
         self._model = model
         self._sdk = _openai_sdk(

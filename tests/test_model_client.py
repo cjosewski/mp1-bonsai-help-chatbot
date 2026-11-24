@@ -221,7 +221,7 @@ def test_clean_item_with_json_escapes_keeps_its_raw_content_verbatim():
 @pytest.mark.parametrize("short", ["tip", "none", "x", "local-key-0123"])
 def test_short_api_key_is_refused_before_network(short):
     fake = fake_transport(lambda request: pytest.fail("No HTTP request should be made"))
-    with pytest.raises(ValueError, match="at least 16 characters") as caught:
+    with pytest.raises(ValueError, match="the chat API key must be at least 16") as caught:
         InstructorClient(
             base_url=FAKE_BASE_URL,
             model=FAKE_MODEL,
@@ -230,7 +230,7 @@ def test_short_api_key_is_refused_before_network(short):
             _transport=fake.transport,
         )
     assert short not in str(caught.value)
-    with pytest.raises(ValueError, match="at least 16 characters") as caught:
+    with pytest.raises(ValueError, match="the embedding API key must be at least 16") as caught:
         EmbeddingClient(
             base_url=FAKE_BASE_URL,
             model="synthetic-embedding",

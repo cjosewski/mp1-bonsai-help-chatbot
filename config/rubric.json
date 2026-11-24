@@ -1,0 +1,203 @@
+{
+  "schema_version": "1",
+  "version": "bonsai-rubric-v1",
+  "status": "assistant_drafted",
+  "basis": "Plan docs/MP1-BONSAI-HELP-CHATBOT.md §6.2 (dimensions, anchors and targets) and §6.3 (hazards for D2); AGENTS.md Criteria (thresholds). Course names and order are kept; the anchors are rewritten for Bonsai.",
+  "label_values": [0, 1],
+  "labeling_rules": [
+    "Score each dimension 0 (fail) or 1 (pass) on its own criterion. A defect counts against every dimension whose criterion it breaks, and only those.",
+    "Judge the item against its setup record and the cited doc sections shown beside it. The arm, the run and any judge output are not shown and play no part in the label.",
+    "The question is the user's own words: a half-remembered tool or menu name, or an older BlenderBIM-era term, in the question is not a defect in any dimension. The answer, equipment_problem, tools_required, steps, safety_info and tips are what is scored.",
+    "Decide every dimension of every item from the anchors and labeling notes; an item is never skipped. A dimension that truly cannot be decided from the item, its setup record and its cited sections is recorded as unresolved and reported: it is never counted as a pass, and the item stays in its arm's denominator.",
+    "An item passes overall only when all six dimensions are 1."
+  ],
+  "dimensions": [
+    {
+      "id": "D1",
+      "name": "Answer completeness",
+      "pass_anchor": "The answer resolves the question for the stated setup, and every part of a question with several parts is addressed.",
+      "fail_anchor": "The answer leaves the question unresolved for the stated setup (it stops short, or answers a different setup or a more general question), or leaves a part of a question with several parts unaddressed.",
+      "labeling_notes": {
+        "check": [
+          "Read the question and list each thing it asks; a question with several parts needs every part addressed.",
+          "Follow the steps in order against the cited sections: would a user with this setup reach the result the question asks for?",
+          "Check that the answer is for the setup in the record (its versions, schema and model state), not a generic or different one."
+        ],
+        "common_fail_patterns": [
+          "The steps stop before the task is done, for example a wall is drawn but the question also asked how to change its type.",
+          "One part of a question with several parts is answered and the other is ignored.",
+          "The answer explains the concept the question touches but never gives the action it asks for.",
+          "The answer is written for a different model state, for example it assumes a new project when the record's model is an opened one."
+        ],
+        "borderline": [
+          "An answer that correctly says the task cannot be done in Bonsai and Blender, and says what to do instead, resolves the question: D1 passes (whether the redirection is right is D4).",
+          "Extra material beyond the question does not fail D1; a missing part does.",
+          "A wrong tool name does not fail D1 by itself when the action is still complete; it fails D3."
+        ]
+      },
+      "pass_rate_minimum": 0.85
+    },
+    {
+      "id": "D2",
+      "name": "Safety specificity",
+      "pass_anchor": "safety_info names a real risk to the IFC model or the user's work that applies to this item's own steps, with the precaution that prevents it.",
+      "fail_anchor": "safety_info gives a generic warning, names a risk that does not apply to these steps, or names a risk without the precaution that prevents it.",
+      "labeling_notes": {
+        "check": [
+          "Find the risk safety_info names and check that it is a real risk to the IFC model or the user's work, not to the user's person.",
+          "Check that the risk applies to this item's own steps.",
+          "Check that a precaution is given and that it would prevent that risk.",
+          "Typical hazards (plan §6.3): changes made in Blender that never reach the saved IFC file; editing IFC objects with plain Blender operations (applying modifiers, joining, deleting outside Bonsai); undo limits; Git merges of IFC files; georeferencing changes that move the whole model; loading a very large model. Each is used in scoring only after it is confirmed against the docs, with the page cited: in the item's cited sections or in a pinned docs page you cite. Only these typical hazards need that confirmation. Another risk passes when you can recognise it from the item's own steps and setup record. The list gives examples of the kind, not an answer key."
+        ],
+        "common_fail_patterns": [
+          "Generic caution with no named risk: be careful, save often, back up your files, use caution.",
+          "A real hazard that these steps cannot cause, for example a Git merge warning on a task that never uses Git.",
+          "A named risk with no precaution, or a precaution with no risk it prevents.",
+          "A risk that the cited sections contradict.",
+          "A typical hazard (plan §6.3) that is not confirmed against the docs, with the page cited, in the item's cited sections or a pinned docs page you cite. Another risk fails only when you cannot recognise it from the item's own steps and setup record as a real risk of those steps."
+        ],
+        "borderline": [
+          "Save the IFC file before closing Blender, because changes not saved to IFC are lost, passes once the docs confirm that typical hazard: a specific risk with its precaution. Save your work often fails: generic.",
+          "A read-only task such as exploring a model still needs a risk that applies to it, such as loading a very large model (a typical hazard, so confirmed against the docs); no generic warning passes in its place.",
+          "Several risks, one of them specific and with its precaution: D2 passes on that one."
+        ]
+      },
+      "pass_rate_minimum": 0.9
+    },
+    {
+      "id": "D3",
+      "name": "Tool realism",
+      "pass_anchor": "Every operator, panel, setting and hotkey the answer names exists in the stated Bonsai and Blender versions and matches the docs, and plain Blender steps are offered only where the docs say they are safe on IFC objects.",
+      "fail_anchor": "The answer names an operator, panel, setting or hotkey that does not exist in the stated versions or does not match the docs, or offers a plain Blender step on IFC objects that the docs do not say is safe.",
+      "labeling_notes": {
+        "check": [
+          "Check every operator, panel, setting and hotkey named in tools_required, steps and the answer against the cited sections, for the Bonsai and Blender versions in the setup record.",
+          "Check that each panel or menu path in the steps matches the docs for those versions.",
+          "Find every plain Blender operation used on IFC objects (applying modifiers, joining, deleting outside Bonsai) and check that the docs say it is safe on IFC objects."
+        ],
+        "common_fail_patterns": [
+          "An invented operator, panel or setting, or a real one under a wrong name.",
+          "A name or menu path from the other version line, for example a Blender 5.2 path in an answer for Blender 4.5.",
+          "A wrong hotkey.",
+          "Deleting, joining or applying modifiers to IFC objects with plain Blender tools where the docs do not say it is safe."
+        ],
+        "borderline": [
+          "A name the cited sections do not show passes only if you know it exists under that name in the stated version; if you can neither find it nor confirm it, D3 fails, because an unconfirmed name is not a pass.",
+          "An older BlenderBIM-era name in the question is not scored; the same name in the answer, steps or tools_required where the docs use another name fails D3.",
+          "A plain Blender step on objects that are not IFC objects (a viewport or editor setting, for example) needs no safety statement from the docs."
+        ]
+      },
+      "pass_rate_minimum": 0.95
+    },
+    {
+      "id": "D4",
+      "name": "Scope appropriateness",
+      "pass_anchor": "The answer stays within what Bonsai and Blender support, and says when the task needs another tool, a script, a bug report or a forum question, and when a design decision needs a qualified professional.",
+      "fail_anchor": "The answer claims Bonsai or Blender support something they do not, or does not say that the task needs another tool, a script, a bug report or a forum question, or that a design decision needs a qualified professional.",
+      "labeling_notes": {
+        "check": [
+          "Check that every capability the answer relies on is one the cited sections show Bonsai or Blender supporting.",
+          "Where the task goes beyond what they support, check that the answer says so and names the route: another tool, a script, a bug report or a forum question.",
+          "Where the question turns on a design decision, check that the answer says it needs a qualified professional."
+        ],
+        "common_fail_patterns": [
+          "A workaround presented as a supported feature when the docs do not show it.",
+          "A failure that the docs give no fix for, answered with an invented fix instead of a bug report or a forum question.",
+          "A design decision answered as if the software settles it, with no mention of a qualified professional."
+        ],
+        "borderline": [
+          "A task fully within what Bonsai and Blender support needs no referral; D4 passes without one.",
+          "A referral added to a task the docs fully cover does not fail D4 by itself, as long as the answer still gives the supported route."
+        ]
+      },
+      "pass_rate_minimum": 0.95
+    },
+    {
+      "id": "D5",
+      "name": "Context clarity",
+      "pass_anchor": "The answer states which Bonsai and Blender versions, IFC schema and setup it applies to, and any assumption it made.",
+      "fail_anchor": "The answer does not state the versions, schema or setup it applies to, states ones that differ from the setup record, or relies on an assumption it does not state.",
+      "labeling_notes": {
+        "check": [
+          "Find where the answer states the Bonsai and Blender versions, the IFC schema and the setup it applies to, and compare them with the setup record.",
+          "List what the answer assumes about the model or the user's situation (for example that a storey or a wall type already exists) and check that each assumption is stated."
+        ],
+        "common_fail_patterns": [
+          "No version, schema or setup is stated anywhere in the answer.",
+          "A version or schema that differs from the setup record.",
+          "Steps that only work if something already exists in the model, with that assumption unstated."
+        ],
+        "borderline": [
+          "The versions or schema stated only in the question do not count: the answer has to state them.",
+          "A statement that the answer applies to several schemas, the record's among them, states the schema."
+        ]
+      },
+      "pass_rate_minimum": 0.9
+    },
+    {
+      "id": "D6",
+      "name": "Tip usefulness",
+      "pass_anchor": "At least one tip is specific to the task and not already in the steps.",
+      "fail_anchor": "Every tip repeats a step or is generic advice that is not specific to the task.",
+      "labeling_notes": {
+        "check": [
+          "Compare each tip with the steps: is it already there, in the same or other words?",
+          "Ask whether the tip is specific to this task in Bonsai and Blender, or would fit any task."
+        ],
+        "common_fail_patterns": [
+          "A tip that restates a step.",
+          "Generic advice: practice, take your time, read the documentation, save often.",
+          "Advice that would apply to any Blender task."
+        ],
+        "borderline": [
+          "One specific tip among generic ones passes D6.",
+          "A tip that builds on a step with something the steps do not say (when to use it, what to watch for, a faster route) is not a repeat and can pass.",
+          "A tip that the cited sections contradict is not useful advice and does not count as the passing tip."
+        ]
+      },
+      "pass_rate_minimum": 0.85
+    }
+  ],
+  "overall_pass": {
+    "rule": "all_six_dimensions_pass",
+    "missing_decision": "unresolved_not_pass"
+  },
+  "thresholds": {
+    "structural_validity": {
+      "minimum": 0.95,
+      "denominator": "initial_attempts",
+      "note": "Valid initial responses divided by initial slots; retry recovery and gate retention are reported separately."
+    },
+    "baseline_overall_failure": {
+      "minimum": 0.15,
+      "below_minimum": "report_honestly",
+      "note": "Never plant defects. A baseline failure of 0 leaves the relative failure reduction undefined."
+    },
+    "human_judge_agreement": {
+      "per_dimension_minimum": 0.8,
+      "phase": "A_before_B",
+      "missing_labels": "unresolved_not_pass"
+    },
+    "corrected_overall_pass": {
+      "minimum": 0.8
+    },
+    "relative_failure_reduction": {
+      "formula": "(baseline_failure - corrected_failure) / baseline_failure",
+      "operator": ">",
+      "value": 0.8,
+      "equality": "does_not_pass",
+      "zero_baseline": "undefined"
+    },
+    "blind_labels": {
+      "minimum_per_arm": 20,
+      "arms": ["baseline", "corrected"]
+    },
+    "retained_items": {
+      "minimum_per_run": 50
+    },
+    "intervals": {
+      "confidence": 0.95,
+      "beside_every_rate": true
+    }
+  }
+}

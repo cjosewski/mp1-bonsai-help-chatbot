@@ -1167,6 +1167,9 @@ Plan decisions:
    it, and a collection accepts a batch gate report only at that value. It is recorded
    in each gate report and each cross-batch screen. Changing it is a code change and a
    new dated entry.
+   *Changed (November 24, 2026):* Chad chose "Separate embedding server (Recommended)", so
+   embeddings may come from their own local endpoint (`embedding_base_url`; see "B5
+   embedding server and key file" below).
 5. **Pre-check values.** D1: answer of at least 60 words. D2: `safety_info` of at least 80
    characters and no generic phrase. D3: every `bim.*` id exists in the version line's
    Bonsai-source lexicon and every cited section was offered. D4: no refusal boilerplate.
@@ -1741,6 +1744,210 @@ change is a new dated entry):
   collection tests keep passing the new check for the reason they did before. Schema and
   model-client tests, which cite ids that are not fixture sections and never run the
   check, carry one clearly synthetic quote.
+
+### November 24, 2026: B5 embedding server and key file
+
+B5 starts the rubric and prepares the baseline run (plan §9 B5; plan file
+`docs/superpowers/plans/2026-11-24-b5-rubric-and-baseline.md`). Chad answered two setup
+questions on November 24, 2026.
+
+Owner decisions (Chad):
+
+- **Embeddings.** Chad chose "Separate embedding server (Recommended)". Embeddings may come
+  from their own local OpenAI-compatible server instead of the chat endpoint. This changes
+  B4 plan decision 4 ("Embeddings come from the same configured endpoint"). The same-model
+  rule stays: one recorded embedding model for every vector.
+- **Key.** On the API key, Chad answered "Yes, use that file". The run config reads the
+  chat server's existing key file by path (`api_key_file`). That path, and any address or
+  other machine detail, stays in the git-ignored local run config and never enters the
+  repository. Local run configs for the smoke and baseline runs now exist outside Git
+  (git-ignored `config/*.local.json`); their contents are not recorded here.
+
+No model run has happened. The baseline run still needs Chad's go-ahead and servers that
+are already reachable.
+
+### November 24, 2026: B5 rubric and embedding endpoint (assistant's calls)
+
+These are the assistant's calls, not owner decisions. Chad can overrule any of them, and a
+change is a new dated entry.
+
+Rubric (`config/rubric.json`, version `bonsai-rubric-v1`, sha256
+`3d15baa13d7cda1ae80d7427ae525782b7c8da7bd0dcfa196aa68fa24a8f5cab`, after the
+two wording changes below):
+
+- **Status `assistant_drafted`, pending Chad's decision.** The rubric is a draft until Chad
+  accepts, edits or rejects it. The allowed statuses are `assistant_drafted` and
+  `chad_accepted`. `chad_accepted` needs a review record (`decided_on`, `words`,
+  `decisions_entry`) that points to a dated entry here in his own words, and
+  `assistant_drafted` may not carry one. An assistant never sets `chad_accepted`. While the
+  rubric is a draft, `rubric check` and `rubric show` exit 0 and print a warning.
+- **Wording drawn from plan §6.2.** Each dimension's pass anchor restates the plan §6.2
+  "Passes when" text. The fail anchor is its converse, and D2 draws on plan §6.3. The
+  §6.3 hazards are listed as examples of the kind, not as an answer key, with the §6.3
+  condition in its own words: each "is used in scoring only after it is confirmed against
+  the docs, with the page cited". The rubric holds no URL, no owner or instructor string
+  and no text from the earlier repository.
+- **D2 confirmation applies to the typical hazards only (wording change, pending Chad's
+  review of the rubric).** The first draft widened the §6.3 condition to every risk: its
+  fail pattern made any risk that no cited page confirms a D2 fail, "even when it is one
+  of the typical hazards". Plan §6.3 attaches the condition to the typical candidates it
+  lists and says "An answer passes D2 when it names the hazard that applies to its own
+  steps." The D2 notes now say: only the §6.3 typical hazards need confirmation against
+  the docs, with the page cited; another risk passes when the labeler can recognise it from
+  the item's own steps and setup record. The fail pattern is an unconfirmed typical hazard,
+  or another risk the labeler cannot recognise from the item's steps and setup record as a
+  real risk of those steps.
+- **Course names, matched exactly.** The names follow the plan §6.2 "Course name" column
+  and `AGENTS.md` Criteria in sentence case ("Tool realism" for D3). `load_rubric` matches
+  them exactly (case-sensitive) and refuses any other casing, spacing or wording, so a
+  casing change cannot slip in and move the hash. The first draft matched them without
+  regard to case; that was withdrawn. If the course brief writes them in title case, the
+  names and `rubric.COURSE_NAMES` change together under a new rubric version. There is no
+  `original_name` or adaptation field.
+- **Labeling notes are the assistant's readings within the plan's wording.**
+  - A name that the cited sections do not show passes D3 only if the labeler can confirm it
+    exists in the stated version. An unconfirmed name is not a pass.
+  - Versions stated only in the question do not satisfy D5.
+  - A tip that the cited sections contradict does not count as the passing D6 tip.
+  - A correct "cannot be done, do this instead" answer passes D1, and its scope is judged
+    under D4.
+  - A read-only task still needs a task-specific risk for D2.
+  - **No skipping (wording change, pending Chad's review of the rubric).** The first draft
+    told a labeler who could not decide a dimension to skip the item. A skipped item
+    leaves its arm's denominator, and the items hardest to judge are likely to be the
+    flawed ones, so skipping biases the failure rate down. Labeling rule 4 now says: decide
+    every dimension of every item from the anchors and labeling notes; a dimension that
+    truly cannot be decided from the item, its setup record and its cited sections is
+    recorded as unresolved and reported, never counted as a pass, and the item stays in
+    its arm's denominator ("A missing judgment is unresolved, not a pass", `AGENTS.md`).
+- **Threshold encoding.** The per-dimension minimums are 0.85, 0.90, 0.95, 0.95, 0.90 and
+  0.85, and the course thresholds of `AGENTS.md` are encoded in the file:
+  - structural validity 0.95 on initial attempts;
+  - baseline failure 0.15, reported honestly, with a zero baseline leaving the reduction
+    undefined;
+  - agreement 0.80 per dimension in Phase A, before Phase B;
+  - corrected pass 0.80;
+  - relative reduction strictly greater than 0.80, where exactly 0.80 does not pass;
+  - 20 blind labels per arm and 50 retained items per run;
+  - 95% intervals beside every rate.
+
+  `load_rubric` refuses any threshold that differs from the course value, stricter or
+  weaker. An amendment therefore needs a dated entry here, a new rubric version and a
+  change to `rubric.COURSE_MINIMUMS` / `COURSE_THRESHOLDS`, so no threshold can change
+  silently.
+- **Overall pass.** `overall_pass` returns `False` when any present decision is 0: an item
+  "passes overall only if it passes all six", so one fail settles it whatever the missing
+  decisions turn out to be. It returns `None` (unresolved) only when no decision is 0 and
+  at least one is missing, and `True` only with all six present and 1. `None` is never
+  counted as a pass. (The first draft returned `None` whenever a decision was missing,
+  even beside a 0; that hid certain failures as unresolved.)
+- **Exact reduction.** `relative_reduction` takes exact failure rates only (a `Fraction`
+  built from counts, or an `int`) and refuses a float with `TypeError`. A float is exact
+  only for some decimals: 10/21 against 2/21 is exactly 0.80, but as floats it compares
+  above 0.80 and would pass. With exact rates the strict 0.80 boundary holds for every
+  count (10/21 against 2/21, or 35/63 against 7/63, does not pass). The `minimum` is the
+  rubric's decimal threshold, so its float is read by its shortest decimal form (0.8 is
+  4/5).
+- **Label values.** `label_values` must be the integers `[0, 1]`; booleans or floats such
+  as `[false, true]` are refused, so they cannot change the canonical dump or the hash.
+- **Hash.** `rubric_sha256` hashes the validated rubric as sorted-key compact JSON, not the
+  file bytes. Reformatting the file keeps the hash, and any change of content alters it.
+  Labels (B6) will pin the version and this hash.
+- **Exit codes.** Invalid content (JSON, shape or a course departure) is exit 1, because
+  the rubric is what is being checked. A missing or unreadable file, or a usage error, is
+  exit 2. Errors name only the file, never its absolute path.
+- **Drift test.** `tests/test_rubric_pipeline.py` checks that the deterministic checks'
+  dimensions are the rubric's D1–D6. It also checks that the collection's default retained
+  target (in `collect` and on the command line) equals the rubric's 50 per run, and that a
+  frozen cohort holds at least that many. Collection and cohort do not yet read their
+  defaults from the rubric at run time; that is left to the B5–B7 stages that consume it.
+
+Embedding endpoint (applying Chad's decision above):
+
+- **Fields.** `RunConfig` gains `embedding_base_url` and the credential fields
+  `embedding_api_key_env` and `embedding_api_key_file`.
+  - With no `embedding_base_url`, embeddings use `base_url`.
+  - At most one of the two credential fields may be set. With neither, the embedding
+    client uses the chat credential source.
+- **Same rules for the embedding endpoint.** The hosted refusal still comes first. The
+  embedding URL then passes the same check as `base_url`: local hosts only, a `/v1`
+  suffix, no credentials, query or fragment. The variable-name rule and the 16-character
+  minimum apply to the embedding key as well. Messages name the field, never the value.
+  A missing, unreadable or short key names which key it is ("the embedding API key must be
+  at least 16 characters", or "chat"), never its value; with a shared credential the
+  embedding client reads the chat key, so the message names the chat key.
+- **Run identity.**
+  - `public_settings()` leaves out all four credential fields: no value, variable name or
+    path.
+  - It records `embedding_base_url` as the endpoint actually used, so omitting the field
+    and setting it equal to `base_url` give the same identity.
+  - It records `embedding_authentication` as `shared`, `environment` or `file`.
+  - Resume of a run or a collection, and adoption of a batch, refuse a changed embedding
+    endpoint or a changed embedding credential-source kind.
+- **Recorded where it is used.**
+  - The gate report and each cross-batch screen store `embedding_base_url`.
+    `evaluate_gate` and `gate_run` take it as a required keyword, so no report is written
+    without it.
+  - A collection refuses a gate report or screen made with another embedding endpoint. A
+    report from before this change, which has no `embedding_base_url`, is refused instead
+    of raising a `KeyError`.
+- **Which key each command reads.**
+  - `generate` reads only the chat key.
+  - `gate` reads only the embedding key, which is the chat key when shared.
+  - `collect` reads both before anything is written.
+  - Both keys are scrubbed from error output.
+- **Error text.** A run config refused as a whole now shows its fixed reason, which names
+  fields and never values: "invalid run config: (root) (embedding_base_url: only loopback
+  ...)".
+- **Example config.** `config/run.example.json` shows `"embedding_base_url":
+  "http://127.0.0.1:8081/v1"`.
+- **Old runs.** Runs and collections started before this change cannot be resumed under
+  the new settings identity. The code identity already refuses that after any code change,
+  and no live model run exists yet.
+
+B5 plan (`docs/superpowers/plans/2026-11-24-b5-rubric-and-baseline.md`):
+
+- **Intervals need code.** `AGENTS.md` asks for a 95% interval beside every rate. The
+  baseline report therefore needs the Clopper–Pearson part of the `stats` extract, which
+  PORTING-MAP §8 schedules for B7. The plan moves that part forward to B5. It is not built
+  yet.
+- **Smoke first.** A smoke run (`purpose` `smoke`, development split, 5 items) checks both
+  servers and the schema before the baseline collection. It is diagnostic only and never
+  counts toward the baseline.
+- **No failure rate from the gate.** "Honest failure rate" (plan §9 B5) is reported only
+  once Chad's labels (B6) and the calibrated judge (B7) exist. It is never estimated from
+  gate drops.
+
+### Open questions for Chad (B5)
+
+1. **Split of the measured runs.** The plan and `AGENTS.md` do not name the split the
+   baseline run uses. They require that no profile leaks between the development and
+   assessed sets, that judge v2 examples come from development disagreements, that Phase A
+   calibrates on the baseline items, and that the two arms are compared.
+   - The assistant recommends the assessed split (6 profiles) for both `baseline` and
+     `corrected`, with smoke runs and any items labeled only to draw judge v2 examples on
+     the development split (12 profiles). The two arms then share their profiles, and
+     judge examples cannot leak into the measured agreement. The cost is more labeling for
+     judge v2.
+   - The alternative is both arms on the development split. That labels fewer items, but
+     the assessed split goes unused in MP1, and the v2 examples would come from the items
+     whose agreement they are meant to raise.
+
+   **Decided by Chad on November 24, 2026:** "Assessed split (Recommended)". Both
+   measured arms (`baseline`, `corrected`) run on the assessed split; smoke runs and any
+   items labeled only to draw judge v2 examples run on the development split.
+2. **Rubric.** Accept, edit or reject `config/rubric.json` (anchors, labeling notes and
+   borderline rulings) before B6's labels, including the two wording changes above (D2
+   confirmation for the typical hazards only; no skipping). Also confirm the casing of the
+   dimension names: the rubric uses the plan's sentence case ("Answer completeness") and
+   `load_rubric` accepts only that exact spelling; if the course brief writes them in title
+   case ("Answer Completeness"), say which to use. A change needs a new rubric version and
+   changes the rubric hash.
+3. **Go-ahead.** Approve the smoke run and then the baseline collection, once both servers
+   are reachable.
+   Chad's instruction on November 24, 2026 was "Go on B5."; the smoke run and then the
+   baseline collection proceed under it, each only against servers that are already
+   reachable.
 
 ## Open items (not yet decided)
 

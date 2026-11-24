@@ -10,9 +10,10 @@ toward `max_batches`, and its numbers stay in every summary.
 
 A batch's run ID belongs to the collection: a run that already exists under that ID is
 refused, never generated into or gated. A batch's gate report is accepted only with the
-collection's embedding model, threshold, minimum share and lexicons (its per-item checks
-are recomputed, and its retention decisions re-derived from them, except the embedder's
-near-duplicate drops), and its denominators are recomputed from its hash-bound ledgers.
+collection's embedding model and embedding endpoint, threshold, minimum share and lexicons
+(its per-item checks are recomputed, and its retention decisions re-derived from them,
+except the embedder's near-duplicate drops), and its denominators are recomputed from its
+hash-bound ledgers.
 
 Each batch samples with its own seed, derived from the run seed and the batch number and
 recorded in the collection manifest, so later batches are offered other sections. After a
@@ -153,15 +154,17 @@ def _check_identity(manifest: dict, entry: dict, identity: dict) -> None:
 
 def _check_report_settings(run_id: str, report: dict, identity: dict) -> None:
     """A gate report counts only if made with the collection's embedder and thresholds."""
+    settings = identity["settings"]
     if (
         report.get("run_id") != run_id
-        or report.get("embedding_model") != identity["settings"]["embedding_model"]
+        or report.get("embedding_model") != settings["embedding_model"]
+        or report.get("embedding_base_url") != settings.get("embedding_base_url")
         or report.get("threshold") != gate.DEFAULT_THRESHOLD
         or (report.get("distribution") or {}).get("min_share") != gate.DEFAULT_MIN_SHARE
     ):
         raise CollectionError(
             f"{run_id}: gate report was made with other settings than the collection's "
-            "(embedding model, threshold or minimum share); inspect it"
+            "(embedding model, embedding endpoint, threshold or minimum share); inspect it"
         )
 
 
@@ -243,14 +246,17 @@ def _batch(root: Path, entry: dict, identity: dict) -> dict:
     return {"run_id": run_id, "manifest": manifest, "items": items, "gate": report} | recomputed
 
 
-def _check_screen(run_id: str, screen: dict | None, screened: list[str], accepted: set, model):
+def _check_screen(
+    run_id: str, screen: dict | None, screened: list[str], accepted: set, embedding: dict
+):
     """A recorded cross-batch screen must match the batch's candidates and the settings."""
     if screen is None:
         raise CollectionError(f"{run_id}: gated batch has no cross-batch screen")
     dropped = [pair["dropped"] for pair in screen["near_duplicates"]]
     if (
         screen.get("screened") != screened
-        or screen.get("embedding_model") != model
+        or screen.get("embedding_model") != embedding["embedding_model"]
+        or screen.get("embedding_base_url") != embedding["embedding_base_url"]
         or screen.get("threshold") != gate.DEFAULT_THRESHOLD
         or screen.get("compared_with") != len(accepted)
         or len(set(dropped)) != len(dropped)
@@ -277,7 +283,7 @@ def summarize(root: Path, manifest: dict, *, pending: bool = False) -> dict:
     seen: dict[str, str] = {}
     reasons: list[str] = []
     unscreened: list[dict] = []
-    model = identity["settings"]["embedding_model"]
+    embedding = _embedding(identity["settings"])
     totals = dict.fromkeys(
         (
             "initial_slots",
@@ -347,7 +353,7 @@ def summarize(root: Path, manifest: dict, *, pending: bool = False) -> dict:
             screen,
             [c["item_id"] for c in candidates],
             {m["item_id"] for m in members},
-            model,
+            embedding,
         )
         for record, key, exact in batch_decisions:
             if exact is not None:
@@ -532,16 +538,27 @@ def collect(
             }
             pending = summarize(root, manifest, pending=True)
             last["gated"]["cross_batch"] = _screen(
-                pending["members"], pending["unscreened"], embedder, config.embedding_model
+                pending["members"],
+                pending["unscreened"],
+                embedder,
+                _embedding(identity["settings"]),
             )
             checkpoint(directory, manifest)
 
 
-def _screen(accepted: list[dict], candidates: list[dict], embedder, model: str) -> dict:
+def _embedding(settings: dict) -> dict:
+    """The embedder a collection's screens are made with: model and endpoint."""
+    return {
+        "embedding_model": settings["embedding_model"],
+        "embedding_base_url": settings.get("embedding_base_url"),
+    }
+
+
+def _screen(accepted: list[dict], candidates: list[dict], embedder, embedding: dict) -> dict:
     """Drop a candidate whose cosine to an earlier accepted item reaches the gate threshold."""
     threshold = gate.DEFAULT_THRESHOLD
     record = {
-        "embedding_model": model,
+        **embedding,
         "threshold": threshold,
         "text": "question, newline, answer",
         "screened": [c["item_id"] for c in candidates],
@@ -716,5 +733,6 @@ def _run_batch(config, root, entry, identity, prompt, prompt_sha256, *, count, *
             lexicons=inputs["lexicons"],
             embedder=inputs["embedder"],
             embedding_model=config.embedding_model,
+            embedding_base_url=config.embedding_endpoint(),
             fixtures_dir=inputs["fixtures_dir"],
         )

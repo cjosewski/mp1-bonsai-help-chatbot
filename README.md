@@ -26,10 +26,13 @@ and setup facts) are done. B3 (gold set) was withdrawn from MP1 on November 23, 
 and moves to Mini Project 4; its tooling, its tests and the 6 published items stay here,
 frozen, and the paused review packets GP-021 to GP-025 stay unimported. **B4 (generation
 and the first-pass gate) is done, with no model run yet**; it has no rubric, which Chad
-moved to B5 on November 24, 2026. **Next is B5**, the rubric and the baseline run; the run
-needs a reachable local endpoint and Chad's go-ahead. Install, the offline tests, the
-documentation corpus rebuild, the section index, the lexicons and the setup-fact checks
-run today; steps 1 and 2 of the pipeline run offline against fake endpoints; every other
+moved to B5 on November 24, 2026. **B5 (rubric and baseline run) has started**: the
+rubric `config/rubric.json` (`bonsai-rubric-v1`) is drafted and awaits Chad's approval
+(status `assistant_drafted`), and the run config can name a separate local embedding
+server. The baseline run has not been done; it needs reachable local servers and Chad's
+go-ahead. Install, the offline tests, the
+documentation corpus rebuild, the section index, the lexicons, the setup-fact checks and
+the rubric commands (`rubric check`, `rubric show`) run today; steps 1 and 2 of the pipeline run offline against fake endpoints; every other
 step below is marked *not yet implemented* and will be filled in when its milestone lands.
 Chad's decisions on the B2 setup records (packet SR-001) are applied: 38 accepted and fact
 row SF-001 rejected. Setup review SR-003 (fact row SF-021) stays an MP1 item and is still
@@ -66,7 +69,7 @@ packets remain as records. No new review decisions were imported.
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (Chad's SR-001 decisions applied) |
 | B3 | Gold set and multi-part and injection requests | Withdrawn from MP1 (moves to Mini Project 4); 6 of 110 items published and frozen; 104 drafts unreviewed |
 | B4 | Section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet; the rubric moved to B5 on November 24, 2026) |
-| B5 | Rubric (D1–D6) and baseline run | Not yet implemented |
+| B5 | Rubric (D1–D6) and baseline run | Started: rubric drafted (`assistant_drafted`, awaiting Chad's approval); baseline run not yet done |
 | B6 | Baseline human labels | Not yet implemented |
 | B7 | Judge and Phase A calibration | Not yet implemented |
 | B8 | Phase B correction | Not yet implemented |
@@ -123,7 +126,10 @@ refusal, the local-endpoint allowlist, key names and key length), the section sa
 model client (retries, timeouts, redaction, plain and JSON-escaped credential echo,
 environment proxies ignored), generation (resume, exhaustion, unknown outcomes, transport
 failures, unstorable responses, code and prompt identity), each deterministic check, the gate,
-collections, cohorts and the generation commands with their exit codes.
+collections, cohorts and the generation commands with their exit codes. The B5 tests cover
+the rubric (shape and course-criterion refusals, malformed files, the hash, the overall-pass
+and relative-reduction rules, the command exit codes), its agreement with the B4 checks,
+collection target and cohort size, and the separate embedding endpoint and credential.
 
 ## Rebuild the documentation corpus
 
@@ -439,7 +445,13 @@ timeout, attempts) and one credential source. The endpoint must be `localhost` o
 loopback, RFC 1918 or IPv6 unique local (fc00::/7) address; other addresses are refused.
 `api_key_env` names an upper-case environment variable (default `BONSAI_HELP_API_KEY`),
 or `api_key_file` names a key file. The key must be at least 16 characters; a local server
-that ignores the key still needs a long random placeholder. Raw runs go under `runs/`
+that ignores the key still needs a long random placeholder. Embeddings use `base_url`
+unless `embedding_base_url` names a separate local embedding server (same rules: local
+address, `/v1`, no credentials, query or fragment). The embedding server uses the chat
+credential source unless `embedding_api_key_env` or `embedding_api_key_file` (at most one)
+names its own. Run manifests record the embedding endpoint actually used and the kind of
+its credential source (`shared`, `environment` or `file`), never a key, variable name or
+path; resume refuses a change to either. Raw runs go under `runs/`
 (git-ignored) or a path outside the repository. Run the commands from the repository
 checkout: the code identity hashes every package module plus `pyproject.toml` and
 `uv.lock` beside `src/`, and if either file is missing the command is refused before
@@ -470,8 +482,8 @@ Defaults: `--count` 5 (a multiple of 5), `--target-retained` 50, `--batch-count`
 | Command | What it does and writes |
 | --- | --- |
 | `generate` | Plans balanced slots, offers each slot pinned sections from the fixture slice, and calls the configured model once per slot (with bounded retries). Writes a new run: manifest, prompt copy, `starts.jsonl` (a durable start before each call), `attempts.jsonl` (every completion, valid or not, raw, with the model's `cited_section_ids` and `quotes` as returned), `items.jsonl` (schema-valid items in an envelope with the setup id, category, offered and cited sections, quotes, prompt version, model, `generated_at` timestamp and trace id). The model returns the seven-field item, `cited_section_ids` and 1 or more `quotes` (`section_id` and `text`, no other keys; a missing or empty list fails the schema); quotes are metadata and never enter the payload. The envelope keeps each quote's text as the model wrote it (the schema strips only surrounding whitespace) and resolves its `section_id` with the same single bracket normalization as a cited id. `generated_at` is the same text as the attempt's `completed_at`. A completion that cannot be kept as returned is a failed attempt that uses up that attempt (the slot retries within its budget), never an unknown outcome: `UnserializableResponse` (raw response not strict JSON; kept as text, as JSON with a safe `repr` for odd values, else its `repr`, else `<unrepresentable TYPE>`, so storing it never fails, even for a custom client's mapping that raises when read), `EnvelopeInvalid` (no valid envelope) or `CredentialEcho` (the response contains the configured key, plain or JSON-escaped; raw body kept redacted, a string that holds the key only in escaped form replaced whole by `[REDACTED: credential echo]`, item not kept). `--resume` keeps the original settings, prompt and code identity and verifies hashes, including the manifest's `prompt_sha256` and the run's `prompt.md` copy against the prompt the run is started or resumed with, each item's `generated_at` against its attempt, and each envelope's quotes against the attempt's quotes ("recorded quotes differ from the attempt's quotes", exit 1); it refuses a request start that follows a slot's successful completion. A gated run cannot be resumed. |
-| `gate` | Runs the first-pass gate on a saved run: schema, deterministic checks, exact and near-duplicate removal, category balance. The quote check reads each item's offered sections again from the fixture slice (`--fixtures-dir`), verified against the offered page hash and the committed manifest; a changed page stops the gate with exit 1 and no report. Writes one file, `gate-report.json`, next to the run, once: each item's check results and drop reasons (`per_item`), `retained_ids`, `drops_per_check`, `pass_rates_per_check` (every check, the evidence-only ones too, over `pass_rates_denominator`, the schema-valid items entering the gate), exact and near duplicates, per-category counts and the distribution result, the embedding model and the threshold (0.92). Retained payloads are read from `items.jsonl` by `retained_ids`. Unknown Blender operators and menu paths are evidence only; the other checks drop, among them `quotes_verbatim` (D3, below). Checks are heuristics that drop obvious defects and feed the judge; they never replace a human or judge decision. A zero or non-finite embedding vector stops the gate with an error and no report; two schema-valid attempts for one slot or item ID are refused ("more than one successful attempt for slot ...; inspect the run"). |
-| `collect` | Runs generate and gate in batches until enough items are retained (at least 10 per category) or the batch budget is spent. Each batch has its own derived seed, and retained items are screened for near-duplicates across batches; a question that exactly repeats an accepted member's is dropped. Batch run IDs `<collection-id>-b01` to `-bNN` belong to the collection: a fresh `collect` refuses (exit 2) if any of them within `--max-batches` already exists, and a batch run it does not own, or a gate report made with another embedding model, threshold, minimum share or lexicons, or whose per-item checks differ when rerun with the collection's lexicons and fixture slice (the quote check included), is refused (exit 1), never adopted. An assessed collection (`purpose` `baseline` or `corrected`) without `model_identity` and `model_sha256`, or a fixture slice that fails verification, is refused before anything is written. Batch denominators are recomputed from the hash-bound ledgers. A gate report made outside the collection is adopted only if its retention decisions re-derive from its per-item checks (retained flags, `dropped_by`, exact duplicates, `retained_ids`, per-category counts, the distribution result; near-duplicate drops stay trusted); otherwise "gate report decisions differ from its per-item checks; inspect it" (exit 1). A batch slot plan that is not a list of exact slot objects is "batch slot plan is malformed; inspect it" (exit 1). A cross-batch embedding that fails, or returns a zero or non-finite vector, stops the screen with exit 1 and leaves that batch unscreened for `--resume`. |
+| `gate` | Runs the first-pass gate on a saved run: schema, deterministic checks, exact and near-duplicate removal, category balance. The quote check reads each item's offered sections again from the fixture slice (`--fixtures-dir`), verified against the offered page hash and the committed manifest; a changed page stops the gate with exit 1 and no report. Writes one file, `gate-report.json`, next to the run, once: each item's check results and drop reasons (`per_item`), `retained_ids`, `drops_per_check`, `pass_rates_per_check` (every check, the evidence-only ones too, over `pass_rates_denominator`, the schema-valid items entering the gate), exact and near duplicates, per-category counts and the distribution result, the embedding model, the embedding endpoint (`embedding_base_url`) and the threshold (0.92). Retained payloads are read from `items.jsonl` by `retained_ids`. Unknown Blender operators and menu paths are evidence only; the other checks drop, among them `quotes_verbatim` (D3, below). Checks are heuristics that drop obvious defects and feed the judge; they never replace a human or judge decision. A zero or non-finite embedding vector stops the gate with an error and no report; two schema-valid attempts for one slot or item ID are refused ("more than one successful attempt for slot ...; inspect the run"). |
+| `collect` | Runs generate and gate in batches until enough items are retained (at least 10 per category) or the batch budget is spent. Each batch has its own derived seed, and retained items are screened for near-duplicates across batches; a question that exactly repeats an accepted member's is dropped. Batch run IDs `<collection-id>-b01` to `-bNN` belong to the collection: a fresh `collect` refuses (exit 2) if any of them within `--max-batches` already exists, and a batch run it does not own, or a gate report made with another embedding model, embedding endpoint, threshold, minimum share or lexicons, or whose per-item checks differ when rerun with the collection's lexicons and fixture slice (the quote check included), is refused (exit 1), never adopted. An assessed collection (`purpose` `baseline` or `corrected`) without `model_identity` and `model_sha256`, or a fixture slice that fails verification, is refused before anything is written. Batch denominators are recomputed from the hash-bound ledgers. A gate report made outside the collection is adopted only if its retention decisions re-derive from its per-item checks (retained flags, `dropped_by`, exact duplicates, `retained_ids`, per-category counts, the distribution result; near-duplicate drops stay trusted); otherwise "gate report decisions differ from its per-item checks; inspect it" (exit 1). A batch slot plan that is not a list of exact slot objects is "batch slot plan is malformed; inspect it" (exit 1). A cross-batch embedding that fails, or returns a zero or non-finite vector, stops the screen with exit 1 and leaves that batch unscreened for `--resume`. |
 | `collection-status` | Reads a collection and reports its batches, retained counts per category and whether it is ready. |
 | `cohort` | Freezes 10 retained items per category (seeded) from a ready collection into a new cohort. The collection's freeze receipt (`frozen.json`) is written before `cohort.json`, so a failed cohort write leaves a frozen collection with a missing cohort to inspect and never lets the collection freeze a second cohort. |
 | `cohort-status` | Reads a frozen cohort and verifies its hashes. |
@@ -540,6 +552,39 @@ Three denominators are reported separately and never mixed:
 - **Gate retention**: items retained by the gate over the schema-valid items that entered
   it. Retained items are never compared against filtered ones.
 
+## Rubric (B5)
+
+`config/rubric.json` (version `bonsai-rubric-v1`) holds the labeling rules, the six
+dimensions in course order with their course names, a pass and a fail anchor for each
+(from plan §6.2, with §6.3 for D2), labeling notes (what to check, common fail patterns,
+borderline rulings), each dimension's pass-rate minimum (D1 0.85, D2 0.90, D3 0.95,
+D4 0.95, D5 0.90, D6 0.85), the overall-pass rule (all six; one fail fails the item, and
+otherwise a missing decision is unresolved, never a pass) and the course thresholds. It is an assistant draft
+(`assistant_drafted`) until Chad accepts, edits or rejects it; only a dated entry in
+`docs/DECISIONS.md` in his words can make it `chad_accepted`. A threshold that differs
+from the course value, stricter or weaker, is refused: a change needs a dated amendment, a
+new rubric version and a code change. Labels (B6) will pin the rubric's version and hash.
+
+```text
+bonsai-help rubric check [--rubric RUBRIC]
+bonsai-help rubric show [--rubric RUBRIC]
+```
+
+| Command | What it does |
+| --- | --- |
+| `rubric check` | Validates the rubric and prints its version, status and sha256 (of the validated content, so reformatting the file keeps it) |
+| `rubric show` | Prints the labeling rules, each dimension's anchors, notes and minimum, and the thresholds |
+
+`--rubric` defaults to `config/rubric.json`. Exit codes: 0 valid (with a warning on stderr
+while the status is `assistant_drafted`); 1 the rubric fails its check (malformed JSON, a
+shape error or a departure from the course criteria); 2 a missing or unreadable file, or a
+usage error. Errors name only the file, never its absolute path.
+
+The baseline run procedure, the open question of which split it uses and what B5 cannot
+measure yet are in `docs/superpowers/plans/2026-11-24-b5-rubric-and-baseline.md`. The
+overall failure rate needs Chad's labels (B6) and the judge (B7); it is never estimated
+from the gate.
+
 ## Run each step
 
 Each step runs on its own against saved artifacts. Steps 1 and 2 exist (B4); the rest are
@@ -547,7 +592,7 @@ not yet implemented (B6 to B9):
 
 1. Generate: one prompt per category and setup profile writes each item from pinned doc sections (B4, B5, B8). Implemented.
 2. First-pass gate: schema, deterministic checks, duplicates, category balance (B4, B5). Implemented.
-3. Human labels: blind, resumable labeling (B6).
+3. Human labels: blind, resumable labeling against the pinned rubric (rubric drafted at B5; labeling B6).
 4. Judge: independent prompt at a lower temperature than the generator (B7).
 5. Analyze: pass rates, agreement, intervals and five charts (B9).
 6. Iterate: Phase A judge calibration, Phase B generator correction (B7, B8).
@@ -576,6 +621,8 @@ no model and no credentials.
 ├── uv.lock
 ├── config/
 │   ├── doc-sources.json  pinned commits, page selection, licenses, attribution
+│   ├── rubric.json       D1–D6 anchors, labeling notes and thresholds (assistant-drafted)
+│   ├── run.example.json  example run config (local endpoints)
 │   └── doc-manifest.json page hashes of every snapshot (written by the tool)
 ├── reference/
 │   ├── docs-index.json   digest of the section index (written by the tool)

@@ -89,11 +89,16 @@ def evaluate_gate(
     fixtures_dir: Path,
     embedder: Embedder,
     embedding_model: str,
+    embedding_base_url: str,
     threshold: float = DEFAULT_THRESHOLD,
     min_share: float = DEFAULT_MIN_SHARE,
     unoffered_citations: Mapping[str, Sequence[str]] | None = None,
 ) -> dict:
-    """Screen validated items; ``unoffered_citations`` maps item id to its attempt's list."""
+    """Screen validated items; ``unoffered_citations`` maps item id to its attempt's list.
+
+    ``embedding_model`` and ``embedding_base_url`` (the endpoint that served the vectors)
+    are recorded in the report, so a collection can refuse a report from another embedder.
+    """
     unoffered = unoffered_citations or {}
     ordered = sorted(records, key=lambda r: r.item_id)
     if len({r.item_id for r in ordered}) != len(ordered):
@@ -200,6 +205,7 @@ def evaluate_gate(
         "retained_ids": retained_ids,
         "gate_pass_rate": total / len(ordered) if ordered else None,
         "embedding_model": embedding_model,
+        "embedding_base_url": embedding_base_url,
         "threshold": threshold,
     }
 
@@ -262,6 +268,7 @@ def gate_run(
     lexicons: Lexicons,
     embedder: Embedder,
     embedding_model: str,
+    embedding_base_url: str,
     fixtures_dir: Path,
     threshold: float = DEFAULT_THRESHOLD,
     min_share: float = DEFAULT_MIN_SHARE,
@@ -283,6 +290,7 @@ def gate_run(
                 fixtures_dir=fixtures_dir,
                 embedder=embedder,
                 embedding_model=embedding_model,
+                embedding_base_url=embedding_base_url,
                 threshold=threshold,
                 min_share=min_share,
                 unoffered_citations=unoffered,

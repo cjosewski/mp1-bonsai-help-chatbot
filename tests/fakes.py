@@ -15,6 +15,9 @@ import httpx
 
 FAKE_KEY = "synthetic-test-credential-do-not-log"
 FAKE_BASE_URL = "http://127.0.0.1:8080/v1"
+# A separate local embedding server, as the run config's optional embedding_base_url.
+FAKE_EMBEDDING_BASE_URL = "http://127.0.0.1:8081/v1"
+FAKE_EMBEDDING_KEY = "synthetic-embedding-credential-do-not-log"
 FAKE_MODEL = "explicit-test-model"
 FAKE_MESSAGES = [{"role": "user", "content": "Generate a synthetic test Q&A item."}]
 FIXTURES = Path(__file__).resolve().parent / "fixtures/docs"

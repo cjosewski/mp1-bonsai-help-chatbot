@@ -13,6 +13,8 @@ import httpx
 import pytest
 from fakes import (
     FAKE_BASE_URL,
+    FAKE_EMBEDDING_BASE_URL,
+    FAKE_EMBEDDING_KEY,
     FAKE_KEY,
     FAKE_MODEL,
     FakeTransport,
@@ -76,7 +78,8 @@ def run_config(tmp_path, monkeypatch):
 def invoke(capsys, argv, transport=None):
     code = cli.main(argv, transport=(transport or model_transport()).transport)
     out, err = capsys.readouterr()
-    assert FAKE_KEY not in out and FAKE_KEY not in err
+    for key in (FAKE_KEY, FAKE_EMBEDDING_KEY):
+        assert key not in out and key not in err
     assert "Traceback" not in err
     return code, out, err
 
@@ -361,3 +364,141 @@ def test_cli_error_line_carries_the_exception_notes(run_config, capsys, monkeypa
     code, out, err = invoke(capsys, ["generate", "--config", str(run_config), "--run-id", "r1"])
     assert code == 2 and out == ""
     assert err == "error: synthetic refusal; synthetic note with key [REDACTED]\n"
+
+
+EMBED_KEY_ENV = "BONSAI_HELP_SYNTHETIC_EMBED_KEY"
+
+
+@pytest.fixture
+def split_config(tmp_path, run_config, monkeypatch):
+    """The run config with a separate embedding server and its own credential."""
+    monkeypatch.setenv(EMBED_KEY_ENV, FAKE_EMBEDDING_KEY)
+    values = json.loads(run_config.read_text()) | {
+        "embedding_base_url": FAKE_EMBEDDING_BASE_URL,
+        "embedding_api_key_env": EMBED_KEY_ENV,
+    }
+    path = tmp_path / "split-config.json"
+    path.write_text(json.dumps(values))
+    return path
+
+
+def split_transport(*, leak=False) -> FakeTransport:
+    """Answers by path only, so a request sent to the wrong server is still recorded."""
+    good = model_transport()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if leak and request.url.path.endswith("/embeddings"):
+            message = f"bad key {FAKE_EMBEDDING_KEY}"
+            return httpx.Response(401, json={"error": {"message": message}})
+        return good._handler(request)
+
+    return FakeTransport(handler)
+
+
+def assert_routed(transport: FakeTransport) -> None:
+    """Chat requests go to base_url with the chat key; embeddings to the embedding server."""
+    chats = [c for c in transport.calls if not c.url.path.endswith("/embeddings")]
+    embeds = [c for c in transport.calls if c.url.path.endswith("/embeddings")]
+    assert chats or embeds
+    for call in chats:
+        assert str(call.url) == f"{FAKE_BASE_URL}/chat/completions"
+        assert call.headers["authorization"] == f"Bearer {FAKE_KEY}"
+    for call in embeds:
+        assert str(call.url) == f"{FAKE_EMBEDDING_BASE_URL}/embeddings"
+        assert call.headers["authorization"] == f"Bearer {FAKE_EMBEDDING_KEY}"
+
+
+def stored_text(root: Path) -> str:
+    return "\n".join(p.read_text() for p in sorted(root.rglob("*")) if p.is_file())
+
+
+def test_cli_separate_embedding_server_gets_only_embeddings(tmp_path, split_config, capsys):
+    config, root = str(split_config), tmp_path / "runs"
+    generation = split_transport()
+    code, _, _ = invoke(capsys, ["generate", "--config", config, "--run-id", "r1"], generation)
+    assert code == 0 and embedding_requests(generation) == 0
+    assert_routed(generation)
+    gating = split_transport()
+    code, out, _ = invoke(capsys, ["gate", "--config", config, "--run-id", "r1"], gating)
+    assert code == 0 and embedding_requests(gating) == 1 == len(gating.calls)
+    assert_routed(gating)
+    assert json.loads(out)["embedding_base_url"] == FAKE_EMBEDDING_BASE_URL
+    settings = json.loads((root / "r1/manifest.json").read_text())["settings"]
+    assert settings["base_url"] == FAKE_BASE_URL
+    assert settings["embedding_base_url"] == FAKE_EMBEDDING_BASE_URL
+    assert settings["embedding_authentication"] == "environment"
+
+    collecting = split_transport()
+    args = ["--collection-id", "c1", "--batch-count", "5", "--max-batches", "1"]
+    code, _, _ = invoke(capsys, ["collect", "--config", config, *args], collecting)
+    assert code == 3 and embedding_requests(collecting) >= 1
+    assert_routed(collecting)
+    report = json.loads((root / "c1-b01/gate-report.json").read_text())
+    assert report["embedding_base_url"] == FAKE_EMBEDDING_BASE_URL
+    # No saved file holds either key or the embedding key's variable name.
+    text = stored_text(root)
+    assert FAKE_KEY not in text and FAKE_EMBEDDING_KEY not in text and EMBED_KEY_ENV not in text
+
+
+def test_cli_redacts_an_echoed_embedding_key(tmp_path, split_config, capsys, caplog):
+    config = str(split_config)
+    code, _, _ = invoke(capsys, ["generate", "--config", config, "--run-id", "r1"])
+    assert code == 0
+    leaking = split_transport(leak=True)
+    code, _, err = invoke(capsys, ["gate", "--config", config, "--run-id", "r1"], leaking)
+    assert code == 1 and err.startswith("error: embedding failed") and "[REDACTED]" in err
+    assert embedding_requests(leaking) == 1
+    assert_routed(leaking)
+    assert not (tmp_path / "runs/r1/gate-report.json").exists()
+    args = ["--collection-id", "c1", "--batch-count", "5", "--max-batches", "1"]
+    leaking = split_transport(leak=True)
+    code, _, err = invoke(capsys, ["collect", "--config", config, *args], leaking)
+    assert code == 1 and "[REDACTED]" in err and embedding_requests(leaking) == 1
+    for record in caplog.records:
+        assert FAKE_EMBEDDING_KEY not in record.getMessage()
+    assert FAKE_EMBEDDING_KEY not in stored_text(tmp_path / "runs")
+
+
+def test_cli_missing_embedding_key_is_a_config_error(tmp_path, split_config, capsys, monkeypatch):
+    config = str(split_config)
+    code, _, _ = invoke(capsys, ["generate", "--config", config, "--run-id", "r1"])
+    assert code == 0  # generation needs only the chat credential
+    monkeypatch.delenv(EMBED_KEY_ENV)
+    nothing = FakeTransport(lambda request: pytest.fail("no request expected"))
+    code, _, err = invoke(capsys, ["gate", "--config", config, "--run-id", "r1"], nothing)
+    assert code == 2 and "embedding API key" in err
+    assert not (tmp_path / "runs/r1/gate-report.json").exists()
+    args = ["--collection-id", "c1", "--batch-count", "5", "--max-batches", "1"]
+    code, _, err = invoke(capsys, ["collect", "--config", config, *args], nothing)
+    assert code == 2 and "embedding API key" in err
+    assert not (tmp_path / "runs/collections").exists() and not nothing.calls
+
+
+def test_cli_collect_resume_refuses_a_changed_embedding_endpoint(
+    tmp_path, run_config, split_config, capsys
+):
+    args = ["--collection-id", "c1", "--batch-count", "5", "--max-batches", "2"]
+    with_split = split_transport()
+    calls = itertools.count(1)
+
+    def interrupting(request: httpx.Request) -> httpx.Response:
+        if next(calls) == 3:
+            raise KeyboardInterrupt  # synthetic Ctrl-C during the third request
+        return with_split._handler(request)
+
+    code, _, _ = invoke(
+        capsys, ["collect", "--config", str(split_config), *args], FakeTransport(interrupting)
+    )
+    assert code == 130
+    before = stored_text(tmp_path / "runs")
+    # The same collection with the default (chat) embedding endpoint is refused unchanged.
+    other = model_transport()
+    code, _, err = invoke(
+        capsys, ["collect", "--config", str(run_config), *args, "--resume"], other
+    )
+    assert code == 2 and "identical" in err and not other.calls
+    assert stored_text(tmp_path / "runs") == before
+    code, out, _ = invoke(
+        capsys, ["collect", "--config", str(split_config), *args, "--resume"], split_transport()
+    )
+    assert code == 3 and json.loads(out)["batches"][0]["status"] == "complete"

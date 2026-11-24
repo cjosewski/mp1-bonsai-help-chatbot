@@ -30,56 +30,59 @@ def make(**overrides):
 def test_defaults_and_example_config_load():
     config = load_config(REPO / "config" / "run.example.json")
     assert config.base_url == "http://127.0.0.1:8080/v1"
+    # The example shows a separate local embedding server on another port.
+    assert config.embedding_endpoint() == "http://127.0.0.1:8081/v1"
+    assert config.public_settings()["embedding_authentication"] == "shared"
     assert (config.temperature, config.timeout_seconds) == (0.6, 120)
     assert (config.max_tokens, config.max_attempts, config.artifact_root) == (2000, 3, "runs")
 
 
-@pytest.mark.parametrize(
-    "url",
-    [
-        "http://8.8.8.8/v1",
-        "http://example.com/v1",
-        "http://127.0.0.1:8080/api",
-        "http://127.0.0.1:8080",
-        "http://user:pass@127.0.0.1/v1",
-        "http://127.0.0.1/v1?x=1",
-        "ftp://127.0.0.1/v1",
-        # Addresses Python calls "private" that are not a local model host.
-        "http://[2002:808:808::1]/v1",  # 6to4 relay to 8.8.8.8
-        "http://[2001::1]/v1",  # Teredo
-        "http://[64:ff9b::808:808]/v1",  # NAT64 to 8.8.8.8
-        "http://[::ffff:8.8.8.8]/v1",  # IPv4-mapped public address
-        "http://169.254.169.254/v1",  # link-local, cloud metadata
-        "http://[fe80::1]/v1",  # IPv6 link-local
-        "http://192.0.2.1/v1",  # documentation range
-        "http://198.18.0.1/v1",  # benchmarking range
-        "http://100.64.0.1/v1",  # shared address space (CGNAT)
-        "http://172.32.0.1/v1",  # just outside 172.16.0.0/12
-        "http://0.0.0.0/v1",
-        "http://[::]/v1",
-        "http://localhost.example.com/v1",
-    ],
-)
+REFUSED_URLS = [
+    "http://8.8.8.8/v1",
+    "http://example.com/v1",
+    "http://127.0.0.1:8080/api",
+    "http://127.0.0.1:8080",
+    "http://user:pass@127.0.0.1/v1",
+    "http://127.0.0.1/v1?x=1",
+    "ftp://127.0.0.1/v1",
+    # Addresses Python calls "private" that are not a local model host.
+    "http://[2002:808:808::1]/v1",  # 6to4 relay to 8.8.8.8
+    "http://[2001::1]/v1",  # Teredo
+    "http://[64:ff9b::808:808]/v1",  # NAT64 to 8.8.8.8
+    "http://[::ffff:8.8.8.8]/v1",  # IPv4-mapped public address
+    "http://169.254.169.254/v1",  # link-local, cloud metadata
+    "http://[fe80::1]/v1",  # IPv6 link-local
+    "http://192.0.2.1/v1",  # documentation range
+    "http://198.18.0.1/v1",  # benchmarking range
+    "http://100.64.0.1/v1",  # shared address space (CGNAT)
+    "http://172.32.0.1/v1",  # just outside 172.16.0.0/12
+    "http://0.0.0.0/v1",
+    "http://[::]/v1",
+    "http://localhost.example.com/v1",
+]
+
+
+@pytest.mark.parametrize("url", REFUSED_URLS)
 def test_local_endpoint_rules(url):
     with pytest.raises(ValidationError):
         make(base_url=url)
 
 
-@pytest.mark.parametrize(
-    "url",
-    [
-        "http://localhost:9/v1/",
-        "http://127.0.0.2:8080/v1",
-        "http://[::1]:8080/v1",
-        "http://10.0.0.5/v1",
-        "http://172.16.0.1/v1",
-        "http://172.31.255.254/v1",
-        "http://192.168.1.5:8080/v1",
-        "http://[fd12:3456::1]/v1",  # IPv6 unique local
-        "http://[::ffff:192.168.1.5]/v1",  # IPv4-mapped private address
-        "http://[::ffff:127.0.0.1]/v1",  # IPv4-mapped loopback
-    ],
-)
+ACCEPTED_URLS = [
+    "http://localhost:9/v1/",
+    "http://127.0.0.2:8080/v1",
+    "http://[::1]:8080/v1",
+    "http://10.0.0.5/v1",
+    "http://172.16.0.1/v1",
+    "http://172.31.255.254/v1",
+    "http://192.168.1.5:8080/v1",
+    "http://[fd12:3456::1]/v1",  # IPv6 unique local
+    "http://[::ffff:192.168.1.5]/v1",  # IPv4-mapped private address
+    "http://[::ffff:127.0.0.1]/v1",  # IPv4-mapped loopback
+]
+
+
+@pytest.mark.parametrize("url", ACCEPTED_URLS)
 def test_local_and_private_endpoints_accepted(url):
     assert make(base_url=url).base_url == url.rstrip("/")
 
@@ -241,13 +244,30 @@ def test_environment_variable_names_are_accepted(name):
 @pytest.mark.parametrize("short", ["tip", "none", "x", "local-key-0123"])
 def test_short_api_key_is_refused_without_echoing_it(short, tmp_path, monkeypatch):
     monkeypatch.setenv("BONSAI_HELP_API_KEY", short)
-    with pytest.raises(ValueError, match="at least 16 characters") as caught:
+    with pytest.raises(ValueError, match="the chat API key must be at least 16") as caught:
         make().api_key()
     assert short not in str(caught.value)
     key = tmp_path / "key"
     key.write_text(short + "\n", encoding="utf-8")
-    with pytest.raises(ValueError, match="at least 16 characters") as caught:
+    with pytest.raises(ValueError, match="the chat API key must be at least 16") as caught:
         make(api_key_env=None, api_key_file=str(key)).api_key()
+    assert short not in str(caught.value)
+
+
+@pytest.mark.parametrize("short", ["tip", "none", "x", "local-key-0123"])
+def test_short_embedding_key_is_named_as_the_embedding_key(short, tmp_path, monkeypatch):
+    # The message names which key is short (chat or embedding), never its value.
+    monkeypatch.setenv("BONSAI_HELP_API_KEY", SENTINEL)
+    monkeypatch.setenv("BONSAI_HELP_EMBED_KEY", short)
+    configured = make(embedding_api_key_env="BONSAI_HELP_EMBED_KEY")
+    assert configured.api_key() == SENTINEL
+    with pytest.raises(ValueError, match="the embedding API key must be at least 16") as caught:
+        configured.embedding_api_key()
+    assert short not in str(caught.value) and "chat" not in str(caught.value)
+    key = tmp_path / "embed-key"
+    key.write_text(short + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="the embedding API key must be at least 16") as caught:
+        make(embedding_api_key_file=str(key)).embedding_api_key()
     assert short not in str(caught.value)
 
 
@@ -321,3 +341,119 @@ def test_paths_resolve_against_repository_not_cwd(tmp_path, monkeypatch):
     assert config.artifact_path() == REPO / "runs"
     assert config.prompt_file() == REPO / "prompts" / "generator-v1.md"
     assert load_prompt(config)[0]
+
+
+EMBED_SENTINEL = "sk-embedding-sentinel-0123456789"
+
+
+def test_embedding_endpoint_and_credential_default_to_the_chat_ones(monkeypatch):
+    monkeypatch.setenv("BONSAI_HELP_API_KEY", SENTINEL)
+    config = make()
+    assert config.embedding_base_url is None
+    assert config.embedding_endpoint() == config.base_url
+    assert config.embedding_api_key() == SENTINEL
+    settings = config.public_settings()
+    assert settings["embedding_base_url"] == "http://127.0.0.1:8080/v1"
+    assert settings["embedding_authentication"] == "shared"
+    # Naming the chat endpoint explicitly is the same run identity as the default.
+    explicit = make(embedding_base_url="http://127.0.0.1:8080/v1/")
+    assert explicit.public_settings() == settings
+
+
+def test_separate_embedding_endpoint_and_credential(tmp_path, monkeypatch):
+    monkeypatch.setenv("BONSAI_HELP_API_KEY", SENTINEL)
+    monkeypatch.setenv("BONSAI_HELP_EMBED_KEY", EMBED_SENTINEL)
+    config = make(
+        embedding_base_url="http://127.0.0.1:8081/v1/",
+        embedding_api_key_env="BONSAI_HELP_EMBED_KEY",
+    )
+    assert config.base_url == "http://127.0.0.1:8080/v1"
+    assert config.embedding_endpoint() == "http://127.0.0.1:8081/v1"
+    assert (config.api_key(), config.embedding_api_key()) == (SENTINEL, EMBED_SENTINEL)
+    settings = config.public_settings()
+    assert settings["embedding_base_url"] == "http://127.0.0.1:8081/v1"
+    assert settings["embedding_authentication"] == "environment"
+    assert settings != make().public_settings()
+    key = tmp_path / "embed-key"
+    key.write_text(EMBED_SENTINEL + "\n", encoding="utf-8")
+    by_file = make(embedding_api_key_file=str(key))
+    assert by_file.embedding_api_key() == EMBED_SENTINEL
+    assert by_file.public_settings()["embedding_authentication"] == "file"
+    for config in (config, by_file):
+        text = json.dumps(config.public_settings())
+        assert EMBED_SENTINEL not in text and SENTINEL not in text
+        assert "api_key" not in text and "BONSAI_HELP_EMBED_KEY" not in text
+        assert str(key) not in text
+
+
+@pytest.mark.parametrize("url", REFUSED_URLS + ["https://api.example.com/v1"])
+def test_public_or_malformed_embedding_endpoint_is_refused_at_load(url):
+    with pytest.raises(ValidationError) as caught:
+        make(embedding_base_url=url)
+    assert "embedding_base_url" in str(caught.value)
+
+
+@pytest.mark.parametrize("url", ACCEPTED_URLS)
+def test_local_embedding_endpoints_accepted(url):
+    assert make(embedding_base_url=url).embedding_endpoint() == url.rstrip("/")
+
+
+def test_hosted_refusal_comes_first_for_a_public_embedding_endpoint():
+    with pytest.raises(HostedRefused):
+        make(hosted=True, embedding_base_url="https://api.example.com/v1")
+
+
+def test_at_most_one_embedding_credential_source():
+    with pytest.raises(ValidationError) as caught:
+        make(embedding_api_key_env="BONSAI_HELP_EMBED_KEY", embedding_api_key_file="/some/key")
+    assert "embedding_api_key_env" in str(caught.value)
+    assert make(embedding_api_key_file="/some/key").embedding_api_key_file == "/some/key"
+
+
+def test_embedding_key_is_never_echoed_by_validation_or_reading(tmp_path, monkeypatch):
+    # A pasted key in the environment-variable field is refused without being shown.
+    with pytest.raises(ValidationError) as caught:
+        make(embedding_api_key_env=EMBED_SENTINEL)
+    errors = caught.value.errors(include_input=False)
+    assert [e["loc"] for e in errors] == [("embedding_api_key_env",)]
+    for text in (str(caught.value), repr(caught.value), json.dumps(errors, default=str)):
+        assert EMBED_SENTINEL not in text
+    with pytest.raises(ValidationError) as caught:
+        make(embedding_api_key_env=EMBED_SENTINEL, embedding_api_key_file=EMBED_SENTINEL)
+    assert EMBED_SENTINEL not in str(caught.value)
+    # A missing, unreadable or short embedding key fails with the embedding source named.
+    monkeypatch.delenv("BONSAI_HELP_EMBED_KEY", raising=False)
+    with pytest.raises(ValueError, match="embedding API key is missing"):
+        make(embedding_api_key_env="BONSAI_HELP_EMBED_KEY").embedding_api_key()
+    with pytest.raises(ValueError, match="embedding API-key file"):
+        make(embedding_api_key_file=str(tmp_path / "absent")).embedding_api_key()
+    short = "embed-short-key"
+    monkeypatch.setenv("BONSAI_HELP_EMBED_KEY", short)
+    with pytest.raises(ValueError, match="embedding API key must be at least 16") as caught:
+        make(embedding_api_key_env="BONSAI_HELP_EMBED_KEY").embedding_api_key()
+    assert short not in str(caught.value)
+
+
+def test_cli_names_a_refused_embedding_endpoint(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("BONSAI_HELP_API_KEY", SENTINEL)
+    path = tmp_path / "public-embed.json"
+    path.write_text(
+        json.dumps(
+            {
+                "base_url": "http://127.0.0.1:8080/v1",
+                "embedding_base_url": "http://example.com/v1",
+                "model": "synthetic-model",
+                "embedding_model": "synthetic-embed",
+                "seed": 1,
+                "artifact_root": str(tmp_path / "runs"),
+            }
+        ),
+        encoding="utf-8",
+    )
+    transport = httpx.MockTransport(lambda request: pytest.fail("no request expected"))
+    for argv in (["generate", "--run-id", "e1"], ["gate", "--run-id", "e1"]):
+        code = cli.main([argv[0], "--config", str(path), *argv[1:]], transport=transport)
+        out, err = capsys.readouterr()
+        assert code == 2 and err.startswith("error: invalid run config")
+        assert "embedding_base_url" in err and SENTINEL not in out + err
+    assert not (tmp_path / "runs").exists()

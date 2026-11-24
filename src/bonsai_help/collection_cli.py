@@ -8,8 +8,10 @@ already exists); 3 controlled exhaustion (a generation run left `incomplete`, or
 collection out of batches). Ctrl-C returns 130 with the evidence kept for `--resume`;
 an interrupt that carries a note (the interrupted checkpoint failed) shows the note
 instead of the resume advice. Errors are one `error:` line on stderr, the exception's
-notes appended, never a traceback, and never contain the API key; the `instructor`
-logger is silenced while a command runs (each attempt's error is in the attempt ledger).
+notes appended, never a traceback, and never contain a configured API key (chat or
+embedding); the `instructor` logger is silenced while a command runs (each attempt's
+error is in the attempt ledger). A run config refused as a whole (an endpoint or the
+credential sources) shows its reason, which names fields and never values.
 """
 
 from __future__ import annotations
@@ -123,6 +125,11 @@ class _Secrets:
         self.values.append(value)
         return value
 
+    def embedding_key(self, config) -> str:
+        value = config.embedding_api_key()
+        self.values.append(value)
+        return value
+
     def scrub(self, text: str) -> str:
         for value in self.values:
             text = text.replace(value, "[REDACTED]")
@@ -160,7 +167,7 @@ def _run(args, transport) -> int:
         if _from_evidence(error):  # a saved record, not the config, fails its schema
             message = f"saved run evidence fails validation: {fields}; inspect the run"
             return _error(secrets, message, 1, error)
-        return _error(secrets, f"invalid run config: {fields}", 2, error)
+        return _error(secrets, f"invalid run config: {fields}{_root_reasons(error)}", 2, error)
     except (collection.CollectionError, gate.GateError, FixtureError) as error:
         return _error(secrets, str(error), 1, error)
     except (SamplerError, ConfigError) as error:
@@ -178,6 +185,17 @@ def _run(args, transport) -> int:
         return _error(secrets, message, 2, error)
     print(secrets.scrub(json.dumps(result, indent=2, ensure_ascii=False)))
     return code
+
+
+def _root_reasons(error: ValidationError) -> str:
+    """The whole-config refusals (endpoints, credential sources): fixed texts that name
+    fields, never values; field errors stay summarized by location only."""
+    reasons = [
+        e["msg"].removeprefix("Value error, ")
+        for e in error.errors(include_input=False, include_url=False)
+        if not e["loc"]
+    ]
+    return f" ({'; '.join(reasons)})" if reasons else ""
 
 
 def _from_evidence(error: BaseException) -> bool:
@@ -217,9 +235,9 @@ def _generator(config, secrets, transport) -> InstructorClient:
 
 def _embedder(config, secrets, transport) -> EmbeddingClient:
     return EmbeddingClient(
-        base_url=config.base_url,
+        base_url=config.embedding_endpoint(),
         model=config.embedding_model,
-        api_key=secrets.key(config),
+        api_key=secrets.embedding_key(config),
         timeout_seconds=config.timeout_seconds,
         _transport=transport,
     )
@@ -257,6 +275,7 @@ def _dispatch(args, secrets: _Secrets, transport) -> tuple[dict, int]:
                 lexicons=lexicons,
                 embedder=embedder,
                 embedding_model=config.embedding_model,
+                embedding_base_url=config.embedding_endpoint(),
                 fixtures_dir=fixtures,
             )
         return {k: v for k, v in report.items() if k != "per_item"}, (

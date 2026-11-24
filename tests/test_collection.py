@@ -156,6 +156,35 @@ def test_interrupted_batch_resumes_without_new_budget(config):
     assert summary["batches"][0]["unknown_outcomes"] == 1
 
 
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"embedding_base_url": "http://127.0.0.1:8081/v1"},
+        {"embedding_api_key_env": "SYNTHETIC_EMBED_KEY"},
+    ],
+)
+def test_resume_refuses_a_changed_embedding_endpoint_or_credential(tmp_path, config, change):
+    with pytest.raises(KeyboardInterrupt):
+        run_collect(config, UniqueClient(interrupt_call=5), max_batches=3)
+    root = config.artifact_path()
+    before = {p: p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+    client = UniqueClient()
+    with pytest.raises(ValueError, match="identical"):
+        run_collect(make_config(tmp_path, **change), client, max_batches=3, resume=True)
+    assert client.calls == 0
+    assert {p: p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()} == before
+    # The original settings still resume, and every record names the embedding endpoint.
+    summary = run_collect(config, UniqueClient(), max_batches=3, resume=True)
+    assert summary["status"] == "ready"
+    manifest = json.loads((root / "collections/col-1/manifest.json").read_text())
+    endpoint = config.embedding_endpoint()
+    assert manifest["identity"]["settings"]["embedding_base_url"] == endpoint
+    for batch in manifest["batches"]:
+        assert batch["gated"]["cross_batch"]["embedding_base_url"] == endpoint
+        report = json.loads((root / batch["run_id"] / "gate-report.json").read_text())
+        assert report["embedding_base_url"] == endpoint
+
+
 def test_new_collection_never_overwrites(config):
     run_collect(config, UniqueClient(), max_batches=1)
     with pytest.raises(FileExistsError):
@@ -404,7 +433,7 @@ class OperatorClient(UniqueClient):
         return AttemptResult(output, result.raw_response, None, None, result.response_model)
 
 
-@pytest.mark.parametrize("change", ["embedding_model", "lexicons"])
+@pytest.mark.parametrize("change", ["embedding_model", "embedding_base_url", "lexicons"])
 def test_batch_gated_outside_the_collection_is_refused(config, change):
     def start():
         return collect(
@@ -424,9 +453,11 @@ def test_batch_gated_outside_the_collection_is_refused(config, change):
         start()
     root = config.artifact_path()
     lexicons = load_lexicons(REFERENCE)
-    model = "synthetic-embedding"
+    model, endpoint = "synthetic-embedding", config.embedding_endpoint()
     if change == "embedding_model":
         model = "OTHER-synthetic-embedding"
+    elif change == "embedding_base_url":
+        endpoint = "http://127.0.0.1:8081/v1"
     else:
         lexicons = dataclasses.replace(
             lexicons, bim_ids={line: frozenset() for line in lexicons.bim_ids}
@@ -437,10 +468,52 @@ def test_batch_gated_outside_the_collection_is_refused(config, change):
         lexicons=lexicons,
         embedder=FakeEmbedder(),
         embedding_model=model,
+        embedding_base_url=endpoint,
         fixtures_dir=FIXTURES,
     )
     embedder, resume = FakeEmbedder(), True
     with pytest.raises(CollectionError, match="gate report"):
+        start()
+    manifest = json.loads((root / "collections/col-1/manifest.json").read_text())
+    assert manifest["batches"][0]["gated"] is None
+    assert not (root / "col-1-b02").exists()
+
+
+def test_gate_report_without_an_embedding_endpoint_is_refused_not_a_key_error(config):
+    # A report from before the embedding endpoint was recorded has no embedding_base_url.
+    # The collection refuses it as made with other settings; it never raises KeyError.
+    def start():
+        return collect(
+            config,
+            "col-1",
+            OperatorClient(),
+            embedder,
+            batch_count=5,
+            max_batches=2,
+            fixtures_dir=FIXTURES,
+            reference_dir=REFERENCE,
+            resume=resume,
+        )
+
+    embedder, resume = FakeEmbedder(fail=True), False
+    with pytest.raises(gate.GateError, match="embedding failed"):
+        start()
+    root = config.artifact_path()
+    gate.gate_run(
+        root,
+        "col-1-b01",
+        lexicons=load_lexicons(REFERENCE),
+        embedder=FakeEmbedder(),
+        embedding_model="synthetic-embedding",
+        embedding_base_url=config.embedding_endpoint(),
+        fixtures_dir=FIXTURES,
+    )
+    path = root / "col-1-b01" / gate.REPORT
+    report = json.loads(path.read_text(encoding="utf-8"))
+    assert report.pop("embedding_base_url") == config.embedding_endpoint()
+    path.write_text(json.dumps(report), encoding="utf-8")
+    embedder, resume = FakeEmbedder(), True
+    with pytest.raises(CollectionError, match="other settings than the collection's"):
         start()
     manifest = json.loads((root / "collections/col-1/manifest.json").read_text())
     assert manifest["batches"][0]["gated"] is None
@@ -655,6 +728,7 @@ def test_gate_report_decisions_are_rederived_before_adoption(config, edit):
         lexicons=load_lexicons(REFERENCE),
         embedder=FakeEmbedder(),
         embedding_model="synthetic-embedding",
+        embedding_base_url="http://127.0.0.1:8080/v1",
         fixtures_dir=FIXTURES,
     )
     dropped = [v for v in report["per_item"].values() if not v["retained"]]
@@ -873,6 +947,7 @@ def test_collection_reruns_the_quote_check_before_adopting_a_gate_report(config,
         lexicons=load_lexicons(REFERENCE),
         embedder=FakeEmbedder(),
         embedding_model="synthetic-embedding",
+        embedding_base_url="http://127.0.0.1:8080/v1",
         fixtures_dir=FIXTURES,
     )
     (fabricated,) = [i for i, v in report["per_item"].items() if not v["retained"]]

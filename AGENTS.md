@@ -138,8 +138,16 @@ run yet. `bonsai-help generate`, `gate`, `collect`, `collection-status`, `cohort
 moved it to B5 on November 24, 2026 ("Refuse hosted for now; record the rubric as moved to
 B5"). The final-review fixes and the cleanup of November 24, 2026 are recorded there as
 assistant's calls.
-Next is B5, the rubric and the baseline run: the run needs a reachable local endpoint and
-Chad's go-ahead. Then B6–B10 as the plan's §9 describes. B6 and B8 need Chad's labels.
+As of November 24, 2026, **B5 (rubric and baseline run) has started**, with no model run
+yet. The rubric `config/rubric.json` (`bonsai-rubric-v1`, checked by `bonsai-help rubric
+check | show`) is `assistant_drafted` and awaits Chad's decision; only a dated
+`docs/DECISIONS.md` entry in his words can make it `chad_accepted`, and a threshold change
+needs a dated amendment, a new rubric version and a code change. Chad chose a separate
+local embedding server (`embedding_base_url`) and the chat server's key file for the key
+("Yes, use that file"); the path stays in the git-ignored local config. The baseline run
+needs reachable local servers and Chad's go-ahead; which split it uses is open (plan file
+`docs/superpowers/plans/2026-11-24-b5-rubric-and-baseline.md`). Then B6–B10 as the plan's
+§9 describes. B6 and B8 need Chad's labels.
 
 B0 scope is the assistant's call, not Chad's: earlier pipeline modules were not copied.
 B4 ports them module by module, each with its tests, following `docs/PORTING-MAP.md`. The
@@ -226,7 +234,8 @@ Recorded as owner-reported, in Chad's words where given. Details in `docs/DECISI
   counts flag defects and feed the judge as evidence. They never replace a human or judge
   decision. Never weaken the gate to obtain a pass.
 - **Models.** Use an explicitly configured local OpenAI-compatible endpoint (`base_url`
-  ending in `/v1`, served model id, mode, timeout, max attempts). The client never
+  ending in `/v1`, served model id, mode, timeout, max attempts); an optional separate
+  embedding endpoint (`embedding_base_url`) follows the same rules. The client never
   discovers or starts a model and never changes local service settings. Never fall back
   to a hosted provider silently. A hosted path must be explicit, documented, authorized
   by Chad and cost-capped; until Chad authorizes one with an enforced cost cap, a run
@@ -234,7 +243,8 @@ Recorded as owner-reported, in Chad's words where given. Details in `docs/DECISI
   human ratings to a hosted service. A hosted judge may
   receive the cited doc sections it needs (plan §7 Step 4; Chad, November 21, 2026, in
   `docs/DECISIONS.md`).
-- **Credentials.** Exactly one source: an environment-variable name or a key-file path.
+- **Credentials.** Exactly one source per credential: an environment-variable name or a
+  key-file path (the embedding endpoint shares the chat source unless it names its own).
   No values in config, prompts, arguments or logs. Never log authorization headers or
   credential-file contents. `.env` is not auto-loaded. Local config files are git-ignored.
 - **Pipeline.** Every stage runs on its own against saved artifacts. Every assessed

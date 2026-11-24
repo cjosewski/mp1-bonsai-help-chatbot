@@ -203,7 +203,9 @@ def test_unknown_outcome_can_exhaust_a_slot(config):
     assert manifest["metrics"]["unknown_outcomes"] == 1
 
 
-@pytest.mark.parametrize("change", ["settings", "prompt", "code", "count"])
+@pytest.mark.parametrize(
+    "change", ["settings", "embedding_endpoint", "embedding_credential", "prompt", "code", "count"]
+)
 def test_resume_refuses_changed_settings_prompt_or_code(config, tmp_path, monkeypatch, change):
     prompt_file = tmp_path / "prompt.md"
     shutil.copyfile(config.prompt_file(), prompt_file)
@@ -214,6 +216,13 @@ def test_resume_refuses_changed_settings_prompt_or_code(config, tmp_path, monkey
     count = 5
     if change == "settings":
         config = config.model_copy(update={"temperature": 0.2})
+    elif change == "embedding_endpoint":
+        # Only the embedding server moves; the chat endpoint and everything else stay.
+        changed = config.model_dump() | {"embedding_base_url": "http://127.0.0.1:8081/v1"}
+        config = RunConfig.model_validate(changed)
+    elif change == "embedding_credential":
+        changed = config.model_dump() | {"embedding_api_key_env": "SYNTHETIC_EMBED_KEY"}
+        config = RunConfig.model_validate(changed)
     elif change == "prompt":
         prompt_file.write_text(prompt_file.read_text() + "\nBe brief.\n")
     elif change == "code":

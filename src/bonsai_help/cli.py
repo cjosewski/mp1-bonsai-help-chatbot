@@ -1,5 +1,6 @@
-"""Command line: `bonsai-help snapshot | docs | lexicon | setup | gold`, and the
-generation commands `generate | gate | collect | collection-status | cohort | cohort-status`.
+"""Command line: `bonsai-help snapshot | docs | lexicon | setup | gold`, the generation
+commands `generate | gate | collect | collection-status | cohort | cohort-status`, and
+`rubric check | show` (see `rubric`).
 
 Exit codes: 0 success; 1 check failed; 2 usage or invalid config; 3 git or network
 failure; 4 upstream differs from the pins; 5 refused to write. The generation commands
@@ -26,6 +27,7 @@ from bonsai_help import (
     gold,
     gold_review,
     lexicons,
+    rubric,
     setup,
     setup_review,
 )
@@ -220,6 +222,7 @@ def _parser() -> argparse.ArgumentParser:
     gold_paths(sub, data=False)
     sub.add_argument("answers", type=Path, help='JSON lines: {"item_id": ..., "fields": {...}}')
     collection_cli.add_commands(commands)
+    rubric.add_commands(commands)
     return parser
 
 
@@ -257,6 +260,8 @@ def main(
     if args.command in collection_cli.COMMANDS:
         return collection_cli.run(args, transport=transport)
     root = repository_root(Path.cwd())
+    if args.command == "rubric":
+        return rubric.run(args, root=root or Path.cwd())
     base = root or Path.cwd()
     shown_roots: list[tuple[Path, str]] = []
     try:

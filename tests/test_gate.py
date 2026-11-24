@@ -24,6 +24,7 @@ from bonsai_help.schemas import CitedSection, GeneratedItem, GenerationOutput
 ROOT = Path(__file__).resolve().parents[1]
 LEX = load_lexicons(ROOT / "reference")
 EMBED_MODEL = "synthetic-embedding"
+EMBED_URL = "http://127.0.0.1:8081/v1"
 DIMENSIONS = {"D1", "D2", "D3", "D4", "D5", "D6"}
 
 
@@ -99,6 +100,7 @@ def evaluate(records, embedder=None, **kwargs):
         fixtures_dir=FIXTURES,
         embedder=embedder or FakeEmbedder(),
         embedding_model=EMBED_MODEL,
+        embedding_base_url=EMBED_URL,
         **kwargs,
     )
 
@@ -109,6 +111,7 @@ def test_clean_balanced_batch_is_retained_and_recorded():
     assert report["retained_ids"] == sorted(r.item_id for r in records)
     assert report["gate_pass_rate"] == 1.0
     assert report["embedding_model"] == EMBED_MODEL
+    assert report["embedding_base_url"] == EMBED_URL
     assert report["threshold"] == 0.92
     assert report["distribution"]["passed"] is True
     assert {c["retained"] for c in report["per_category"].values()} == {2}
@@ -280,6 +283,7 @@ def run_gate(config, embedder=None, run_id="test-run"):
         lexicons=LEX,
         embedder=embedder or FakeEmbedder(),
         embedding_model=EMBED_MODEL,
+        embedding_base_url=EMBED_URL,
         fixtures_dir=FIXTURES,
     )
 
@@ -584,6 +588,7 @@ def test_gate_run_reads_section_text_from_the_verified_fixture_slice(config, tmp
             lexicons=LEX,
             embedder=FakeEmbedder(),
             embedding_model=EMBED_MODEL,
+            embedding_base_url=EMBED_URL,
             fixtures_dir=copy,
         )
     assert not (run_dir(config) / "gate-report.json").exists()

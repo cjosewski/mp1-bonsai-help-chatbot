@@ -2,6 +2,7 @@
   "base_url": "http://127.0.0.1:8080/v1",
   "model": "local-model-id",
   "embedding_model": "local-embedding-model-id",
+  "embedding_base_url": "http://127.0.0.1:8081/v1",
   "purpose": "smoke",
   "split": "development",
   "prompt_path": "prompts/generator-v1.md",
