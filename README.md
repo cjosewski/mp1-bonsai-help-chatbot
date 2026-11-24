@@ -23,16 +23,21 @@ edits Chad directed for this public copy are recorded in
 
 **Milestones B0 (repository readiness), B1 (documentation snapshots) and B2 (lexicons
 and setup facts) are done. B3 (gold set) was withdrawn from MP1 on November 23, 2026**
-and moves to Mini Project 4; its tooling and the 6 published items stay here, frozen, and
-the paused review packets stay unimported. B4 is done (no model run yet); it has no rubric,
-which Chad moved to B5 on November 24, 2026. The B3 history below is kept as a
-record. Install, the offline tests, the documentation corpus
-rebuild, the section index, the lexicons and the setup-fact checks run today; steps 1 and 2 of the pipeline run offline against fake endpoints;
-every other step below is marked *not yet implemented* and will be filled in when its
-milestone lands. Chad's decisions on the B2 setup records (packet SR-001) are applied: 38
-accepted and fact row SF-001 rejected. **B3 is in progress**: Chad's November 22, 2026 decisions on
-the version pairings, the IFC schemas, review packets and drafting are applied (see
-[`docs/DECISIONS.md`](docs/DECISIONS.md)), and the gold-set tooling is built (slot plan,
+and moves to Mini Project 4; its tooling, its tests and the 6 published items stay here,
+frozen, and the paused review packets GP-021 to GP-025 stay unimported. **B4 (generation
+and the first-pass gate) is done, with no model run yet**; it has no rubric, which Chad
+moved to B5 on November 24, 2026. **Next is B5**, the rubric and the baseline run; the run
+needs a reachable local endpoint and Chad's go-ahead. Install, the offline tests, the
+documentation corpus rebuild, the section index, the lexicons and the setup-fact checks
+run today; steps 1 and 2 of the pipeline run offline against fake endpoints; every other
+step below is marked *not yet implemented* and will be filled in when its milestone lands.
+Chad's decisions on the B2 setup records (packet SR-001) are applied: 38 accepted and fact
+row SF-001 rejected. Setup review SR-003 (fact row SF-021) stays an MP1 item and is still
+pending.
+
+B3 history, kept as a record: Chad's November 22, 2026 decisions on the version pairings,
+the IFC schemas, review packets and drafting were applied (see
+[`docs/DECISIONS.md`](docs/DECISIONS.md)), and the gold-set tooling was built (slot plan,
 lane batches, checker, review packets, import, publish, pattern score; see
 [Gold set](#gold-set-b3)). Chad answered the gold-set count questions on November 22,
 2026. All 110 items were drafted by assistant lanes; Chad imported his decisions on packets
@@ -49,9 +54,10 @@ a few correct phrasings again, with no draft changed. Chad then chose to stop pa
 (November 23, 2026): `gold-check-v6` narrows the ", which" contrast, a scoring-only checker
 change no longer makes packets stale, and pattern checks are reported as heuristics while
 meaning is graded by Chad's blind labels and the LLM judge.
-All 110 heads pass a complete-mode check with the fixture-slice rule. The 104 pending drafts
-await Chad's decisions in replacement packets GP-021 to GP-025; fact row SF-021 is in SR-003.
-Older packets remain as records. No new review decisions were imported.
+All 110 heads passed a complete-mode check with the fixture-slice rule. Before B3 was
+withdrawn, the 104 redrafts were exported for Chad's decisions in replacement packets
+GP-021 to GP-025; those packets are paused, unimported, and not reviewed for MP1. Older
+packets remain as records. No new review decisions were imported.
 
 | Milestone | What it delivers | Status |
 | --- | --- | --- |
@@ -114,8 +120,9 @@ publish, the interactive-terminal gate on import and the held-out loading rule.
 The B4 tests use clearly synthetic model outputs and fake transports: trace files and
 no-overwrite rules, the seven-field schema, run config and credential rules (the hosted
 refusal, the local-endpoint allowlist, key names and key length), the section sampler, the
-model client (retries, timeouts, redaction, credential echo), generation (resume,
-exhaustion, unknown outcomes, unstorable responses), each deterministic check, the gate,
+model client (retries, timeouts, redaction, plain and JSON-escaped credential echo,
+environment proxies ignored), generation (resume, exhaustion, unknown outcomes, transport
+failures, unstorable responses, code and prompt identity), each deterministic check, the gate,
 collections, cohorts and the generation commands with their exit codes.
 
 ## Rebuild the documentation corpus
@@ -433,7 +440,13 @@ loopback, RFC 1918 or IPv6 unique local (fc00::/7) address; other addresses are 
 `api_key_env` names an upper-case environment variable (default `BONSAI_HELP_API_KEY`),
 or `api_key_file` names a key file. The key must be at least 16 characters; a local server
 that ignores the key still needs a long random placeholder. Raw runs go under `runs/`
-(git-ignored) or a path outside the repository.
+(git-ignored) or a path outside the repository. Run the commands from the repository
+checkout: the code identity hashes every package module plus `pyproject.toml` and
+`uv.lock` beside `src/`, and if either file is missing the command is refused before
+anything is written ("cannot read uv.lock: missing; the implementation identity needs it
+beside src/ (run from the repository checkout)", exit 2). The tool is not supported as an
+installed wheel; the sampler likewise reads the committed `config/doc-manifest.json` of
+the checkout.
 
 ```text
 bonsai-help generate --config CONFIG --run-id RUN_ID [--count COUNT] [--resume]
@@ -455,21 +468,52 @@ Defaults: `--count` 5 (a multiple of 5), `--target-retained` 50, `--batch-count`
 
 | Command | What it does and writes |
 | --- | --- |
-| `generate` | Plans balanced slots, offers each slot pinned sections from the fixture slice, and calls the configured model once per slot (with bounded retries). Writes a new run: manifest, prompt copy, `starts.jsonl` (a durable start before each call), `attempts.jsonl` (every completion, valid or not, raw), `items.jsonl` (schema-valid items in an envelope with the setup id, category, citations, prompt version, model, `generated_at` timestamp and trace id). `generated_at` is the same text as the attempt's `completed_at`. A completion that cannot be kept as returned is a failed attempt that uses up that attempt (the slot retries within its budget), never an unknown outcome: `UnserializableResponse` (raw response not strict JSON, kept as JSON text), `EnvelopeInvalid` (no valid envelope) or `CredentialEcho` (the response contains the configured key; raw body kept redacted, item not kept). `--resume` keeps the original settings, prompt and code identity and verifies hashes, including each item's `generated_at` against its attempt; a gated run cannot be resumed. |
-| `gate` | Runs the first-pass gate on a saved run: schema, deterministic checks, exact and near-duplicate removal, category balance. Writes one file, `gate-report.json`, next to the run, once: each item's check results and drop reasons (`per_item`), `retained_ids`, `drops_per_check`, `pass_rates_per_check` (every check, the evidence-only ones too, over `pass_rates_denominator`, the schema-valid items entering the gate), exact and near duplicates, per-category counts and the distribution result, the embedding model and the threshold (0.92). Retained payloads are read from `items.jsonl` by `retained_ids`. Unknown Blender operators and menu paths are evidence only; the other checks drop. Checks are heuristics that drop obvious defects and feed the judge; they never replace a human or judge decision. |
-| `collect` | Runs generate and gate in batches until enough items are retained (at least 10 per category) or the batch budget is spent. Each batch has its own derived seed, and retained items are screened for near-duplicates across batches; a question that exactly repeats an accepted member's is dropped. Batch run IDs `<collection-id>-b01` to `-bNN` belong to the collection: a fresh `collect` refuses (exit 2) if any of them within `--max-batches` already exists, and a batch run it does not own, or a gate report made with another embedding model, threshold, minimum share or lexicons, is refused (exit 1), never adopted. An assessed collection (`purpose` `baseline` or `corrected`) without `model_identity` and `model_sha256`, or a fixture slice that fails verification, is refused before anything is written. Batch denominators are recomputed from the hash-bound ledgers. |
+| `generate` | Plans balanced slots, offers each slot pinned sections from the fixture slice, and calls the configured model once per slot (with bounded retries). Writes a new run: manifest, prompt copy, `starts.jsonl` (a durable start before each call), `attempts.jsonl` (every completion, valid or not, raw), `items.jsonl` (schema-valid items in an envelope with the setup id, category, citations, prompt version, model, `generated_at` timestamp and trace id). `generated_at` is the same text as the attempt's `completed_at`. A completion that cannot be kept as returned is a failed attempt that uses up that attempt (the slot retries within its budget), never an unknown outcome: `UnserializableResponse` (raw response not strict JSON; kept as text, as JSON with a safe `repr` for odd values, else its `repr`, else `<unrepresentable TYPE>`, so storing it never fails, even for a custom client's mapping that raises when read), `EnvelopeInvalid` (no valid envelope) or `CredentialEcho` (the response contains the configured key, plain or JSON-escaped; raw body kept redacted, a string that holds the key only in escaped form replaced whole by `[REDACTED: credential echo]`, item not kept). `--resume` keeps the original settings, prompt and code identity and verifies hashes, including the manifest's `prompt_sha256` and the run's `prompt.md` copy against the prompt the run is started or resumed with, and each item's `generated_at` against its attempt; it refuses a request start that follows a slot's successful completion. A gated run cannot be resumed. |
+| `gate` | Runs the first-pass gate on a saved run: schema, deterministic checks, exact and near-duplicate removal, category balance. Writes one file, `gate-report.json`, next to the run, once: each item's check results and drop reasons (`per_item`), `retained_ids`, `drops_per_check`, `pass_rates_per_check` (every check, the evidence-only ones too, over `pass_rates_denominator`, the schema-valid items entering the gate), exact and near duplicates, per-category counts and the distribution result, the embedding model and the threshold (0.92). Retained payloads are read from `items.jsonl` by `retained_ids`. Unknown Blender operators and menu paths are evidence only; the other checks drop. Checks are heuristics that drop obvious defects and feed the judge; they never replace a human or judge decision. A zero or non-finite embedding vector stops the gate with an error and no report; two schema-valid attempts for one slot or item ID are refused ("more than one successful attempt for slot ...; inspect the run"). |
+| `collect` | Runs generate and gate in batches until enough items are retained (at least 10 per category) or the batch budget is spent. Each batch has its own derived seed, and retained items are screened for near-duplicates across batches; a question that exactly repeats an accepted member's is dropped. Batch run IDs `<collection-id>-b01` to `-bNN` belong to the collection: a fresh `collect` refuses (exit 2) if any of them within `--max-batches` already exists, and a batch run it does not own, or a gate report made with another embedding model, threshold, minimum share or lexicons, is refused (exit 1), never adopted. An assessed collection (`purpose` `baseline` or `corrected`) without `model_identity` and `model_sha256`, or a fixture slice that fails verification, is refused before anything is written. Batch denominators are recomputed from the hash-bound ledgers. A gate report made outside the collection is adopted only if its retention decisions re-derive from its per-item checks (retained flags, `dropped_by`, exact duplicates, `retained_ids`, per-category counts, the distribution result; near-duplicate drops stay trusted); otherwise "gate report decisions differ from its per-item checks; inspect it" (exit 1). A batch slot plan that is not a list of exact slot objects is "batch slot plan is malformed; inspect it" (exit 1). A cross-batch embedding that fails, or returns a zero or non-finite vector, stops the screen with exit 1 and leaves that batch unscreened for `--resume`. |
 | `collection-status` | Reads a collection and reports its batches, retained counts per category and whether it is ready. |
-| `cohort` | Freezes 10 retained items per category (seeded) from a ready collection into a new cohort. |
+| `cohort` | Freezes 10 retained items per category (seeded) from a ready collection into a new cohort. The collection's freeze receipt (`frozen.json`) is written before `cohort.json`, so a failed cohort write leaves a frozen collection with a missing cohort to inspect and never lets the collection freeze a second cohort. |
 | `cohort-status` | Reads a frozen cohort and verifies its hashes. |
 
+The two evidence-only checks read the version line's pinned lexicons.
+`menu_paths_known` matches each part of a path against whole UI labels: the Manual's menu
+paths, `:guilabel:` texts and per-operator labels (such as "Cube" for
+`mesh.primitive_cube_add`), the Bonsai docs' UI paths and the Bonsai source labels and
+button texts. Only the word just before the first label is checked: it must be lowercase
+prose or, when it is the step's first word, one of a short list of lead-in words (Open, Go,
+Click, Select, Use, Press, Navigate, Then, Now, Finally, Using, Access, In, From, Under and a
+few more; `checks.LEAD_IN_WORDS`) or any word ending in a comma or colon ("Finally, File >
+Export."). A two-word lead-in from that list (Right click, Double click) may open the step
+the same way. So "Fabricated Settings > Export." and "Finally, Bogus File > Export." are
+flagged while "Open Object > Apply > Scale." and "In Object Mode, open Object > Apply >
+Scale." pass. `blender_operators_known` accepts an id the Manual
+lists, or one that fits a Manual wildcard entry where each `*` stands for one or more whole
+underscore-separated words, never the empty string (`object.*clear` accepts
+`object.rotation_clear` but not `object.clear`).
+
 Runs, gate reports, collections and cohorts are never overwritten; a new experiment gets
-a new ID. After a hard kill between a ledger append and its checkpoint, resume refuses the
-run: inspect it, do not repair it.
+a new ID. Every ledger write is an fsynced append followed by an atomic manifest checkpoint
+that records the ledger hashes. A hard kill (SIGKILL, power loss) between the two, or in
+the middle of an append, leaves a run that resume refuses: first for the leftover
+`.generation.lock` ("lock .generation.lock present: a writer is active; inspect", exit 1),
+then for the ledger (exit 1). A kill between an append and its checkpoint, or one that cuts
+off only an append's final newline, gives "changed or missing <ledger>; preserve the run
+for inspection"; a cut inside the record gives "invalid JSONL record at <file>:<n>;
+preserve and inspect it". A kill before a new run's first manifest leaves a directory that
+resume does not find and a new run with that ID cannot reuse (exit 2). If the
+"interrupted" checkpoint after Ctrl-C or an error itself fails, resume refuses the run
+only when a ledger append came before it without its checkpoint; otherwise the manifest
+still holds the right hashes and the run resumes. Inspect a refused run and choose a new
+run ID; nothing repairs it (details in `docs/DECISIONS.md`, B4 cleanup).
 
 Exit codes: 0 done; 1 a check failed or the evidence is not ready (including saved run
-evidence that fails validation); 2 usage or config error (including `hosted: true`); 3
+evidence that fails validation, and a missing or unreadable committed `doc-manifest.json`,
+which is a fixture error); 2 usage or config error (including `hosted: true`); 3
 controlled exhaustion (attempt or batch budget spent, or an unfinished run); 130
-interrupted (Ctrl-C), with the evidence kept: continue with `--resume`.
+interrupted (Ctrl-C), with the evidence kept: continue with `--resume`. If the run's
+"interrupted" checkpoint also failed, the error line shows that failure instead of the
+resume advice: inspect the run, since resume may refuse it. Any error line ends with the
+notes the exception carries.
 
 Three denominators are reported separately and never mixed:
 

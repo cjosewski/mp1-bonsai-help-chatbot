@@ -136,7 +136,8 @@ run yet. `bonsai-help generate`, `gate`, `collect`, `collection-status`, `cohort
 `prompts/generator-v1.md` and `config/run.example.json`. The assistant's calls are in
 `docs/DECISIONS.md` (November 23, 2026: B4 generation and gate). B4 has no rubric: Chad
 moved it to B5 on November 24, 2026 ("Refuse hosted for now; record the rubric as moved to
-B5"). The final-review fixes of November 24, 2026 are recorded there as assistant's calls.
+B5"). The final-review fixes and the cleanup of November 24, 2026 are recorded there as
+assistant's calls.
 Next is B5, the rubric and the baseline run: the run needs a reachable local endpoint and
 Chad's go-ahead. Then B6–B10 as the plan's §9 describes. B6 and B8 need Chad's labels.
 

@@ -1204,6 +1204,8 @@ Rulings made while building:
 - **Hard kill.** A hard kill between a ledger append and its checkpoint leaves a run that
   resume refuses. Inspect it; never repair it (the `AGENTS.md` rule on leftover locks and
   tails).
+  *Detail (November 24, 2026):* the exact windows and the refusal each one gives are in
+  "B4 cleanup (assistant's calls)" below.
 
 No live model run has happened. B5 needs a reachable local endpoint and Chad's go-ahead.
 
@@ -1337,6 +1339,9 @@ Deterministic checks and the gate:
   whole-id patterns where `*` matches `[a-z0-9_]*`. A deliberate loosening for these
   documented forms only; every other id is checked by exact membership. Reason:
   `view3d.select_box` and similar real ids were reported as unknown.
+  *Correction (November 24, 2026, B4 cleanup):* `*` now stands for one or more whole
+  underscore-separated words, never the empty string; see "B4 cleanup (assistant's
+  calls)" below.
 - **Per-check pass rates.** `gate-report.json` gains `pass_rates_per_check` (per check:
   dimension, `evidence_only`, evaluated, passed, failed, dropped, `pass_rate`) and
   `pass_rates_denominator` (schema-valid items entering the gate). The evidence-only set is
@@ -1364,6 +1369,8 @@ Collections and the commands:
 - **Preflight before writes.** `collect` checks the assessed-purpose model identity and the
   fixture slice before it creates the collection, so a refused start leaves the collection
   ID usable. The model-identity condition duplicates `generate_run`'s.
+  *Correction (November 24, 2026, B4 cleanup):* the duplicate is gone; `collect` and
+  `generate_run` both call `generate.check_assessed`.
 - **Cross-batch exact duplicates against members.** A question that exactly repeats an
   accepted member's is dropped, and `duplicate_of` always names a member; before, a
   question of an item later dropped as a near-duplicate also counted. A collection
@@ -1395,6 +1402,247 @@ Prompt and records:
   appear verbatim in the cited section" is not implemented: the item has no quote field,
   and B4 checks only that every cited section was offered. Whether to add a quote check
   (and for which fields) is open for Chad; it is not decided here.
+
+### November 24, 2026: B4 cleanup (assistant's calls)
+
+After the final-review fixes, a cleanup pass took the fix-review notes (R1 to R12), the
+per-task deferred minors (D1 to D6) and two leftovers (L1, L2). These are the
+assistant's calls, not owner decisions; Chad can overrule any of them, and a change is a
+new dated entry. Each fix arrived with a regression test that failed before it, except
+L1 (dead configuration, nothing to fail) and the added tests for behaviour that was
+already correct. No model run happened; the checks stay heuristics.
+
+Checks made stricter:
+
+- **Lead-in words (R5, `menu_paths_known`, evidence only).** A capitalized word just
+  before the first menu label of a step counts as lead-in prose only if it is in
+  `checks.LEAD_IN_WORDS` (open, go, click, right click, double click, select, choose,
+  pick, use, press, navigate, find, locate, expand, switch, then, next, in, from, under,
+  via); any other capitalized word there is part of an invented label ("Fabricated
+  Settings > Export." is flagged). Leading tokens with no letters ("1)") are skipped, a
+  small loosening for numbered steps. Every committed Manual and Bonsai docs path on both
+  lines still passes, plain and as "Open {p}." or "Go to {p}.". Only the word just before
+  the label is checked: it is lead-in prose when lowercase, or when it is the step's first
+  word and in the list. *Follow-up:* loosened by N6 below (clause breaks, seven more words,
+  two-word lead-ins).
+- **Wildcards need a whole word (R7, `blender_operators_known`, evidence only).** A Manual
+  wildcard `*` stands for one or more whole underscore-separated words, never the empty
+  string. `object.clear`, `object.bogusclear` and `curve.primitiveadd` are now flagged.
+  Accepted as the Manual's notation allows: `object.*clear` accepts any
+  `object.<words>_clear`, an invented `object.bogus_clear` included, and
+  `curve.primitive*add` and `surface.primitive*add` accept any `primitive_<words>_add`.
+- **Unusable embedding vectors (D5, gate).** A zero or non-finite embedding vector is a
+  `GateError` and no report is written, instead of a cosine of 0.0 that made such an item
+  never a near duplicate.
+- **Unusable cross-batch vectors (D5, collection).** The cross-batch screen refuses a zero
+  or non-finite vector before scoring, matching the gate's own refusal:
+  `CollectionError("cross-batch embedding returned a zero or non-finite vector")`, exit 1,
+  with the batch's screen left unset for `--resume`. Before, such a vector scored a cosine
+  of 0.0 against every member, so a broken embedding let an item through as never a near
+  duplicate. This change came from the integration pass, not from a listed item.
+- **Two successful attempts for one slot (D5, gate).** A second schema-valid attempt for
+  the same slot or item ID is refused ("more than one successful attempt for slot ...;
+  inspect the run") instead of being collapsed silently.
+- **Gate report decisions re-derived (R11, collection).** Before a batch's gate report is
+  bound to a collection, its retained flags, `dropped_by`, exact duplicates,
+  `retained_ids`, `per_category`, `distribution.passed`, `input_count` and per-item
+  category are re-derived from its already verified per-item checks. Near-duplicate drops
+  stay trusted, but only for a check-passing item that is not an exact duplicate, with
+  pairs that match. A mismatch is "gate report decisions differ from its per-item checks;
+  inspect it" and the batch stays ungated.
+- **Slot plan shape (R9, collection).** Each slot entry of a gated batch's run manifest
+  must be an object with exactly the slot fields, all strings; otherwise "batch slot plan
+  is malformed; inspect it", exit 1, instead of a traceback.
+- **Implementation identity needs the project files (D3a, generation).**
+  `implementation_identity` raises `FileNotFoundError` when `pyproject.toml` or `uv.lock`
+  is missing beside `src/`, instead of leaving it out of the identity, so `generate` and
+  `collect` refuse to start outside a repository checkout, before any write (exit 2,
+  "cannot read uv.lock: missing; the implementation identity needs it beside src/ (run
+  from the repository checkout)"). Reason: a missing lock silently weakened the code
+  identity that resume and collection compare.
+- **Prompt copy hash-checked (D3c, generation).** `validate_evidence`, on every start and
+  resume, requires the run's `prompt.md` to exist and to hash to the manifest's
+  `prompt_sha256` ("changed or missing prompt.md; preserve the run for inspection", exit 1).
+  Reason: the copy is the evidence of the exact prompt sent. *Follow-up:* N5 below also
+  binds the manifest's field to the fingerprinted prompt.
+- **No start after a success (D3e, generation).** `validate_evidence` refuses a slot whose
+  successful attempt is not its last request start ("a request start for <slot> follows
+  after its successful completion"). `generate` never writes one, so only tampered or
+  corrupt evidence is affected; before, it passed when the later attempt was missing or
+  failed.
+- **Escaped credential echo (R4, model client).** A key that appears JSON-escaped
+  (`\uXXXX` or backslash escapes, up to 4 nested levels) anywhere in a response now counts
+  as an echo: the attempt fails as `CredentialEcho`, and a stored string that holds the key
+  only in escaped form is replaced whole with `[REDACTED: credential echo]`, because an
+  escaped span cannot be cut out exactly. Plain-key redaction is unchanged, and clean
+  content with ordinary escapes is kept verbatim. Before, the escaped key survived in
+  `raw_response`, and "the raw response is kept redacted" was not true.
+- **Committed manifest errors (D1, sampler).** A missing or unreadable
+  `config/doc-manifest.json`, or a source absent from it, is a `FixtureError` (exit 1 under
+  the generation commands, no paths in the text), instead of an `OSError` (exit 2) or an
+  uncaught `KeyError` traceback.
+
+Checks made looser:
+
+- **Manual operator labels are UI labels (R6, `menu_paths_known`, evidence only).** The
+  `label` of every Manual `blender_operator` and `operator_ref` entry (such as "Cube" for
+  `mesh.primitive_cube_add`) joins the menu lexicon; null labels are skipped. Only labels
+  the pinned Manual documents are added and whole-label matching is unchanged ("Bogus
+  Cube" is still flagged). Some of these labels are section headings rather than exact UI
+  strings ("Removing Drivers"), accepted because the check is evidence only.
+- **`gate-items.jsonl` no longer freezes a run (L1, generation).** `generate.GATE_FILES` is
+  now only `gate-report.json` (`gate.REPORT`). No code wrote or read `gate-items.jsonl`, so
+  only a stray file by that name stops freezing a run; `gate-report.json` still does.
+
+Other behaviour and interface changes:
+
+- **Storing a raw value never raises (R2, generation).** A custom `ModelClient`'s raw value
+  with a non-string key, a cycle, a `repr` that raises or very deep nesting is stored as
+  text (JSON with a safe `repr` default, then `repr`, then `<unrepresentable TYPE>`) in a
+  recorded `UnserializableResponse` attempt. Reason: an exception there left a start with
+  no completion record. *Follow-up:* as first landed, only those cases were covered; N1
+  below extends it to any exception (a mapping whose `items()` raises).
+- **The interrupted checkpoint keeps the original error (D3d, generation).** If the
+  "interrupted" checkpoint itself fails, the original exception propagates with the
+  checkpoint failure added as a note, instead of being replaced by it; a second
+  `KeyboardInterrupt` still propagates. Reason: the original error is the one to inspect.
+  *Follow-up:* N2 below makes the CLI print that note.
+- **Cut multi-byte characters (R3, tracing).** `read_records` decodes each line inside the
+  same error mapping, so a record cut inside a UTF-8 character reads "invalid JSONL record
+  at <file>:<n>; preserve and inspect it" instead of a bare `UnicodeDecodeError`. Same
+  detection; records still end only at LF.
+- **Freeze receipt first (D6, cohort).** `freeze_cohort` writes the collection's
+  `frozen.json` before `cohort.json`. A failed cohort write now leaves a frozen collection
+  with a missing cohort to inspect ("collection already frozen; inspect the existing
+  cohort", "no cohort", and `collect --resume` refused), never a collection free to freeze
+  a second cohort under another ID.
+- **Shared checks (R10, D6).** `generate.check_count` and `generate.check_assessed` are
+  public; `generate_run` and `collect` both call them, so the copied assessed-purpose
+  refusal is gone. The private `_check_count` was removed, not kept as an alias: nothing
+  calls it, because `collection` now calls `generate.check_count`.
+- **Sampler interface (D1).** `sampler.MANIFEST` derives from `config.REPOSITORY`, so the
+  checkout root is defined once, and the undocumented `manifest` keyword of
+  `verify_fixtures` and `fixture_sections` is removed: the sampler always verifies against
+  the committed manifest. The tool runs from its checkout and is not supported as an
+  installed wheel.
+- **Shared client plumbing (D2, model client).** The chat and embedding clients share one
+  settings check, one SDK constructor (no SDK retries, no redirects, `trust_env=False`) and
+  one credential redactor, so embedding error messages also get the escaped-echo
+  redaction. Proxy tests cover `HTTP_PROXY`, `HTTPS_PROXY` (on an https endpoint, the only
+  scheme httpx maps it to) and `ALL_PROXY` for both clients.
+- **Tests added for behaviour already correct.** Transport failures through
+  `InstructorClient` (one HTTP request per attempt, each a recorded failure, no unknown
+  outcome; D3f); code identity on a copied tree, where an edited or added module makes a
+  resume refuse (D3b); resume after a gate or cross-batch embedding failure regenerates and
+  requests nothing (D6); an item failing only the evidence-only checks is not dropped (R8,
+  replacing a test that restated `checks.EVIDENCE_ONLY`); renamed and added gate tests for
+  complete and really incomplete runs (D5).
+
+Hard-kill windows (D3, documented, behaviour unchanged). Every ledger write is
+`append_record` (fsync) followed by an atomic manifest checkpoint (temp file, fsync,
+`os.replace`) that records `artifacts_sha256`. A hard kill (SIGKILL, power loss) can land
+(1) after a `starts.jsonl` append, before its checkpoint; (2) after an `attempts.jsonl`
+append, before the `items.jsonl` append or the checkpoint; (3) after an `items.jsonl`
+append, before its checkpoint (also inside `recover_items` on resume); (4) in the middle
+of an append; (5) between creating a new run's directory, ledgers and `prompt.md` and its
+first `manifest.json`. `.generation.lock` stays, so resume first fails with "lock
+.generation.lock present: a writer is active; inspect" (exit 1). With the lock inspected
+and removed, cases 1 to 3 fail with "changed or missing <ledger>; preserve the run for
+inspection" (exit 1). Case 4 fails with "invalid JSONL record at <file>:<n>; preserve and
+inspect it" (exit 1) when the cut falls inside the JSON object; when the cut loses only the
+final newline, the line still reads as a record and the hash check fails instead, with
+"changed or missing <ledger>" as in cases 1 to 3. Case 5 leaves a directory with no
+manifest: resume says "no run ... to resume" and a new run with that ID is refused because
+the directory exists (exit 2). `manifest.json` is never partial, but a temp file may be
+left in the run directory. A failed "interrupted" checkpoint leaves a run that resume
+refuses only when a ledger append came before it without its own checkpoint (the state of
+cases 1 to 3), with the checkpoint failure noted on the original exception. When the
+interrupt came after the last checkpoint, for example during the model call that follows
+a checkpointed start, the manifest still holds the correct hashes with status `running`,
+and that run resumes normally. Nothing repairs a refused run: inspect it and choose a new
+run ID.
+
+Kept as is (no behaviour change):
+
+- **`schema_version` stays "1" (R1).** The envelope change is recorded above (Item
+  timestamp); no code reads or dispatches on a manifest's `schema_version` and no run
+  exists, so a bump to "2" across four writers would protect no reader.
+- **Generic residual counts every word (D4).** Not counting filler words toward the
+  5-word residual would make `tip_not_generic` and `safety_not_generic`, which drop items,
+  stricter and would drop short specific text ("Be careful with Purge: it deletes unused
+  types." and "Take your time to set the CRS before the false origin.", both pinned by a
+  test). The cost: padded generic text passes too. "Be careful and take your time and
+  always remember to be safe." and "Take your time and be careful, it is really very
+  important." both pass `tip_not_generic` today, while "Good luck, take your time!" is
+  still dropped. Such an item reaches the judge, where D2 and D6 are graded anyway.
+- **Readiness ignores the 95% figure (D6).** Readiness means enough retained items and
+  every category at its minimum; initial-attempt validity is reported separately, as
+  `AGENTS.md` requires, and gating readiness on it would mix two denominators.
+- **Exit 3 has two meanings (D6).** Controlled exhaustion for the generation commands,
+  git or network failure for the snapshot commands; both docstrings say so and the
+  generation codes are pinned by tests.
+- **Evidence errors classified by function name (D6).** `collection_cli` tells saved-evidence
+  errors (exit 1) from settings errors (exit 2) by the raising functions in
+  `EVIDENCE_FUNCTIONS`. It works and is tested; a shared `EvidenceError` would have to wrap
+  pydantic validation errors across `tracing`, `generate` and `gate`, a redesign no need
+  calls for.
+- **`cli` imports `collection_cli` eagerly (D6).** argparse needs the subcommands on every
+  invocation, `--help` included; the cost is about 0.29 s of startup.
+- **The cross-batch screen re-embeds all accepted members (D6).** It keeps every vector
+  from the one configured embedder and stores none that could go stale; the cost is
+  bounded by `--max-batches` times the batch size.
+- **Resealed cross-batch decisions (D6).** The collection manifest's self-digest catches
+  accidental edits, not a deliberate reseal. Recorded near-duplicate decisions are checked
+  for structure and consistency but cannot be re-scored without an endpoint.
+
+Documentation: the README status no longer says B3 is in progress (L2), and the
+"Generator v1 completed before first use" entry above already serves as the
+iteration-log record for that prompt change (R12).
+
+Follow-up review (same day, notes N1 to N12). A review of the cleanup found five behaviour
+faults and seven documentation faults. The behaviour fixes are assistant's calls like the
+rest of this entry, each with a regression test written first; the documentation fixes
+are folded into the text above (the shared checks, the unusable cross-batch vectors, the
+hard-kill windows and the generic residual).
+
+- **Storing a raw value never raises, for any exception (N1, generation).** The JSON
+  check in `_storable` and the JSON step of `_spelled` now catch any `Exception`, not only
+  `TypeError`, `ValueError` and `RecursionError`. A custom client's mapping whose
+  `items()` raises is stored as its `repr` in an `UnserializableResponse` attempt, so the
+  R2 bullet above now holds for every exception, not only for the cases it named; before,
+  that error escaped and left a start with no completion record.
+- **Error lines carry exception notes (N2, collection CLI).** Every `error:` line of the
+  generation commands now ends with the exception's notes, scrubbed of the key and joined
+  on one line. A Ctrl-C whose "interrupted" checkpoint also failed prints
+  "error: interrupted; the interrupted checkpoint also failed (...); preserve the run for
+  inspection" (exit 130) without the "continue with --resume" advice, because resume may
+  refuse that run. Before, the CLI hid the checkpoint failure and advised a resume.
+- **Prompt hash bound to the fingerprint (N5, generation, stricter).** `validate_evidence`
+  also requires the manifest's `prompt_sha256` field to equal the hash of the prompt the
+  run is started or resumed with, which the fingerprint binds ("manifest prompt_sha256
+  differs from the run's prompt; preserve the run for inspection", exit 1). Before, editing
+  `prompt.md` and that unsealed field together passed the D3c check. Only tampered evidence
+  is affected.
+- **Lead-in clause breaks and more lead-in words (N6, `menu_paths_known`, evidence only,
+  looser).** The step's first word may also end in "," or ":" (a clause break) right
+  before the first label, so "Finally, File > Export." and "Now, Object > Apply > Scale."
+  pass; `LEAD_IN_WORDS` gains now, finally, first, also, using, access and enter ("Using
+  Edit > Preferences > Add-ons, enable it.", "Access File > Export."); and a two-word
+  lead-in from the list may open the step, so "Right Click Object > Apply > Scale." and
+  "Double Click ..." pass. Reason: R5's closed list flagged ordinary step openings that
+  passed before, telling the judge that documented menus were unknown. Cost: any
+  capitalized first word followed by a comma now counts as prose, so "Bogus, File >
+  Export." passes. An invented word next to the label is still flagged ("Finally, Bogus
+  File > Export.", "Right Click Bogus Object > Apply."), and only the word just before the
+  label is checked ("Then Open Object > Apply > Scale." is still flagged).
+- **Malformed gate report shapes are a refusal (N9, collection, stricter).** Before a
+  batch's gate report is adopted (and before its settings are compared), the parts the R11
+  re-derivation reads must have the types the gate writes: `per_item` an object of
+  objects, `distribution` an object, `near_duplicates` a list of objects whose `kept` and
+  `dropped` are text. A missing or other-typed value gives "gate report decisions differ
+  from its per-item checks; inspect it" (exit 1) instead of a `TypeError` traceback from
+  `collect --resume`; a missing `near_duplicates` no longer reads as an empty list. Only a
+  hand-edited report can trigger it.
 
 ## Open items (not yet decided)
 
