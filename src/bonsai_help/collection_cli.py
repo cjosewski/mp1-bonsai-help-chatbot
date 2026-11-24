@@ -228,6 +228,7 @@ def _generator(config, secrets, transport) -> InstructorClient:
         timeout_seconds=config.timeout_seconds,
         max_tokens=config.max_tokens,
         temperature=config.temperature,
+        enable_thinking=config.enable_thinking,
         response_model=GenerationOutput,
         _transport=transport,
     )

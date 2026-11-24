@@ -502,3 +502,66 @@ def test_cli_collect_resume_refuses_a_changed_embedding_endpoint(
         capsys, ["collect", "--config", str(split_config), *args, "--resume"], split_transport()
     )
     assert code == 3 and json.loads(out)["batches"][0]["status"] == "complete"
+
+
+def chat_and_embedding_bodies(transport: FakeTransport) -> tuple[list[dict], list[dict]]:
+    pairs = [(c.url.path.endswith("/embeddings"), json.loads(c.content)) for c in transport.calls]
+    return [b for embed, b in pairs if not embed], [b for embed, b in pairs if embed]
+
+
+@pytest.mark.parametrize("enabled", [None, False, True])
+def test_cli_thinking_setting_reaches_chat_requests_only(tmp_path, run_config, capsys, enabled):
+    values = json.loads(run_config.read_text())
+    if enabled is not None:
+        values["enable_thinking"] = enabled
+    run_config.write_text(json.dumps(values))
+    config, root = str(run_config), tmp_path / "runs"
+    generation = model_transport()
+    code, _, _ = invoke(capsys, ["generate", "--config", config, "--run-id", "r1"], generation)
+    assert code == 0
+    gating = model_transport()
+    code, _, _ = invoke(capsys, ["gate", "--config", config, "--run-id", "r1"], gating)
+    assert code == 0
+    collecting = model_transport()
+    args = ["--collection-id", "c1", "--batch-count", "5", "--max-batches", "1"]
+    code, _, _ = invoke(capsys, ["collect", "--config", config, *args], collecting)
+    assert code == 3
+
+    chats, embeds = [], []
+    for transport in (generation, gating, collecting):
+        chat, embed = chat_and_embedding_bodies(transport)
+        chats += chat
+        embeds += embed
+    assert chats and embeds
+    for body in chats:
+        if enabled is None:
+            assert "chat_template_kwargs" not in body
+        else:
+            assert body["chat_template_kwargs"] == {"enable_thinking": enabled}
+    for body in embeds:
+        assert "chat_template_kwargs" not in body and "enable_thinking" not in json.dumps(body)
+    settings = json.loads((root / "r1/manifest.json").read_text())["settings"]
+    assert settings["enable_thinking"] is enabled
+
+
+def test_cli_resume_refuses_a_changed_thinking_setting(tmp_path, run_config, capsys):
+    calls = itertools.count(1)
+    good = model_transport()
+
+    def interrupting(request: httpx.Request) -> httpx.Response:
+        if next(calls) == 2:
+            raise KeyboardInterrupt  # synthetic Ctrl-C during the second request
+        return good._handler(request)
+
+    config = str(run_config)
+    argv = ["generate", "--config", config, "--run-id", "r1"]
+    code, _, _ = invoke(capsys, argv, FakeTransport(interrupting))
+    assert code == 130
+    before = stored_text(tmp_path / "runs")
+    run_config.write_text(
+        json.dumps(json.loads(run_config.read_text()) | {"enable_thinking": False})
+    )
+    other = model_transport()
+    code, _, err = invoke(capsys, [*argv, "--resume"], other)
+    assert code == 2 and "original settings" in err and not other.calls
+    assert stored_text(tmp_path / "runs") == before

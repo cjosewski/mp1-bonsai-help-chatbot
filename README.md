@@ -29,8 +29,10 @@ and the first-pass gate) is done, with no model run yet**; it has no rubric, whi
 moved to B5 on November 24, 2026. **B5 (rubric and baseline run) has started**: the
 rubric `config/rubric.json` (`bonsai-rubric-v1`) is drafted and awaits Chad's approval
 (status `assistant_drafted`), and the run config can name a separate local embedding
-server. The baseline run has not been done; it needs reachable local servers and Chad's
-go-ahead. Install, the offline tests, the
+server. One diagnostic smoke run was made on November 24, 2026; a thinking model spent its
+token budget on reasoning, so the run config can now turn that reasoning off
+(`enable_thinking`, below). The baseline run has not been done; it needs reachable local
+servers and Chad's go-ahead. Install, the offline tests, the
 documentation corpus rebuild, the section index, the lexicons, the setup-fact checks and
 the rubric commands (`rubric check`, `rubric show`) run today; steps 1 and 2 of the pipeline run offline against fake endpoints; every other
 step below is marked *not yet implemented* and will be filled in when its milestone lands.
@@ -69,7 +71,7 @@ packets remain as records. No new review decisions were imported.
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (Chad's SR-001 decisions applied) |
 | B3 | Gold set and multi-part and injection requests | Withdrawn from MP1 (moves to Mini Project 4); 6 of 110 items published and frozen; 104 drafts unreviewed |
 | B4 | Section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet; the rubric moved to B5 on November 24, 2026) |
-| B5 | Rubric (D1–D6) and baseline run | Started: rubric drafted (`assistant_drafted`, awaiting Chad's approval); baseline run not yet done |
+| B5 | Rubric (D1–D6) and baseline run | Started: rubric drafted (`assistant_drafted`, awaiting Chad's approval); one diagnostic smoke run (incomplete); baseline run not yet done |
 | B6 | Baseline human labels | Not yet implemented |
 | B7 | Judge and Phase A calibration | Not yet implemented |
 | B8 | Phase B correction | Not yet implemented |
@@ -436,8 +438,9 @@ The published files are CC BY-SA 4.0 data; quotes keep their source license (`NO
 
 ## Generate and gate (B4)
 
-No live run has happened yet. B5 needs a reachable local endpoint and Chad's go-ahead;
-until then the commands are exercised only by the offline tests. Copy
+One diagnostic smoke run has been made (November 24, 2026; `docs/DECISIONS.md`); no
+baseline run has. B5 needs a reachable local endpoint and Chad's go-ahead; the offline
+tests exercise the commands against fake endpoints only. Copy
 `config/run.example.json` to `config/run.local.json` (git-ignored by the pattern
 `config/*.local.json`; `config/run.json` would be tracked) or to a path outside the
 repository, and fill in the endpoint (`base_url` ending in `/v1`, served model id,
@@ -451,7 +454,14 @@ address, `/v1`, no credentials, query or fragment). The embedding server uses th
 credential source unless `embedding_api_key_env` or `embedding_api_key_file` (at most one)
 names its own. Run manifests record the embedding endpoint actually used and the kind of
 its credential source (`shared`, `environment` or `file`), never a key, variable name or
-path; resume refuses a change to either. Raw runs go under `runs/`
+path; resume refuses a change to either. `enable_thinking` (`true`, `false` or left out)
+controls a thinking model's reasoning: left out (the default), nothing is added to a
+request; `true` or `false` adds `"chat_template_kwargs": {"enable_thinking": ...}` to the
+body of every chat request, never to an embedding request. The value must be a JSON
+boolean (`"false"` or `0` is refused at load). It is part of the recorded settings, so
+`generate --resume` and `collect --resume` refuse a changed value. The example config sets
+it to `false` (Chad, November 24, 2026). The field is a server extension, not part of the
+OpenAI API: the client sends it but does not check that the server honours it. Raw runs go under `runs/`
 (git-ignored) or a path outside the repository. Run the commands from the repository
 checkout: the code identity hashes every package module plus `pyproject.toml` and
 `uv.lock` beside `src/`, and if either file is missing the command is refused before

@@ -138,6 +138,9 @@ class _CredentialLogFilter(logging.Filter):
 class InstructorClient:
     """Synchronous Chat Completions adapter without hidden request retries.
 
+    ``enable_thinking`` True or False adds ``chat_template_kwargs`` with that value to
+    each chat request body; None (the default) adds nothing.
+
     Instructor 1.17's v2 path counts retries after the initial attempt, so both
     Instructor and the OpenAI SDK use ``max_retries=0``. Failed model
     output is returned to the caller so it can be retained before any retry.
@@ -153,6 +156,7 @@ class InstructorClient:
         timeout_seconds: float = 60,
         max_tokens: int = 1200,
         temperature: float = 0.6,
+        enable_thinking: bool | None = None,
         response_model: type[BaseModel],
         _transport: httpx.BaseTransport | None = None,
     ) -> None:
@@ -166,12 +170,20 @@ class InstructorClient:
             raise ValueError("max_tokens must be a positive integer")
         if not math.isfinite(temperature) or not 0 <= temperature <= 2:
             raise ValueError("temperature must be finite and between 0 and 2")
+        if enable_thinking is not None and not isinstance(enable_thinking, bool):
+            raise ValueError("enable_thinking must be true, false or unset (None)")
 
         self._credential = _Credential(api_key)
         self._output_type = response_model
         self._model = model
         self._max_tokens = max_tokens
         self._temperature = temperature
+        # The OpenAI SDK merges extra_body into the request JSON; None sends nothing.
+        self._extra = (
+            {}
+            if enable_thinking is None
+            else {"extra_body": {"chat_template_kwargs": {"enable_thinking": enable_thinking}}}
+        )
         self._timeout_seconds = timeout_seconds
         self._last_http_body: dict[str, Any] | str | None = None
         self._last_http_echo = False
@@ -280,6 +292,7 @@ class InstructorClient:
                 max_tokens=self._max_tokens,
                 temperature=self._temperature,
                 timeout=self._timeout_seconds,
+                **deepcopy(self._extra),
             )
             captured = self._last_http_body is not None
             raw_response = self._last_http_body if captured else self._raw(completion)

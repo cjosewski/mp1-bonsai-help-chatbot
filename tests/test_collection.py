@@ -161,6 +161,8 @@ def test_interrupted_batch_resumes_without_new_budget(config):
     [
         {"embedding_base_url": "http://127.0.0.1:8081/v1"},
         {"embedding_api_key_env": "SYNTHETIC_EMBED_KEY"},
+        {"enable_thinking": False},
+        {"enable_thinking": True},
     ],
 )
 def test_resume_refuses_a_changed_embedding_endpoint_or_credential(tmp_path, config, change):

@@ -1949,6 +1949,49 @@ B5 plan (`docs/superpowers/plans/2026-11-24-b5-rubric-and-baseline.md`):
    baseline collection proceed under it, each only against servers that are already
    reachable.
 
+### November 24, 2026: first smoke run; thinking turned off
+
+The first smoke run (run ID `smoke-2026-11-24-a`; `purpose` `smoke`, development split,
+5 slots, `max_tokens` 2000) used a local thinking model. 14 of its 15 attempts ended with
+`finish_reason` `"length"` after spending the whole token budget on reasoning
+(`reasoning_content` of about 8,000 to 9,000 characters; the content was empty or cut
+off). Initial-attempt schema validity was 0 of 5, retry recovery 1, and 4 slots were
+exhausted. The run's status is `incomplete` (exit 3); it took about 33 minutes. A smoke
+run is diagnostic only: these figures never count toward the baseline, are never
+submitted and never calibrate anything.
+
+A direct test against the same server showed that it honours the request field
+`chat_template_kwargs` `{"enable_thinking": false}`: `reasoning_content` came back empty,
+with 6 completion tokens against 185 with thinking on.
+
+Owner decision (Chad, November 24, 2026): "Turn thinking off (Recommended)".
+
+Assistant's calls (not owner decisions) on how the setting works:
+
+- **Field.** The run config gains `enable_thinking`: `true`, `false` or left out (`null`,
+  the default). It is a strict boolean: `"false"`, `0` or `1` is refused at load (exit 2),
+  and `InstructorClient` refuses a non-boolean before any request.
+- **Unset sends nothing.** Left out, no chat request carries `chat_template_kwargs`, so
+  every existing config sends the same requests as before.
+- **Chat requests only.** `true` or `false` adds `"chat_template_kwargs":
+  {"enable_thinking": <value>}` to the JSON body of each generation request. It goes
+  through the OpenAI SDK's `extra_body`, passed by Instructor's `create_with_completion`.
+  Embedding requests never carry it.
+- **Run identity.** `enable_thinking` is part of `public_settings`, recorded as `null`
+  when unset, so it is in every run and collection manifest and in the run fingerprint.
+  `generate --resume` and `collect --resume` refuse a changed value, as they do for
+  `temperature`.
+- **Not verified by the client.** The field is a server extension, not part of the OpenAI
+  API. The client sends it and does not check that the server honoured it; each attempt's
+  raw response (its `reasoning_content` and token usage) is the evidence.
+- **Example config.** `config/run.example.json` shows `"enable_thinking": false` and
+  nothing else changes. The baseline and corrected configs use `false` too, under Chad's
+  decision; both arms must match, since the value is part of the identity.
+- **The smoke run's evidence is kept unchanged.** `smoke-2026-11-24-a` stays as it is
+  under the git-ignored `runs/`; it is not edited, deleted or resumed. The code change
+  alters the implementation identity, and the new setting alters the settings, so it
+  could not be resumed anyway. The next smoke run gets a new run ID.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

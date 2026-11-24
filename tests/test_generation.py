@@ -204,7 +204,17 @@ def test_unknown_outcome_can_exhaust_a_slot(config):
 
 
 @pytest.mark.parametrize(
-    "change", ["settings", "embedding_endpoint", "embedding_credential", "prompt", "code", "count"]
+    "change",
+    [
+        "settings",
+        "thinking_off",
+        "thinking_on",
+        "embedding_endpoint",
+        "embedding_credential",
+        "prompt",
+        "code",
+        "count",
+    ],
 )
 def test_resume_refuses_changed_settings_prompt_or_code(config, tmp_path, monkeypatch, change):
     prompt_file = tmp_path / "prompt.md"
@@ -216,6 +226,11 @@ def test_resume_refuses_changed_settings_prompt_or_code(config, tmp_path, monkey
     count = 5
     if change == "settings":
         config = config.model_copy(update={"temperature": 0.2})
+    elif change in ("thinking_off", "thinking_on"):
+        # The run started with the setting unset; any value is a different identity.
+        # model_copy, not a model_dump round trip: the round trip alone turns the default
+        # timeout_seconds 120 into 120.0, which changes the identity by itself.
+        config = config.model_copy(update={"enable_thinking": change == "thinking_on"})
     elif change == "embedding_endpoint":
         # Only the embedding server moves; the chat endpoint and everything else stay.
         changed = config.model_dump() | {"embedding_base_url": "http://127.0.0.1:8081/v1"}

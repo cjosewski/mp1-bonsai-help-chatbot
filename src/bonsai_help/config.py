@@ -65,6 +65,10 @@ def _resolve(value: str) -> Path:
 class RunConfig(BaseModel):
     """One run's settings.
 
+    ``enable_thinking`` None (the default) adds nothing to a chat request; True or False
+    asks the server's chat template to turn a thinking model's reasoning on or off. It is
+    part of ``public_settings`` and so of the run identity.
+
     The embedding endpoint is optional: ``embedding_base_url`` None means the chat
     endpoint (``base_url``) serves embeddings too, and with neither
     ``embedding_api_key_env`` nor ``embedding_api_key_file`` the embedding client uses
@@ -91,6 +95,9 @@ class RunConfig(BaseModel):
     embedding_api_key_file: Nonblank | None = None
     mode: Literal["json", "tools"] = "json"
     temperature: float = Field(default=0.6, ge=0, le=2)
+    # None sends nothing; True or False sends chat_template_kwargs {"enable_thinking": ...}
+    # with each chat request (never with embeddings). Strict: "false" or 0 is refused.
+    enable_thinking: bool | None = None
     timeout_seconds: float = Field(default=120, gt=0, le=300)
     max_tokens: int = Field(default=2000, ge=1, le=8192)
     max_attempts: int = Field(default=3, ge=1, le=5)

@@ -59,6 +59,34 @@ def test_valid_response_uses_one_request_and_retains_completion(mode):
     assert messages == MESSAGES
 
 
+def test_thinking_unset_sends_no_chat_template_kwargs():
+    fake = fixed_response(completion(json.dumps(synthetic_generation())))
+    with make_client(fake) as client:
+        assert client.generate(deepcopy(MESSAGES)).error is None
+    assert "chat_template_kwargs" not in fake.bodies()[0]
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_thinking_setting_sends_exactly_that_chat_template_kwarg(enabled):
+    fake = fixed_response(completion(json.dumps(synthetic_generation())))
+    with make_client(fake, enable_thinking=enabled) as client:
+        result = client.generate(deepcopy(MESSAGES))
+    assert result.error is None
+    assert len(fake.calls) == 1
+    body = fake.bodies()[0]
+    assert body["chat_template_kwargs"] == {"enable_thinking": enabled}
+    assert body["chat_template_kwargs"]["enable_thinking"] is enabled
+    # The other request fields are unchanged by the setting.
+    assert (body["model"], body["temperature"], body["max_tokens"]) == (FAKE_MODEL, 0.6, 1200)
+
+
+@pytest.mark.parametrize("value", ["false", 0, 1, "true"])
+def test_non_bool_thinking_setting_fails_before_network(value):
+    fake = fake_transport(lambda request: pytest.fail("No HTTP request should be made"))
+    with pytest.raises(ValueError, match="enable_thinking"):
+        make_client(fake, enable_thinking=value)
+
+
 @pytest.mark.parametrize(
     "content", ["not valid JSON", json.dumps({"item": {"question": "Missing fields"}})]
 )

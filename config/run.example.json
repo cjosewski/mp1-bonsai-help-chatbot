@@ -10,6 +10,7 @@
   "api_key_env": "BONSAI_HELP_API_KEY",
   "mode": "json",
   "temperature": 0.6,
+  "enable_thinking": false,
   "timeout_seconds": 120,
   "max_tokens": 2000,
   "max_attempts": 3,

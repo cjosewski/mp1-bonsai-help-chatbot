@@ -35,6 +35,30 @@ def test_defaults_and_example_config_load():
     assert config.public_settings()["embedding_authentication"] == "shared"
     assert (config.temperature, config.timeout_seconds) == (0.6, 120)
     assert (config.max_tokens, config.max_attempts, config.artifact_root) == (2000, 3, "runs")
+    # The example turns a thinking model's reasoning off (Chad, November 24, 2026).
+    assert config.enable_thinking is False
+    assert config.public_settings()["enable_thinking"] is False
+
+
+def test_thinking_setting_defaults_to_unset_and_is_part_of_the_identity():
+    unset = make()
+    assert unset.enable_thinking is None
+    assert unset.public_settings()["enable_thinking"] is None
+    off, on = make(enable_thinking=False), make(enable_thinking=True)
+    assert (off.enable_thinking, on.enable_thinking) == (False, True)
+    identities = [c.public_settings() for c in (unset, off, on)]
+    assert len({json.dumps(i, sort_keys=True) for i in identities}) == 3
+
+
+@pytest.mark.parametrize("value", ["false", "true", 0, 1, "no"])
+def test_non_bool_thinking_setting_is_refused_at_load(tmp_path, value):
+    with pytest.raises(ValidationError, match="enable_thinking"):
+        make(enable_thinking=value)
+    values = json.loads((REPO / "config" / "run.example.json").read_text())
+    path = tmp_path / "run.json"
+    path.write_text(json.dumps(values | {"enable_thinking": value}))
+    with pytest.raises(ValidationError, match="enable_thinking"):
+        load_config(path)
 
 
 REFUSED_URLS = [
