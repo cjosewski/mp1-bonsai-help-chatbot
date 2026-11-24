@@ -18,6 +18,11 @@ Write from the sections above only. Do not use anything they do not support. Cit
 id of every section you used in `cited_section_ids`, written as it appears inside the
 square brackets above each section, without the brackets.
 
+In `quotes`, give 1 to 3 short passages that support the answer. Copy each one exactly,
+word for word, from a section you cite: at least five whole words, never reworded,
+shortened inside or joined from two places. Give that section's id in `section_id`,
+without the brackets.
+
 Reply with one JSON object and nothing else:
 
 {{
@@ -30,5 +35,8 @@ Reply with one JSON object and nothing else:
     "safety_info": "the specific risk to the IFC model or the user's work, and the precaution",
     "tips": ["useful advice beyond the steps"]
   }},
-  "cited_section_ids": ["ids of the sections you used"]
+  "cited_section_ids": ["ids of the sections you used"],
+  "quotes": [
+    {{"section_id": "the id of a section you cite", "text": "a passage copied exactly from it"}}
+  ]
 }}

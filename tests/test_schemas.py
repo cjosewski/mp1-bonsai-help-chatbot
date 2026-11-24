@@ -29,6 +29,10 @@ def section(sid="s1"):
     return {"id": sid, "page_sha256": "a" * 64, "source": "bonsai-docs", "pin_id": "pin-1"}
 
 
+def quote(sid="s1", text="assign a type to the selected wall"):
+    return {"section_id": sid, "text": text}
+
+
 def envelope():
     return {
         "run_id": "run-1",
@@ -47,6 +51,7 @@ def envelope():
         "generated_at": "2026-11-24T12:00:00.000001+00:00",
         "offered_sections": [section("s1"), section("s2")],
         "cited_sections": [section("s1")],
+        "quotes": [quote()],
         "item": payload(),
     }
 
@@ -215,15 +220,59 @@ def test_envelope_requires_fields_and_forbids_unknown():
         GeneratedItem.model_validate({**envelope(), "secret": "x"})
 
 
+def output(**changes):
+    return {"item": payload(), "cited_section_ids": ["s1"], "quotes": [quote()]} | changes
+
+
 def test_generation_output_needs_citations_and_valid_item():
-    out = GenerationOutput.model_validate({"item": payload(), "cited_section_ids": ["s1"]})
+    out = GenerationOutput.model_validate(output())
     assert out.cited_section_ids == ["s1"]
     for bad in ([], [" "]):
         with pytest.raises(ValidationError):
-            GenerationOutput.model_validate({"item": payload(), "cited_section_ids": bad})
+            GenerationOutput.model_validate(output(cited_section_ids=bad))
     with pytest.raises(ValidationError):
-        GenerationOutput.model_validate(
-            {"item": {**payload(), "steps": ["a"]}, "cited_section_ids": ["s1"]}
-        )
+        GenerationOutput.model_validate(output(item={**payload(), "steps": ["a"]}))
     with pytest.raises(ValidationError):
-        GenerationOutput.model_validate({"item": payload(), "cited_section_ids": ["s1"], "x": 1})
+        GenerationOutput.model_validate({**output(), "x": 1})
+
+
+def test_generation_output_requires_at_least_one_quote():
+    data = output()
+    del data["quotes"]
+    with pytest.raises(ValidationError, match="quotes"):
+        GenerationOutput.model_validate(data)
+    with pytest.raises(ValidationError, match="quotes"):
+        GenerationOutput.model_validate(output(quotes=[]))
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"section_id": "s1"},
+        {"text": "assign a type to the selected wall"},
+        {**quote(), "page": 3},
+        quote(sid=" "),
+        quote(text=" \n "),
+        quote(text=7),
+        "assign a type to the selected wall",
+    ],
+)
+def test_quote_needs_exactly_a_section_id_and_nonblank_text(bad):
+    with pytest.raises(ValidationError, match="quotes"):
+        GenerationOutput.model_validate(output(quotes=[quote(), bad]))
+    with pytest.raises(ValidationError, match="quotes"):
+        GeneratedItem.model_validate({**envelope(), "quotes": [bad]})
+
+
+def test_quotes_stay_out_of_the_seven_field_payload():
+    record = GeneratedItem.model_validate(envelope())
+    assert record.model_dump(mode="json")["quotes"] == [quote()]
+    assert "quotes" not in record.item.model_dump()
+    with pytest.raises(ValidationError):
+        QAItem.model_validate({**payload(), "quotes": [quote()]})
+    data = envelope()
+    del data["quotes"]
+    with pytest.raises(ValidationError, match="quotes"):
+        GeneratedItem.model_validate(data)
+    with pytest.raises(ValidationError, match="quotes"):
+        GeneratedItem.model_validate({**envelope(), "quotes": []})

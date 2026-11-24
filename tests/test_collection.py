@@ -11,6 +11,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from fakes import grounded_quotes
 from test_gate import FakeEmbedder, good_item
 from test_generation import FIXTURES, offered_ids
 
@@ -46,6 +47,7 @@ class UniqueClient:
             "item": good_item(self.calls)
             | {"question": f"How do I add synthetic wall {self.calls} for slot {slot} here?"},
             "cited_section_ids": offered_ids(messages)[:1],
+            "quotes": grounded_quotes(offered_ids(messages)[:1]),
         }
         output = GenerationOutput.model_validate(body)
         return AttemptResult(output, {"synthetic": True}, None, None, "synthetic-model")
@@ -430,7 +432,12 @@ def test_batch_gated_outside_the_collection_is_refused(config, change):
             lexicons, bim_ids={line: frozenset() for line in lexicons.bim_ids}
         )
     gate.gate_run(
-        root, "col-1-b01", lexicons=lexicons, embedder=FakeEmbedder(), embedding_model=model
+        root,
+        "col-1-b01",
+        lexicons=lexicons,
+        embedder=FakeEmbedder(),
+        embedding_model=model,
+        fixtures_dir=FIXTURES,
     )
     embedder, resume = FakeEmbedder(), True
     with pytest.raises(CollectionError, match="gate report"):
@@ -648,6 +655,7 @@ def test_gate_report_decisions_are_rederived_before_adoption(config, edit):
         lexicons=load_lexicons(REFERENCE),
         embedder=FakeEmbedder(),
         embedding_model="synthetic-embedding",
+        fixtures_dir=FIXTURES,
     )
     dropped = [v for v in report["per_item"].values() if not v["retained"]]
     assert len(dropped) == 1 and "D1:answer_length" in dropped[0]["dropped_by"]
@@ -826,3 +834,63 @@ def test_failed_cohort_write_never_frees_the_collection_for_another_cohort(confi
         cohort.load_cohort(root, "cohort-1")
     with pytest.raises(ValueError, match="frozen"):
         run_collect(config, UniqueClient(), max_batches=3, resume=True)
+
+
+class FabricatedQuoteClient(UniqueClient):
+    """Call 1 quotes a passage its cited section never says (synthetic)."""
+
+    def generate(self, messages):
+        result = super().generate(messages)
+        if self.calls == 1:
+            (quote,) = result.item.quotes
+            fabricated = quote.model_copy(update={"text": "a synthetic passage the docs never say"})
+            output = result.item.model_copy(update={"quotes": [fabricated]})
+            result = AttemptResult(output, result.raw_response, None, None, "synthetic-model")
+        return result
+
+
+@pytest.mark.parametrize("edit", [None, "pass_the_fabricated_quote"])
+def test_collection_reruns_the_quote_check_before_adopting_a_gate_report(config, edit):
+    def start(embedder, resume):
+        return collect(
+            config,
+            "col-1",
+            FabricatedQuoteClient(),
+            embedder,
+            batch_count=5,
+            max_batches=1,
+            fixtures_dir=FIXTURES,
+            reference_dir=REFERENCE,
+            resume=resume,
+        )
+
+    with pytest.raises(gate.GateError, match="embedding failed"):
+        start(FakeEmbedder(fail=True), False)
+    root = config.artifact_path()
+    report = gate.gate_run(
+        root,
+        "col-1-b01",
+        lexicons=load_lexicons(REFERENCE),
+        embedder=FakeEmbedder(),
+        embedding_model="synthetic-embedding",
+        fixtures_dir=FIXTURES,
+    )
+    (fabricated,) = [i for i, v in report["per_item"].items() if not v["retained"]]
+    assert report["per_item"][fabricated]["dropped_by"] == ["D3:quotes_verbatim"]
+    if edit is None:
+        summary = start(FakeEmbedder(), True)
+        assert summary["retained"] == 4 and summary["batches"][0]["gated"] is True
+        return
+    # The report claims the quote passed, with decisions consistent with that claim.
+    path = root / "col-1-b01" / gate.REPORT
+    report = json.loads(path.read_text())
+    entry = report["per_item"][fabricated]
+    (check,) = [c for c in entry["checks"] if c["name"] == "quotes_verbatim"]
+    check.update(passed=True, drop=False, detail="1 quotes verbatim")
+    entry.update(retained=True, dropped_by=[])
+    report["retained_ids"] = sorted([*report["retained_ids"], fabricated])
+    path.write_text(json.dumps(report))
+    with pytest.raises(CollectionError, match="col-1-b01: gate report checks differ"):
+        start(FakeEmbedder(), True)
+    manifest = json.loads((root / "collections/col-1/manifest.json").read_text())
+    assert manifest["batches"][0]["gated"] is None

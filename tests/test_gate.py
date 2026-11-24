@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from pathlib import Path
 
 import pytest
 from fakes import synthetic_item
-from test_generation import FakeClient, execute, offered_ids, run_dir
+from test_checks import GOOD_QUOTE, SECTION_IDS, fixture_section
+from test_generation import FIXTURES, FakeClient, execute, offered_ids, run_dir
 
 from bonsai_help import gate
 from bonsai_help.checks import load_lexicons
@@ -16,6 +18,7 @@ from bonsai_help.config import RunConfig
 from bonsai_help.doc_sources import CATEGORIES
 from bonsai_help.gate import GateError, evaluate_gate, gate_run
 from bonsai_help.model_client import AttemptResult, EmbeddingError
+from bonsai_help.sampler import FixtureError
 from bonsai_help.schemas import CitedSection, GeneratedItem, GenerationOutput
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,12 +28,8 @@ DIMENSIONS = {"D1", "D2", "D3", "D4", "D5", "D6"}
 
 
 def section(n: int) -> CitedSection:
-    return CitedSection(
-        id=f"bonsai-docs:synthetic/page{n}.rst#L1-L9",
-        page_sha256="0" * 64,
-        source="bonsai-docs",
-        pin_id="synthetic-pin",
-    )
+    """Real fixture-slice sections, so the quote check reads their offered text."""
+    return fixture_section(SECTION_IDS[n - 1])
 
 
 def good_item(index: int) -> dict:
@@ -46,9 +45,11 @@ def good_item(index: int) -> dict:
     return item
 
 
-def record(index: int, category: str | None = None, **changes) -> GeneratedItem:
+def record(index: int, category: str | None = None, quotes=None, **changes) -> GeneratedItem:
     item = good_item(index)
     item.update(changes)
+    if quotes is None:
+        quotes = [{"section_id": SECTION_IDS[0], "text": GOOD_QUOTE}]
     return GeneratedItem(
         run_id="r",
         trace_id=f"t{index}",
@@ -65,6 +66,7 @@ def record(index: int, category: str | None = None, **changes) -> GeneratedItem:
         generated_at="2026-11-24T00:00:00+00:00",
         offered_sections=[section(1), section(2)],
         cited_sections=[section(1)],
+        quotes=quotes,
         item=item,
     )
 
@@ -94,6 +96,7 @@ def evaluate(records, embedder=None, **kwargs):
     return evaluate_gate(
         records,
         lexicons=LEX,
+        fixtures_dir=FIXTURES,
         embedder=embedder or FakeEmbedder(),
         embedding_model=EMBED_MODEL,
         **kwargs,
@@ -249,6 +252,7 @@ class GoodClient(FakeClient):
             "item": good_item(self.calls)
             | {"question": f"How do I add the wall for slot {match['slot']} to a new project?"},
             "cited_section_ids": self.cite(offered_ids(messages)),
+            "quotes": self.quote(offered_ids(messages)),
         }
         output = GenerationOutput.model_validate(body)
         return AttemptResult(output, {"synthetic": True}, None, None, self.model)
@@ -276,6 +280,7 @@ def run_gate(config, embedder=None, run_id="test-run"):
         lexicons=LEX,
         embedder=embedder or FakeEmbedder(),
         embedding_model=EMBED_MODEL,
+        fixtures_dir=FIXTURES,
     )
 
 
@@ -526,3 +531,79 @@ def test_zero_or_non_finite_embedding_vector_is_controlled(bad, count):
 
     with pytest.raises(GateError, match="zero or non-finite"):
         evaluate([record(i) for i in range(count)], Broken())
+
+
+# --- quotes_verbatim in the gate --------------------------------------------------------
+
+
+def test_gate_drops_a_fabricated_quote_and_reports_the_check_rate():
+    fabricated = [{"section_id": SECTION_IDS[0], "text": "a synthetic passage the docs never say"}]
+    records = [record(0, quotes=fabricated), *(record(i) for i in range(1, 5))]
+    report = evaluate(records)
+    assert report["per_item"]["r-000"]["dropped_by"] == ["D3:quotes_verbatim"]
+    assert report["retained_ids"] == ["r-001", "r-002", "r-003", "r-004"]
+    assert report["drops_per_check"]["quotes_verbatim"] == 1
+    rate = report["pass_rates_per_check"]["quotes_verbatim"]
+    assert rate == {
+        "dimension": "D3",
+        "evidence_only": False,
+        "evaluated": 5,
+        "passed": 4,
+        "failed": 1,
+        "dropped": 1,
+        "pass_rate": 0.8,
+    }
+
+
+def test_gate_run_drops_items_whose_quotes_are_not_in_their_cited_section(config):
+    def invented(ids):
+        return [{"section_id": ids[0], "text": "a synthetic passage the docs never say"}]
+
+    execute(config, GoodClient(quote=invented))
+    report = run_gate(config)
+    assert report["retained_ids"] == []
+    assert report["drops_per_check"]["quotes_verbatim"] == 5
+    for entry in report["per_item"].values():
+        assert entry["dropped_by"] == ["D3:quotes_verbatim"]
+        (check,) = [c for c in entry["checks"] if c["name"] == "quotes_verbatim"]
+        assert check["detail"] == "quote 0: not verbatim in its section"
+
+
+def test_gate_run_reads_section_text_from_the_verified_fixture_slice(config, tmp_path):
+    execute(config, GoodClient())
+    copy = tmp_path / "fixtures"
+    shutil.copytree(FIXTURES, copy)
+    offered = json.loads((run_dir(config) / "items.jsonl").read_text().splitlines()[0])
+    first = offered["offered_sections"][0]
+    page = copy / first["source"] / first["id"].split(":", 1)[1].split("#")[0]
+    page.write_bytes(page.read_bytes() + b"\nsynthetic tampering\n")
+    with pytest.raises(FixtureError, match="differs from the offered page hash"):
+        gate_run(
+            config.artifact_path(),
+            "test-run",
+            lexicons=LEX,
+            embedder=FakeEmbedder(),
+            embedding_model=EMBED_MODEL,
+            fixtures_dir=copy,
+        )
+    assert not (run_dir(config) / "gate-report.json").exists()
+    assert run_gate(config)["retained_ids"]
+
+
+def test_gate_refuses_an_item_whose_quotes_differ_from_its_attempt(config):
+    execute(config, GoodClient())
+    directory = run_dir(config)
+    for name in ("items.jsonl", "attempts.jsonl"):
+        path = directory / name
+        records = [json.loads(line) for line in path.read_text().splitlines()]
+        for r in records:
+            target = r if name == "items.jsonl" else r["record"]
+            if target is not None:
+                target["quotes"][0]["text"] = "an edited synthetic quote text"
+        path.write_text("".join(json.dumps(r) + "\n" for r in records))
+    manifest = json.loads((directory / "manifest.json").read_text())
+    manifest["artifacts_sha256"] = gate.artifact_hashes(directory)
+    (directory / "manifest.json").write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match="quotes that differ from its attempt"):
+        run_gate(config)
+    assert not (directory / "gate-report.json").exists()

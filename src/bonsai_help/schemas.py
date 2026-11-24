@@ -70,13 +70,23 @@ class QAItem(BaseModel):
         return normalized
 
 
+class Quote(BaseModel):
+    """A passage copied from one cited section; metadata, never part of the payload."""
+
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    section_id: NonBlank
+    text: NonBlank
+
+
 class GenerationOutput(BaseModel):
-    """What the model returns: the payload plus the ids of the sections it cites."""
+    """What the model returns: the payload, the ids of the sections it cites, its quotes."""
 
     model_config = ConfigDict(strict=True, extra="forbid")
 
     item: QAItem
     cited_section_ids: Annotated[list[NonBlank], Field(min_length=1)]
+    quotes: Annotated[list[Quote], Field(min_length=1)]
 
 
 class CitedSection(BaseModel):
@@ -113,4 +123,7 @@ class GeneratedItem(BaseModel):
     generated_at: Timestamp
     offered_sections: list[CitedSection]
     cited_sections: list[CitedSection]
+    # The model's quotes in its order: each section id resolved as a citation is
+    # (`generate.resolve_quotes`), each text as the model wrote it.
+    quotes: Annotated[list[Quote], Field(min_length=1)]
     item: QAItem

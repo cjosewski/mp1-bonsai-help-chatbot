@@ -30,7 +30,7 @@ from dataclasses import asdict, fields
 from pathlib import Path
 
 from bonsai_help import gate, generate
-from bonsai_help.checks import Lexicons, load_lexicons, normalize, run_checks
+from bonsai_help.checks import Lexicons, load_lexicons, normalize
 from bonsai_help.config import REPOSITORY, RunConfig, load_prompt
 from bonsai_help.doc_sources import CATEGORIES, load_config
 from bonsai_help.model_client import EmbeddingError
@@ -525,7 +525,7 @@ def collect(
                 count=budget["batch_count"],
             )
             batch_dir = run_directory(root, last["run_id"])
-            _verify_gate_report(batch_dir, last["run_id"], identity, lexicons)
+            _verify_gate_report(batch_dir, last["run_id"], identity, lexicons, fixtures_dir)
             last["gated"] = {
                 "gate_report_sha256": _file_sha(batch_dir / gate.REPORT),
                 "ledgers_sha256": artifact_hashes(batch_dir),
@@ -569,12 +569,15 @@ def _screen(accepted: list[dict], candidates: list[dict], embedder, model: str) 
     return record
 
 
-def _verify_gate_report(directory: Path, run_id: str, identity: dict, lexicons: Lexicons) -> None:
+def _verify_gate_report(
+    directory: Path, run_id: str, identity: dict, lexicons: Lexicons, fixtures_dir: Path
+) -> None:
     """Before a gate report is bound to the collection: same settings, same check results.
 
     A report gated outside the collection (`bonsai-help gate` with another config or
     reference directory) is refused rather than adopted. The per-item checks are rerun
-    with the collection's lexicons from the saved items and must match the report's, and
+    with the collection's lexicons from the saved items, and the offered sections re-read
+    from the collection's fixture slice (`gate.item_checks`), and must match the report's;
     the report's decisions are re-derived from them (`_check_decisions`).
     """
     report = read_json(directory / gate.REPORT)
@@ -591,7 +594,8 @@ def _verify_gate_report(directory: Path, run_id: str, identity: dict, lexicons: 
     if set(per_item) != {i.item_id for i in items}:
         raise CollectionError(f"{run_id}: gate report does not match the batch items")
     for item in items:
-        checks = [asdict(r) for r in run_checks(item, lexicons, unoffered.get(item.item_id, ()))]
+        found = gate.item_checks(item, lexicons, unoffered.get(item.item_id, ()), fixtures_dir)
+        checks = [asdict(r) for r in found]
         if per_item[item.item_id].get("checks") != checks:
             raise CollectionError(
                 f"{run_id}: gate report checks differ from the collection's lexicons; inspect it"
@@ -712,4 +716,5 @@ def _run_batch(config, root, entry, identity, prompt, prompt_sha256, *, count, *
             lexicons=inputs["lexicons"],
             embedder=inputs["embedder"],
             embedding_model=config.embedding_model,
+            fixtures_dir=inputs["fixtures_dir"],
         )

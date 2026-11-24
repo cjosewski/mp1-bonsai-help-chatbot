@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from itertools import pairwise
 from pathlib import Path
@@ -27,6 +27,8 @@ MIN_QUESTION_WORDS = 6
 MIN_PROBLEM_WORDS = 3
 MIN_TIP_CHARS = 30
 TIP_STEP_JACCARD = 0.8
+MIN_QUOTE_WORDS = 5
+MAX_ECHO_CHARS = 80
 
 GENERIC_PHRASES = frozenset(
     {
@@ -281,12 +283,130 @@ def _words(text: str) -> int:
     return len(text.split())
 
 
+def _quote_form(text: str) -> str:
+    """NFC with every whitespace run collapsed to one space; nothing else is changed."""
+    return " ".join(unicodedata.normalize("NFC", text).split())
+
+
+def _echo(text: str) -> str:
+    return text if len(text) <= MAX_ECHO_CHARS else text[: MAX_ECHO_CHARS - 1] + "…"
+
+
+def _is_word(char: str) -> bool:
+    return re.fullmatch(r"\w", char) is not None
+
+
+# Characters that join the word characters on both sides into one token, so an operator id
+# (`bim.add_wall`), a file name (`model.ifc`), a version (`4.5`), a contraction (`can't`,
+# also with the curly apostrophe U+2019), a hyphenated word (`non-destructive`), a slash
+# path (`File/Import`), a key combination (`Ctrl+S`) and a code (`EPSG:7856`) are each a
+# single token. With a space or the text's edge on either side they are boundaries: a
+# sentence period, a spaced dash or plus, a label colon, a possessive `walls'` and the
+# quote marks around `'Walls'`.
+_JOINERS = frozenset("._'\u2019-/+:")
+# Joiners only between two digits: the thousands separator in `5,000` and the commas of
+# `(0,0,0)`. A comma between letters (`walls,slabs`) stays a boundary.
+_DIGIT_JOINERS = frozenset(",")
+
+
+def _joins(text: str, j: int) -> bool:
+    """True when ``text[j]`` is a joiner bound to the characters on both of its sides."""
+    if not 0 < j < len(text) - 1:
+        return False
+    char, before, after = text[j], text[j - 1], text[j + 1]
+    if char in _JOINERS:
+        return _is_word(before) and _is_word(after)
+    if char in _DIGIT_JOINERS:
+        return before.isdigit() and after.isdigit()
+    return False
+
+
+def _joined(text: str, k: int) -> bool:
+    """True when ``text[k - 1]`` and ``text[k]`` belong to the same token.
+
+    Two word characters are one token, and so is a joiner bound on both sides (`_joins`)
+    together with those neighbours. A sentence period (no word character after it), a
+    comma after a word and the edges of the text are boundaries.
+    """
+    if not 0 < k < len(text):
+        return False
+    if _is_word(text[k - 1]) and _is_word(text[k]):
+        return True
+    return _joins(text, k - 1) or _joins(text, k)
+
+
+def quote_word_count(text: str) -> int:
+    """Whitespace tokens with at least one letter or digit; adornment and bullets do not count.
+
+    This is the measure MIN_QUOTE_WORDS applies to; the sampler uses it too, so it never
+    offers a section too short to quote.
+    """
+    return sum(1 for token in text.split() if any(ch.isalnum() for ch in token))
+
+
+def _quote_problem(quote: str, section: str) -> str | None:
+    """Why ``quote`` is not a verbatim, whole-token passage of ``section`` (None if it is).
+
+    Both are compared in `_quote_form`. A passage must start and end on a token boundary
+    of the section (`_joined`), so "all walls" is not found in "install walls" and a quote
+    may not end at "bim" in "bim.add_wall", "can" in "can't", "File" in "File/Import",
+    "5" in "5,000", "EPSG" in "EPSG:7856" or "Ctrl" in "Ctrl+S", or start at "ifc" in
+    "model.ifc" or "destructive" in "non-destructive". Only tokens
+    with a letter or digit count toward MIN_QUOTE_WORDS.
+    """
+    needle, haystack = _quote_form(quote), _quote_form(section)
+    words = quote_word_count(needle)
+    if words < MIN_QUOTE_WORDS:
+        return f"{words} words, need {MIN_QUOTE_WORDS}"
+    start = haystack.find(needle)
+    if start < 0:
+        return "not verbatim in its section"
+    while start >= 0:
+        if not _joined(haystack, start) and not _joined(haystack, start + len(needle)):
+            return None
+        start = haystack.find(needle, start + 1)
+    return "starts or ends inside a word of its section"
+
+
+def quote_problems(record: GeneratedItem, section_texts: Mapping[str, str]) -> list[str]:
+    """One line per failing quote, by index and reason; quote text is never repeated.
+
+    ``section_texts`` maps each offered section id to its text as it was offered
+    (`sampler.section_texts`). A quote must name a cited section, have at least
+    MIN_QUOTE_WORDS words with a letter or digit and occur verbatim, on token boundaries,
+    in that section.
+    """
+    cited = {s.id for s in record.cited_sections}
+    offered = {s.id for s in record.offered_sections}
+    missing = sorted(cited - set(section_texts))
+    if missing:
+        raise ValueError(f"no offered text for cited sections {missing}")
+    problems = []
+    for index, quote in enumerate(record.quotes):
+        if quote.section_id not in offered:
+            reason = f"section {_echo(quote.section_id)!r} was not offered"
+        elif quote.section_id not in cited:
+            reason = f"section {_echo(quote.section_id)!r} is offered but not cited"
+        else:
+            reason = _quote_problem(quote.text, section_texts[quote.section_id])
+        if reason is not None:
+            problems.append(f"quote {index}: {reason}")
+    return problems
+
+
 def run_checks(
     record: GeneratedItem,
     lexicons: Lexicons,
     unoffered_citations: Iterable[str] = (),
+    *,
+    section_texts: Mapping[str, str],
 ) -> list[CheckResult]:
-    """Evaluate every pre-check on one generated item."""
+    """Evaluate every pre-check on one generated item.
+
+    ``section_texts`` is the offered text of each offered section, re-derived from the
+    hash-verified fixture slice (`sampler.section_texts`); `quotes_verbatim` compares
+    against it.
+    """
     item = record.item
     line = record.version_line
     if line not in lexicons.bim_ids:
@@ -329,6 +449,13 @@ def run_checks(
         "cited_sections_offered",
         not unoffered,
         f"not offered: {unoffered}" if unoffered else "all offered",
+    )
+    bad_quotes = quote_problems(record, section_texts)
+    add(
+        "D3",
+        "quotes_verbatim",
+        not bad_quotes,
+        "; ".join(bad_quotes) if bad_quotes else f"{len(record.quotes)} quotes verbatim",
     )
     blender_known = lexicons.blender_operators.get(line, frozenset())
     prefixes = {o.split(".")[0] for o in blender_known if "." in o} - {"*", "bim"}

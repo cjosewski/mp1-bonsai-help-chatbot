@@ -11,7 +11,14 @@ from pathlib import Path
 
 import httpx
 import pytest
-from fakes import FAKE_BASE_URL, FAKE_KEY, FAKE_MODEL, FakeTransport, completion
+from fakes import (
+    FAKE_BASE_URL,
+    FAKE_KEY,
+    FAKE_MODEL,
+    FakeTransport,
+    completion,
+    grounded_quotes,
+)
 from fakes import embedding_response as embeddings
 from test_gate import good_item
 from test_generation import offered_ids
@@ -40,6 +47,7 @@ def model_transport(*, broken=False) -> FakeTransport:
         output = {
             "item": good_item(n) | {"question": f"How do I add synthetic wall {n} in Bonsai?"},
             "cited_section_ids": offered_ids(body["messages"])[:1],
+            "quotes": grounded_quotes(offered_ids(body["messages"])[:1]),
         }
         return httpx.Response(200, json=completion(json.dumps(output)))
 

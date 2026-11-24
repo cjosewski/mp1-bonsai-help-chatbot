@@ -302,6 +302,8 @@ def test_committed_prompt_formats_and_names_fields():
         "safety_info",
         "tips",
         "cited_section_ids",
+        "quotes",
+        "section_id",
     ):
         assert field in rendered
 

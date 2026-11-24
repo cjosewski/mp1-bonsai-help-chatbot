@@ -11,10 +11,13 @@ from __future__ import annotations
 import json
 import random
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import get_args
+from types import MappingProxyType
+from typing import Any, get_args
 
+from bonsai_help.checks import MIN_QUOTE_WORDS, quote_word_count
 from bonsai_help.config import REPOSITORY
 from bonsai_help.doc_sources import (
     CATEGORIES,
@@ -75,26 +78,62 @@ def plan_slots(profiles: SetupProfiles, split: str, count: int) -> list[Slot]:
     return slots
 
 
-def _manifest() -> dict:
+# The last parsed manifest, keyed on its resolved path and its file's size, mtime and hash.
+_MANIFEST_CACHE: tuple[tuple[str, int, int, str], Mapping[str, Any]] | None = None
+
+
+def _frozen(value: Any) -> Any:
+    """``value`` with every JSON object made a read-only mapping and every array a tuple."""
+    if isinstance(value, dict):
+        return MappingProxyType({key: _frozen(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return tuple(_frozen(item) for item in value)
+    return value
+
+
+def _manifest() -> Mapping[str, Any]:
+    """The committed manifest, parsed once per distinct file content.
+
+    The file is read and hashed on every call; it is parsed again whenever its resolved
+    path, size, mtime or SHA-256 differs from the cached copy, so a changed manifest is
+    never served stale. The document is shared between calls, so it is frozen
+    (`_frozen`): a caller cannot change what a later call reads.
+    """
+    global _MANIFEST_CACHE
     try:
-        document = json.loads(MANIFEST.read_bytes())
-    except (OSError, ValueError) as error:
+        path = MANIFEST.resolve()
+        data = path.read_bytes()
+        stat = path.stat()
+    except OSError as error:
+        raise FixtureError(
+            f"committed manifest {MANIFEST.name} is missing or unreadable ({type(error).__name__})"
+        ) from None
+    key = (str(path), stat.st_size, stat.st_mtime_ns, sha256_hex(data))
+    if _MANIFEST_CACHE is not None and _MANIFEST_CACHE[0] == key:
+        return _MANIFEST_CACHE[1]
+    try:
+        document = json.loads(data)
+    except ValueError as error:
         raise FixtureError(
             f"committed manifest {MANIFEST.name} is missing or unreadable ({type(error).__name__})"
         ) from None
     if not isinstance(document, dict) or not isinstance(document.get("sources"), dict):
         raise FixtureError(f"committed manifest {MANIFEST.name} has no sources")
-    return document
+    frozen = _frozen(document)
+    _MANIFEST_CACHE = (key, frozen)
+    return frozen
 
 
-def _entry(document: dict, source: Source) -> dict:
+def _entry(document: Mapping[str, Any], source: Source) -> Mapping[str, Any]:
     entry = document["sources"].get(source.id)
-    if not isinstance(entry, dict):
+    if not isinstance(entry, Mapping):
         raise FixtureError(f"{source.id}: not in the manifest")
     return entry
 
 
-def _read_verified(source: Source, entry: dict, fixtures_dir: Path, path: str) -> bytes:
+def _read_verified(
+    source: Source, entry: Mapping[str, Any], fixtures_dir: Path, path: str
+) -> bytes:
     page = next((item for item in entry["pages"] if item["path"] == path), None)
     target = fixtures_dir / source.id / path
     if page is None:
@@ -152,10 +191,17 @@ def fixture_sections(config: DocSources, fixtures_dir: Path) -> list[dict]:
 
 
 def _eligible(record: dict, category: str) -> bool:
+    """In the category, not developer or fragment, with a body and enough words to quote.
+
+    A section with fewer than `checks.MIN_QUOTE_WORDS` words that have a letter or digit
+    (a See Also link list, say) admits no quote that passes `quotes_verbatim`, so it is not
+    offered: an item drawn with only such sections would be dropped whatever the model wrote.
+    """
     return (
         category in record["categories"]
         and record["tag"] not in EXCLUDED_TAGS
         and _has_body(record)
+        and quote_word_count(record["text"]) >= MIN_QUOTE_WORDS
     )
 
 
@@ -209,22 +255,50 @@ def sample_sections(
     ]
 
 
+def _section_text(section: CitedSection, fixtures_dir: Path, document: Mapping[str, Any]) -> str:
+    """One section's exact lines from its page, verified against both page hashes.
+
+    The page must match the hash the section was offered with and the committed
+    manifest's entry for that page under the section's own pin.
+    """
+    match = _ID.fullmatch(section.id)
+    if match is None or match["source"] != section.source:
+        raise SamplerError(f"{section.id}: not a section id of {section.source}")
+    target = fixtures_dir / section.source / match["path"]
+    if not target.is_file() or target.is_symlink():
+        raise FixtureError(f"{section.id}: fixture page missing")
+    data = target.read_bytes()
+    if sha256_hex(data) != section.page_sha256:
+        raise FixtureError(f"{section.id}: page differs from the offered page hash")
+    entry = document["sources"].get(section.source)
+    pages = entry.get("pages") if isinstance(entry, Mapping) else None
+    page = next(
+        (p for p in pages or () if isinstance(p, Mapping) and p.get("path") == match["path"]),
+        None,
+    )
+    if page is None or page.get("sha256") != section.page_sha256:
+        raise FixtureError(f"{section.id}: page differs from the committed manifest")
+    if entry.get("pin_id") != section.pin_id:
+        raise FixtureError(f"{section.id}: pin differs from the committed manifest")
+    lines = data.decode("utf-8").split("\n")
+    first, last = int(match["first"]), int(match["last"])
+    if not 1 <= first <= last <= len(lines):
+        raise SamplerError(f"{section.id}: line range outside the page")
+    return "\n".join(lines[first - 1 : last]).strip("\n")
+
+
+def section_texts(sections: list[CitedSection], fixtures_dir: Path) -> dict[str, str]:
+    """Each section's text exactly as `render_sections` offers it, by section id.
+
+    Generation renders the prompt from this text and every check that compares against a
+    section (`checks.run_checks`, through the gate and the collection) re-derives it here
+    from the hash-verified fixture slice, never from text stored in a run.
+    """
+    document = _manifest()
+    return {s.id: _section_text(s, fixtures_dir, document) for s in sections}
+
+
 def render_sections(sections: list[CitedSection], fixtures_dir: Path) -> str:
     """Prompt text: each offered section's id then its exact lines from the verified page."""
-    blocks = []
-    for section in sections:
-        match = _ID.fullmatch(section.id)
-        if match is None or match["source"] != section.source:
-            raise SamplerError(f"{section.id}: not a section id of {section.source}")
-        target = fixtures_dir / section.source / match["path"]
-        if not target.is_file() or target.is_symlink():
-            raise FixtureError(f"{section.id}: fixture page missing")
-        data = target.read_bytes()
-        if sha256_hex(data) != section.page_sha256:
-            raise FixtureError(f"{section.id}: page differs from the offered page hash")
-        lines = data.decode("utf-8").split("\n")
-        first, last = int(match["first"]), int(match["last"])
-        if not 1 <= first <= last <= len(lines):
-            raise SamplerError(f"{section.id}: line range outside the page")
-        blocks.append(f"[{section.id}]\n" + "\n".join(lines[first - 1 : last]).strip("\n"))
-    return "\n\n".join(blocks)
+    texts = section_texts(sections, fixtures_dir)
+    return "\n\n".join(f"[{s.id}]\n" + texts[s.id] for s in sections)

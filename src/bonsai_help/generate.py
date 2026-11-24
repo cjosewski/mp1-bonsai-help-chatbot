@@ -36,7 +36,7 @@ from bonsai_help.sampler import (
     sample_sections,
     verify_fixtures,
 )
-from bonsai_help.schemas import CitedSection, GeneratedItem, GenerationOutput
+from bonsai_help.schemas import CitedSection, GeneratedItem, GenerationOutput, Quote
 from bonsai_help.setup import SetupProfiles
 from bonsai_help.tracing import (
     append_record,
@@ -216,6 +216,19 @@ def _cited(offered: list[CitedSection], listed: list[str]) -> tuple[list[CitedSe
 split_citations = _cited  # public alias: (cited sections, unoffered ids)
 
 
+def resolve_quotes(offered: list[CitedSection], listed: list[dict]) -> list[Quote]:
+    """The envelope's quotes: each section id resolved as a citation, the text unchanged.
+
+    `listed` is the attempt's `quotes`, as the model returned them. The section id goes
+    through the same single bracket normalization as a cited id (`_offered_id`); an id
+    that does not resolve is kept as listed, and the quote check then fails it.
+    """
+    offered_ids = {s.id for s in offered}
+    return [
+        Quote(section_id=_offered_id(q["section_id"], offered_ids), text=q["text"]) for q in listed
+    ]
+
+
 def _expected_start(
     run_id: str, config: RunConfig, prompt: str, prompt_sha256: str, entry: dict, number: int
 ) -> dict:
@@ -331,6 +344,8 @@ def validate_evidence(
                 unoffered != attempt.get("unoffered_citations")
             ):
                 raise ValueError("recorded citations differ from the attempt's cited ids")
+            if not quotes_match(offered, attempt.get("quotes"), record["quotes"]):
+                raise ValueError("recorded quotes differ from the attempt's quotes")
             if per_slot[record["slot_id"]][-1]["attempt_id"] != record["attempt_id"]:
                 raise ValueError(
                     f"a request start for {record['slot_id']} follows after its successful "
@@ -345,6 +360,19 @@ def validate_evidence(
         if validated["item_id"] in seen or successful.get(validated["item_id"]) != validated:
             raise ValueError("item differs from its successful attempt")
         seen.add(validated["item_id"])
+
+
+def quotes_match(offered: list[CitedSection], listed: object, recorded: list[dict]) -> bool:
+    """Whether an envelope's quotes are the ones resolved from the attempt's listed quotes."""
+    if not isinstance(listed, list) or not all(
+        isinstance(q, dict) and q.keys() == {"section_id", "text"} for q in listed
+    ):
+        return False
+    try:
+        resolved = resolve_quotes(offered, listed)
+    except ValidationError:
+        return False
+    return [q.model_dump(mode="json") for q in resolved] == recorded
 
 
 def check_count(count: object) -> None:
@@ -658,6 +686,7 @@ def _complete(
         error_type = "UnserializableResponse"
     record = None
     listed = list(output.cited_section_ids) if output is not None else None
+    quotes = [q.model_dump(mode="json") for q in output.quotes] if output is not None else None
     unoffered: list[str] = []
     if output is not None:
         cited, unoffered = _cited(offered, listed)
@@ -681,6 +710,7 @@ def _complete(
                 generated_at=completed_at,
                 offered_sections=offered,
                 cited_sections=cited,
+                quotes=resolve_quotes(offered, quotes),
                 item=output.item,
             ).model_dump(mode="json")
         except ValidationError as exc:
@@ -696,6 +726,8 @@ def _complete(
         "response_model": _optional_text(result.response_model),
         "schema_valid": record is not None,
         "cited_section_ids": listed,
+        # The model's quotes as returned; the envelope holds them resolved.
+        "quotes": quotes,
         "unoffered_citations": unoffered,
         "record": record,
         "verdict": "schema_valid" if record is not None else "generation_failed",

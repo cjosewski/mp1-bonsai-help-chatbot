@@ -2,27 +2,56 @@
 
 from __future__ import annotations
 
+import unicodedata
 from pathlib import Path
 
 import pytest
 from fakes import synthetic_item
 
-from bonsai_help import checks
-from bonsai_help.checks import CheckResult, Lexicons, load_lexicons, run_checks
-from bonsai_help.doc_sources import CATEGORIES
+from bonsai_help import checks, sampler
+from bonsai_help.checks import CheckResult, Lexicons, load_lexicons
+from bonsai_help.doc_sources import CATEGORIES, load_config
 from bonsai_help.schemas import CitedSection, GeneratedItem
 
 ROOT = Path(__file__).resolve().parents[1]
 LEX = load_lexicons(ROOT / "reference")
+FIXTURES = ROOT / "tests/fixtures/docs"
+_PAGE = "bonsai-docs:src/bonsai/docs/guides/authoring/starting_new_project.rst"
+# Two real fixture-slice sections; the item offers both and cites the first.
+SECTION_IDS = (f"{_PAGE}#L6-L13", f"{_PAGE}#L14-L18")
+GOOD_QUOTE = "This ensures there are no lingering connections or data from previous projects."
+_RECORDS = {
+    r["id"]: r
+    for r in sampler.fixture_sections(load_config(ROOT / "config/doc-sources.json"), FIXTURES)
+}
+
+
+def fixture_section(section_id: str) -> CitedSection:
+    r = _RECORDS[section_id]
+    return CitedSection(
+        id=r["id"], page_sha256=r["page_sha256"], source=r["source"], pin_id=r["pin_id"]
+    )
 
 
 def _section(n: int) -> CitedSection:
-    return CitedSection(
-        id=f"bonsai-docs:synthetic/page{n}.rst#L1-L9",
-        page_sha256="0" * 64,
-        source="bonsai-docs",
-        pin_id="synthetic-pin",
-    )
+    return fixture_section(SECTION_IDS[n - 1])
+
+
+_TEXTS: dict[tuple, dict[str, str]] = {}
+
+
+def offered_texts(rec: GeneratedItem) -> dict[str, str]:
+    """The record's offered sections read as the gate reads them (cached per section list)."""
+    key = tuple(s.model_dump_json() for s in rec.offered_sections)
+    if key not in _TEXTS:
+        _TEXTS[key] = sampler.section_texts(rec.offered_sections, FIXTURES)
+    return _TEXTS[key]
+
+
+def run_checks(rec, lexicons, unoffered_citations=(), **kwargs):
+    """`checks.run_checks` with the record's offered text from the fixture slice."""
+    kwargs.setdefault("section_texts", offered_texts(rec))
+    return checks.run_checks(rec, lexicons, unoffered_citations, **kwargs)
 
 
 def known_bim() -> str:
@@ -42,9 +71,11 @@ def good_item() -> dict:
     return item
 
 
-def record(**changes) -> GeneratedItem:
+def record(quotes=None, **changes) -> GeneratedItem:
     item = good_item()
     item.update(changes)
+    if quotes is None:
+        quotes = [{"section_id": SECTION_IDS[0], "text": GOOD_QUOTE}]
     return GeneratedItem(
         run_id="r",
         trace_id="t",
@@ -61,6 +92,7 @@ def record(**changes) -> GeneratedItem:
         generated_at="2026-11-24T00:00:00+00:00",
         offered_sections=[_section(1), _section(2)],
         cited_sections=[_section(1)],
+        quotes=quotes,
         item=item,
     )
 
@@ -496,3 +528,331 @@ def test_two_paths_joined_by_prose_are_checked_separately():
     assert _menu(["Go to Edit > Preferences, then Add-ons > Install."]).passed
     result = _menu(["Go to Edit > Preferences, then Bogus Wizard > Install."])
     assert result.detail == "not in the pinned UI lexicons: ['then Bogus Wizard']"
+
+
+# --- quotes_verbatim (D3, drop): quotes against the offered fixture text ----------------
+
+JOIN = "blender-manual:manual/scene_layout/object/editing/join.rst#L1-L26"
+
+
+def quoted(*quotes: tuple[str, str], cited: list[str] | None = None) -> CheckResult:
+    """The quote check on the good record with these (section id, text) quotes."""
+    rec = record(quotes=[{"section_id": sid, "text": text} for sid, text in quotes])
+    if cited is not None:
+        sections = [fixture_section(s) for s in cited]
+        rec = rec.model_copy(update={"offered_sections": sections, "cited_sections": sections})
+    return by_name(run_checks(rec, LEX), "quotes_verbatim")
+
+
+def test_quote_copied_from_a_cited_section_passes():
+    result = quoted((SECTION_IDS[0], GOOD_QUOTE))
+    assert (result.dimension, result.passed, result.drop) == ("D3", True, False)
+    assert result.detail == "1 quotes verbatim"
+    # A passage across the section's line breaks and list markup is still verbatim.
+    assert quoted((SECTION_IDS[0], "- Launch a fresh instance of Blender. This ensures")).passed
+
+
+def test_quote_from_an_offered_but_uncited_section_fails():
+    text = "There are two main methods to create a new IFC project:"
+    result = quoted((SECTION_IDS[1], text))
+    assert (result.dimension, result.passed, result.drop) == ("D3", False, True)
+    assert result.detail == f"quote 0: section {SECTION_IDS[1]!r} is offered but not cited"
+
+
+def test_quote_from_a_section_never_offered_fails():
+    result = quoted((SECTION_IDS[0], GOOD_QUOTE), ("bonsai-docs:invented.rst#L1-L2", GOOD_QUOTE))
+    assert not result.passed and result.drop
+    assert result.detail == "quote 1: section 'bonsai-docs:invented.rst#L1-L2' was not offered"
+
+
+def test_quote_of_fewer_than_five_words_fails():
+    result = quoted((SECTION_IDS[0], "no lingering connections or"))
+    assert not result.passed and result.drop
+    assert result.detail == "quote 0: 4 words, need 5"
+    assert quoted((SECTION_IDS[0], "there are no lingering connections")).passed
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "This makes sure there are no lingering connections or data.",  # paraphrase
+        "This ensures there are no lingering connections or data from earlier projects.",
+        "Close any open Blender windows. This ensures",  # joined from two places
+        "this ensures there are no lingering connections",  # case differs
+    ],
+)
+def test_paraphrased_or_altered_quote_fails(text):
+    result = quoted((SECTION_IDS[0], text))
+    assert not result.passed and result.drop
+    assert result.detail == "quote 0: not verbatim in its section"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "nsures there are no lingering connections",  # starts inside "ensures"
+        "This ensures there are no linger",  # ends inside "lingering"
+        "ensures there are no lingering connections or data from previous project",
+    ],
+)
+def test_quote_that_starts_or_ends_inside_a_word_fails(text):
+    result = quoted((SECTION_IDS[0], text))
+    assert not result.passed and result.drop
+    assert result.detail == "quote 0: starts or ends inside a word of its section"
+
+
+def test_quote_whose_whitespace_differs_only_passes():
+    text = "This  ensures there\nare no\tlingering \u00a0connections or data"
+    assert quoted((SECTION_IDS[0], text)).passed
+
+
+def test_quote_in_another_unicode_normalization_form_passes():
+    composed = "each one will keep its subtype (NURBS or Bézier)."
+    decomposed = unicodedata.normalize("NFD", composed)
+    assert decomposed != composed
+    assert quoted((JOIN, composed), cited=[JOIN]).passed
+    assert quoted((JOIN, decomposed), cited=[JOIN]).passed
+
+
+def test_quote_detail_names_each_failing_quote_and_never_echoes_long_text():
+    long_id = "bonsai-docs:" + "x" * 200 + ".rst#L1-L2"
+    secret = "A long synthetic passage that the detail must never repeat " * 5
+    result = quoted(
+        (SECTION_IDS[0], GOOD_QUOTE),
+        (SECTION_IDS[0], secret),
+        (long_id, GOOD_QUOTE),
+    )
+    assert not result.passed
+    first, second = result.detail.split("; ")
+    assert first == "quote 1: not verbatim in its section"
+    assert second.startswith("quote 2: section 'bonsai-docs:xxx")
+    assert second.endswith("…' was not offered")
+    assert "A long synthetic passage" not in result.detail
+    assert len(second) < 80 + len("quote 2: section '' was not offered") + 1
+
+
+def test_quote_check_reads_the_text_it_is_given_not_the_record():
+    # The texts come from the fixture slice; another text for the same id changes the result.
+    rec = record()
+    texts = dict(offered_texts(rec))
+    assert by_name(run_checks(rec, LEX, section_texts=texts), "quotes_verbatim").passed
+    texts[SECTION_IDS[0]] = "Some other section text that says something else entirely."
+    assert not by_name(run_checks(rec, LEX, section_texts=texts), "quotes_verbatim").passed
+    with pytest.raises(ValueError, match="no offered text"):
+        run_checks(rec, LEX, section_texts={})
+
+
+# Synthetic section text: an operator id, a file name and sentence periods.
+TOKENS = (
+    "Start with the tool. Use bim.add_wall here, then save it as model.ifc. Then close the file."
+)
+
+
+def quoted_in(section_text: str, text: str) -> CheckResult:
+    """The quote check on a quote of the good record's cited section, read as `section_text`."""
+    rec = record(quotes=[{"section_id": SECTION_IDS[0], "text": text}])
+    texts = dict(offered_texts(rec))
+    texts[SECTION_IDS[0]] = section_text
+    return by_name(run_checks(rec, LEX, section_texts=texts), "quotes_verbatim")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "with the tool. Use bim",  # ends inside the operator id bim.add_wall
+        "with the tool. Use bim.",  # the period joins bim and add_wall
+        "add_wall here, then save it",  # starts inside bim.add_wall
+        ".add_wall here, then save it",
+        "here, then save it as model",  # ends inside the file name model.ifc
+        "ifc. Then close the file.",  # starts inside model.ifc
+    ],
+)
+def test_quote_may_not_start_or_end_inside_an_operator_id_or_file_name(text):
+    result = quoted_in(TOKENS, text)
+    assert not result.passed and result.drop
+    assert result.detail == "quote 0: starts or ends inside a word of its section"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Start with the tool. Use bim.add_wall",  # a whole operator id
+        "bim.add_wall here, then save it",
+        "then save it as model.ifc.",  # the last period ends the sentence
+        "then save it as model.ifc",
+        "model.ifc. Then close the file.",  # a whole file name, to the section's end
+        "Start with the tool. Use",
+    ],
+)
+def test_quote_of_whole_operator_ids_file_names_and_sentences_passes(text):
+    assert quoted_in(TOKENS, text).passed
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Session --------------------------- - Close any",  # heading adornment and a bullet
+        "--------------------------- - Close any open",
+    ],
+)
+def test_adornment_and_bullets_do_not_count_toward_the_quote_minimum(text):
+    # The real fixture section: a heading, its RST underline and a bullet list.
+    result = quoted((SECTION_IDS[0], text))
+    assert not result.passed and result.drop
+    assert result.detail == "quote 0: 3 words, need 5"
+
+
+def test_symbol_only_tokens_never_make_up_the_minimum():
+    section = "Some list:\n\n* - === Use bim.add_wall here, then save it."
+    # Use, bim.add_wall, here, then, save: five words; the operator id is one word.
+    assert quoted_in(section, "* - === Use bim.add_wall here, then save").passed
+    result = quoted_in(section, "* - === Use bim.add_wall here,")
+    assert result.detail == "quote 0: 3 words, need 5"
+
+
+GIT = "bonsai-docs:src/bonsai/docs/guides/authoring/git_support.rst#L97-L128"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "emojis etc... Branch names can",  # cuts "can't" to "can", dropping the negation
+        "t contain spaces, and have some",  # starts inside "can't"
+        "options, but don't want to mess",  # ends inside "mess-up"
+        "up the primary design, you can",  # starts inside "mess-up"
+    ],
+)
+def test_quote_may_not_cut_a_word_at_an_apostrophe_or_hyphen(text):
+    # The real fixture section: "Branch names can't contain spaces" and "mess-up".
+    result = quoted((GIT, text), cited=[GIT])
+    assert not result.passed and result.drop
+    assert result.detail == "quote 0: starts or ends inside a word of its section"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Branch names can't contain spaces, and",
+        "but don't want to mess-up the primary design,",
+        "have some other minor limitations - Bonsai will not",  # a spaced dash is a boundary
+        "select the revision you are interested-in and switch as before.",
+    ],
+)
+def test_quote_of_whole_contractions_and_hyphenated_words_passes(text):
+    assert quoted((GIT, text), cited=[GIT]).passed
+
+
+# Synthetic section text: a curly apostrophe, a slash path, a negating prefix, possessives.
+JOINED = (
+    "Branch names can’t contain spaces. Choose File/Import, then pick the IFC file. "
+    "Use the non-destructive workflow to keep edits. Check the walls' types and the "
+    "'Walls' panel before export."
+)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "can\u2019t contain spaces. Choose File",  # ends inside File/Import
+        "Import, then pick the IFC file.",  # starts inside File/Import
+        "destructive workflow to keep edits.",  # drops the negating prefix "non-"
+        "t contain spaces. Choose File/Import,",  # starts inside can\u2019t
+    ],
+)
+def test_quote_may_not_cut_a_curly_contraction_a_slash_path_or_a_prefix(text):
+    result = quoted_in(JOINED, text)
+    assert not result.passed and result.drop
+    assert result.detail == "quote 0: starts or ends inside a word of its section"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Branch names can’t contain spaces.",
+        "spaces. Choose File/Import, then pick",
+        "Use the non-destructive workflow to keep",
+        "keep edits. Check the walls",  # a trailing possessive apostrophe is a boundary
+        "Check the walls' types and the 'Walls'",  # quote marks around a word
+        "the 'Walls' panel before export.",
+    ],
+)
+def test_quote_of_whole_joined_words_or_ending_at_a_possessive_passes(text):
+    assert quoted_in(JOINED, text).passed
+
+
+_GEO = "bonsai-docs:src/bonsai/docs/guides/authoring/advanced_modeling/georeferencing.rst"
+GEO_CRS, GEO_LIMITS = f"{_GEO}#L10-L42", f"{_GEO}#L231-L255"
+LARGE = "bonsai-docs:src/bonsai/docs/guides/viewing/dealing_with_large_models.rst#L1-L20"
+SAVING = f"{_PAGE}#L86-L133"
+
+
+@pytest.mark.parametrize(
+    ("section_id", "text"),
+    [
+        (GEO_LIMITS, "that lengths greater than 5"),  # "5,000" cut to "5"
+        (GEO_LIMITS, "000 meters start to accumulate"),  # starts inside "5,000"
+        (LARGE, "Number of elements exceeding 50"),  # "50,000" cut to "50"
+        (LARGE, "000 loaded in the scene,"),
+        (GEO_CRS, "56 will be named EPSG"),  # ends inside "EPSG:7856"
+        (GEO_CRS, "7856. You can check whether"),  # starts inside "EPSG:7856"
+        (SAVING, "Using the keyboard shortcut `Ctrl"),  # ends inside "Ctrl+S"
+        (SAVING, "S` or `File > Save IFC Project`"),  # starts inside "Ctrl+S"
+    ],
+)
+def test_quote_may_not_cut_a_number_a_code_or_a_key_combination(section_id, text):
+    # The real fixture sections: "5,000 meters", "50,000 loaded", "EPSG:7856", "`Ctrl+S`".
+    result = quoted((section_id, text), cited=[section_id])
+    assert not result.passed and result.drop
+    assert result.detail == "quote 0: starts or ends inside a word of its section"
+
+
+@pytest.mark.parametrize(
+    ("section_id", "text"),
+    [
+        (GEO_LIMITS, "that lengths greater than 5,000"),
+        (GEO_LIMITS, "5,000 meters start to accumulate"),
+        (LARGE, "Number of elements exceeding 50,000 loaded"),
+        (GEO_CRS, "MGA Zone 56 will be named EPSG:7856."),  # sentence-final
+        (GEO_CRS, "named EPSG:7856. You can check whether"),
+        (SAVING, "Using the keyboard shortcut `Ctrl+S`"),
+        (SAVING, "`Ctrl+S` or `File > Save IFC Project`"),
+    ],
+)
+def test_quote_of_whole_numbers_codes_and_key_combinations_passes(section_id, text):
+    assert quoted((section_id, text), cited=[section_id]).passed
+
+
+# Synthetic section text: commas, colons and plus signs between letters or with spaces.
+SPACED = (
+    "Pick walls,slabs and roofs to begin. Note: press Ctrl + S to save the file. "
+    "Set the origin to (0,0,0) first, then press Shift+click on the wall to select it."
+)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Pick walls,slabs and roofs to begin.",  # a comma between letters is not a number
+        "slabs and roofs to begin. Note: press",
+        "Note: press Ctrl + S to",  # a spaced plus is a boundary
+        "S to save the file.",
+        "Set the origin to (0,0,0) first,",
+        "then press Shift+click on the wall",
+    ],
+)
+def test_quote_at_a_comma_between_letters_or_a_spaced_joiner_passes(text):
+    assert quoted_in(SPACED, text).passed
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "the file. Set the origin to (0",  # ends inside "(0,0,0)"
+        "0) first, then press Shift",  # starts inside "(0,0,0)", ends inside "Shift+click"
+        "click on the wall to select it.",  # starts inside "Shift+click"
+    ],
+)
+def test_quote_may_not_cut_a_coordinate_triple_or_a_modifier_click(text):
+    result = quoted_in(SPACED, text)
+    assert not result.passed and result.drop
+    assert result.detail == "quote 0: starts or ends inside a word of its section"

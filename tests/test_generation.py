@@ -20,6 +20,7 @@ from fakes import (
     FAKE_MODEL,
     FakeTransport,
     completion,
+    grounded_quotes,
     synthetic_generation,
 )
 
@@ -48,12 +49,16 @@ def offered_ids(messages) -> list[str]:
 class FakeClient:
     """Synthetic model: valid output citing the first offered section, unless told to fail."""
 
-    def __init__(self, *, fail=None, interrupt_call=None, cite=None, model=None, raw=None):
+    def __init__(
+        self, *, fail=None, interrupt_call=None, cite=None, model=None, raw=None, quote=None
+    ):
         self.calls = 0
         self.messages = []
         self.fail = fail or (lambda slot_id, attempt: False)
         self.interrupt_call = interrupt_call
         self.cite = cite or (lambda ids: ids[:1])
+        # Quotes from the offered ids; by default copied from the first cited section.
+        self.quote = quote or (lambda ids: grounded_quotes(self.cite(ids)))
         self.model = "synthetic-model-revision" if model is None else model
         self.raw = raw or (lambda envelope: envelope)
 
@@ -65,7 +70,8 @@ class FakeClient:
         match = REQUEST.search(messages[-1]["content"])
         if self.fail(match["slot"], int(match["attempt"])):
             return AttemptResult(None, "{synthetic-broken-json", "invalid JSON", "ValidationError")
-        body = synthetic_generation(cited=self.cite(offered_ids(messages)))
+        ids = offered_ids(messages)
+        body = synthetic_generation(cited=self.cite(ids), quotes=self.quote(ids))
         output = GenerationOutput.model_validate(body)
         raw = self.raw(completion(json.dumps(body)))
         return AttemptResult(output, raw, None, None, self.model)
@@ -1061,3 +1067,139 @@ def test_public_count_check_refuses_what_a_run_refuses(count):
 @pytest.mark.parametrize("count", [5, 50, 500])
 def test_public_count_check_accepts_valid_counts(count):
     assert generate.check_count(count) is None
+
+
+# --- quotes: kept as the model wrote them, section ids resolved like citations ----------
+
+
+def test_envelope_keeps_quote_text_as_written_and_resolves_its_section_id(config):
+    def quote(ids):
+        text = grounded_quotes(ids[:1])[0]["text"]
+        spaced = text.replace(" ", "  \n", 1)  # whitespace the check will collapse
+        return [
+            {"section_id": f"[{ids[0]}]", "text": spaced},
+            {
+                "section_id": "[[bonsai-docs:invented.rst#L1-L2]]",
+                "text": "synthetic invented quote",
+            },
+        ]
+
+    execute(config, FakeClient(quote=quote))
+    attempts = ledger(config, "attempts.jsonl")
+    items = ledger(config, "items.jsonl")
+    assert len(items) == 5
+    for record, attempt in zip(items, attempts):
+        first = record["offered_sections"][0]["id"]
+        listed = quote([first])
+        # The attempt keeps the model's quotes; the envelope resolves one pair of brackets
+        # around an offered id and nothing else, and never changes the text.
+        assert attempt["quotes"] == listed
+        assert record["quotes"] == [
+            {"section_id": first, "text": listed[0]["text"]},
+            listed[1],
+        ]
+        assert "quotes" not in record["item"]
+
+
+@pytest.mark.parametrize("where", ["envelope", "attempt"])
+def test_resume_refuses_evidence_whose_stored_quotes_were_edited(config, where):
+    with pytest.raises(KeyboardInterrupt):
+        execute(config, FakeClient(interrupt_call=3))
+    directory = run_dir(config)
+    edited = "an edited synthetic quote that the model never wrote"
+    for name in ("attempts.jsonl", "items.jsonl"):
+        path = directory / name
+        records = read_records(path)
+        for r in records:
+            if name == "attempts.jsonl" and where == "attempt" and r["quotes"]:
+                r["quotes"][0]["text"] = edited
+            elif where == "envelope":
+                target = r if name == "items.jsonl" else r["record"]
+                if target is not None:
+                    target["quotes"][0]["text"] = edited
+        path.write_text("".join(json.dumps(r) + "\n" for r in records))
+    manifest = json.loads((directory / "manifest.json").read_text())
+    manifest["artifacts_sha256"] = artifact_hashes(directory)
+    (directory / "manifest.json").write_text(json.dumps(manifest))
+    client = FakeClient()
+    with pytest.raises(ValueError, match="recorded quotes differ from the attempt's quotes"):
+        execute(config, client, resume=True)
+    assert client.calls == 0
+
+
+def test_resume_accepts_quotes_with_bracketed_section_ids(config):
+    def quote(ids):
+        return [{"section_id": f"[{ids[0]}]", "text": grounded_quotes(ids[:1])[0]["text"]}]
+
+    with pytest.raises(KeyboardInterrupt):
+        execute(config, FakeClient(quote=quote, interrupt_call=3))
+    manifest = execute(config, FakeClient(quote=quote), resume=True)
+    assert manifest["status"] == "complete"
+
+
+def test_resolve_quotes_uses_the_citation_normalization_only():
+    offered = [
+        CitedSection(id="bonsai-docs:a.rst#L1-L5", page_sha256="a" * 64, source="s", pin_id="p")
+    ]
+    listed = [
+        # Inner whitespace is kept; the schema has already stripped the ends (NonBlank).
+        {"section_id": "[bonsai-docs:a.rst#L1-L5]", "text": "kept\u00a0as  written"},
+        {"section_id": "bonsai-docs:a.rst#L1-L5", "text": "exact id"},
+        {"section_id": "[[bonsai-docs:a.rst#L1-L5]]", "text": "two pairs"},
+        {"section_id": "[bonsai-docs:b.rst#L1-L5]", "text": "never offered"},
+    ]
+    resolved = [q.model_dump() for q in generate.resolve_quotes(offered, listed)]
+    assert [q["section_id"] for q in resolved] == [
+        "bonsai-docs:a.rst#L1-L5",
+        "bonsai-docs:a.rst#L1-L5",
+        "[[bonsai-docs:a.rst#L1-L5]]",
+        "[bonsai-docs:b.rst#L1-L5]",
+    ]
+    assert [q["text"] for q in resolved] == [q["text"] for q in listed]
+
+
+def test_completion_without_quotes_is_a_schema_invalid_attempt_through_the_real_client(config):
+    # A synthetic completion that omits `quotes` goes through Instructor's real
+    # GenerationOutput validation: it is kept, uses its attempt and counts as initially
+    # invalid; the valid retry of the same slot is retry recovery, not initial validity.
+    quoteless = first_slots(2)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        messages = json.loads(request.content)["messages"]
+        match = REQUEST.search(messages[-1]["content"])
+        body = synthetic_generation(offered_ids(messages)[:1])
+        if match["slot"] in quoteless and match["attempt"] == "1":
+            del body["quotes"]
+        return httpx.Response(200, json=completion(json.dumps(body)))
+
+    transport = FakeTransport(handler)
+    with InstructorClient(
+        base_url=FAKE_BASE_URL,
+        model=FAKE_MODEL,
+        api_key=FAKE_KEY,
+        response_model=GenerationOutput,
+        _transport=transport.transport,
+    ) as client:
+        manifest = execute(config, client)
+    assert manifest["status"] == "complete"
+    assert len(transport.calls) == 7
+    metrics = manifest["metrics"]
+    assert (metrics["initial_slots"], metrics["initial_valid"]) == (5, 3)
+    assert metrics["initial_validity"] == pytest.approx(0.6)
+    assert metrics["retry_recovered"] == 2
+    attempts = ledger(config, "attempts.jsonl")
+    assert len(attempts) == len(ledger(config, "starts.jsonl")) == 7
+    invalid = [a for a in attempts if not a["schema_valid"]]
+    assert sorted(a["slot_id"] for a in invalid) == sorted(quoteless)
+    for attempt in invalid:
+        assert attempt["attempt_number"] == 1 and attempt["record"] is None
+        assert attempt["error_type"] == "ValidationError"
+        assert "quotes" in attempt["error"]
+        raw = json.dumps(attempt["raw_response"])
+        assert "synthetic Bonsai test project" in raw and "quotes" not in raw
+    retries = [a for a in attempts if a["attempt_number"] == 2]
+    assert sorted(a["slot_id"] for a in retries) == sorted(quoteless)
+    assert all(a["schema_valid"] for a in retries)
+    assert {a["parent_attempt_id"] for a in retries} == {a["attempt_id"] for a in invalid}
+    items = ledger(config, "items.jsonl")
+    assert len(items) == 5 and all(r["quotes"] for r in items)

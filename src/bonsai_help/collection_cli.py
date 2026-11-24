@@ -57,11 +57,8 @@ def add_commands(commands) -> None:
     def run_config(sub: argparse.ArgumentParser) -> None:
         sub.add_argument("--config", type=Path, required=True, help="run config (JSON)")
 
-    def inputs(sub: argparse.ArgumentParser, *, fixtures: bool = True) -> None:
-        if fixtures:
-            sub.add_argument(
-                "--fixtures-dir", type=Path, default=FIXTURES, help=f"default {FIXTURES}"
-            )
+    def inputs(sub: argparse.ArgumentParser) -> None:
+        sub.add_argument("--fixtures-dir", type=Path, default=FIXTURES, help=f"default {FIXTURES}")
         sub.add_argument(
             "--reference-dir", type=Path, default=REFERENCE, help=f"default {REFERENCE}"
         )
@@ -83,7 +80,7 @@ def add_commands(commands) -> None:
     sub = commands.add_parser("gate", help="first-pass gate of a saved run (writes once)")
     run_config(sub)
     sub.add_argument("--run-id", required=True)
-    inputs(sub, fixtures=False)
+    inputs(sub)
     sub = commands.add_parser("collect", help="bounded batches until enough items are retained")
     run_config(sub)
     sub.add_argument("--collection-id", required=True)
@@ -250,6 +247,7 @@ def _dispatch(args, secrets: _Secrets, transport) -> tuple[dict, int]:
 
     config = load_config(args.config)
     reference = _repo_path(args.reference_dir)
+    fixtures = _repo_path(args.fixtures_dir)
     if command == "gate":
         lexicons = load_lexicons(reference)
         with _embedder(config, secrets, transport) as embedder:
@@ -259,12 +257,12 @@ def _dispatch(args, secrets: _Secrets, transport) -> tuple[dict, int]:
                 lexicons=lexicons,
                 embedder=embedder,
                 embedding_model=config.embedding_model,
+                fixtures_dir=fixtures,
             )
         return {k: v for k, v in report.items() if k != "per_item"}, (
             0 if report["distribution"]["passed"] else 1
         )
 
-    fixtures = _repo_path(args.fixtures_dir)
     if command == "collect":
         collection.policy(args.target_retained, args.batch_count, args.max_batches)
         load_prompt(config)  # a bad prompt fails before the credential is read

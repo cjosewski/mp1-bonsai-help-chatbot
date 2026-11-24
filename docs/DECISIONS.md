@@ -1387,13 +1387,24 @@ Prompt and records:
   menu name or an older BlenderBIM-era term), as plan §7 Step 1 item 2 specifies, while the
   answer names tools as the sections do; it also says to cite each id without the square
   brackets it is shown in. It stays v1: no committed run, test or record pins the earlier
-  text (SHA-256 `42c5382e…`; now `ced95092…`), and no recorded run used it. This entry is
+  text (SHA-256 `42c5382e…`; then `ced95092…`, since updated below), and no recorded run used it. This entry is
   the iteration-log record for the change (date November 24, 2026; change and before/after
   hashes above; hypothesis: questions in users' own words test grounding better than
   questions copied from the docs; decision: keep the name v1, since nothing was measured
   with the earlier text; next step: the B5 baseline run) and carries into the B10
   iteration log. Reason: otherwise B5 would measure a prompt other than the plan's v1, and
   adding the instruction later would be a second change confounding Phase B.
+  *Update (November 24, 2026, quote field):* after Chad's "Add a quote field." (entry
+  "Quote field" below), v1 also asks for 1 to 3 short `quotes`, each copied exactly from a
+  section the item cites, with that section's id without the brackets, and the reply
+  shape gains the `quotes` list. It still fills only `{category}`, `{setup}` and
+  `{sections}`. It stays v1 for the same reason: no recorded run used `ced95092…` either.
+  Iteration-log record: date November 24, 2026; change: the quote instruction and the
+  `quotes` key; before SHA-256 `ced9509239de5e4eb3889f2d297c7f1f89ba32166e0823c14645f48e553a2dd7`,
+  after `04c6d155b534226f51b1256d787e8d715b073e1017e9533d5cd5ee62ec548b36`; hypothesis:
+  asking for verbatim quotes makes an ungrounded answer visible as a failed D3 check
+  instead of passing on an offered citation alone; decision: keep the name v1, since
+  nothing was measured with either earlier text; next step: the B5 baseline run.
 - **Porting map.** `evaluation_schemas` was not ported in B4, which has no consumer for
   it; it moves to B5–B6 with `assessment` and `labels`. `sources` is not ported: its
   snapshot-manifest role is covered by B1's `doc_sources` and `doc_snapshot` with
@@ -1402,6 +1413,9 @@ Prompt and records:
   appear verbatim in the cited section" is not implemented: the item has no quote field,
   and B4 checks only that every cited section was offered. Whether to add a quote check
   (and for which fields) is open for Chad; it is not decided here.
+  *Resolved (November 24, 2026):* Chad decided "Add a quote field."; the check is
+  `quotes_verbatim` (entry "Quote field" below). This bullet stays as the record of the
+  departure.
 
 ### November 24, 2026: B4 cleanup (assistant's calls)
 
@@ -1643,6 +1657,90 @@ hard-kill windows and the generic residual).
   from its per-item checks; inspect it" (exit 1) instead of a `TypeError` traceback from
   `collect --resume`; a missing `near_duplicates` no longer reads as an empty list. Only a
   hand-edited report can trigger it.
+
+### November 24, 2026: quote field
+
+Plan §6.4 says "Cited doc sections must exist in the snapshot, and any quoted passage must
+appear verbatim in the cited section". B4 recorded this as a departure open for Chad (B4
+final-review fixes, "Departure recorded, not decided"). Chad decided on November 24, 2026:
+"Add a quote field."
+
+Owner decision (Chad):
+
+- **Quote field.** Chad's words are "Add a quote field." His decision is to add the
+  field. The check below carries out plan §6.4's existing rule that "any quoted passage
+  must appear verbatim in the cited section"; it is the plan's requirement, applied
+  through the assistant's calls that follow, not a further owner decision. Together they
+  resolve the §6.4 departure.
+
+Assistant's calls applying it (not owner decisions; Chad can overrule any of them, and a
+change is a new dated entry):
+
+- **Quote count.** The prompt asks for 1 to 3 quotes; the schema requires at least one
+  and sets no upper bound, so a fourth quote is accepted and checked like the others.
+  Reason: a cap would turn an over-eager but grounded reply into a schema failure.
+
+- **Quotes are metadata.** The payload stays exactly seven fields. `GenerationOutput`
+  gains a required `quotes` list (at least one) of `Quote` objects with exactly
+  `section_id` and `text`, both nonblank strict strings; a missing or empty list, an extra
+  key or a blank value fails the schema, like any other malformed output. The envelope
+  (`GeneratedItem`) gains `quotes` (at least one): each quote's `section_id` resolved
+  through the same single bracket normalization as a cited id (`generate._offered_id`,
+  via `generate.resolve_quotes`), an id that does not resolve kept as listed, and its
+  text as the model wrote it. The schema's `NonBlank` type strips surrounding whitespace,
+  as it does for every payload string, so "as written" means the stripped text; nothing
+  else (no NFC, no whitespace collapse) is applied before storage. The attempt record
+  keeps the model's quotes as returned under `quotes`, beside `cited_section_ids`.
+- **Check `quotes_verbatim`, D3, drop.** A fabricated quote is a grounding defect, like
+  an unoffered citation, so it drops the item. An item passes only if every quote (a)
+  names a section among the item's cited sections, (b) has at least 5 words
+  (`checks.MIN_QUOTE_WORDS`), (c) occurs in that section's offered text, both compared
+  after Unicode NFC with every whitespace run collapsed to one space (case and
+  punctuation are compared as they are), and (d) starts and ends on word boundaries: a
+  quote that begins or ends with a word character must not continue a word of the
+  section, so a partial-word match fails. Any one occurrence that meets (d) passes. The
+  detail lists each failing quote by index and reason ("quote 1: not verbatim in its
+  section", "quote 0: 4 words, need 5", "section '...' is offered but not cited", "was
+  not offered", "starts or ends inside a word of its section"); quote text is never
+  repeated, and an echoed section id is cut at 80 characters. Reason for D3: plan §6.4
+  lists the quote check with the citation and lexicon checks that feed tool realism, and
+  the existing grounding check (`cited_sections_offered`) is D3. Cost if wrong: a
+  correct item whose model reformatted a passage (changed case, dropped RST markup,
+  joined two sentences) is dropped; the gate report counts these per check, so the cost
+  is visible at B5.
+- **What a word is, for quotes.** Only tokens with a letter or digit count toward the
+  5-word minimum, so RST underlines and bullets do not. For boundaries, `.`, `_`, `'`,
+  `’`, `-`, `/`, `+` and `:` join the characters on either side into one token when both
+  are word characters (`bim.add_wall`, `model.ifc`, `4.5`, `Ctrl+S`, `EPSG:7856`), and
+  `,` joins only between two digits (`5,000`); next to a space or the text's edge they
+  are boundaries (a sentence-final period, `Ctrl + S`, `Note:`). A quote that starts or
+  ends inside such a token fails. A scan of every 5- to 12-token window of all 584
+  eligible fixture sections (562,866 quotes) found no verbatim quote failed. Known gap,
+  kept: a quote may still drop a leading sign or a trailing unit (`Y axis` from `+Y
+  axis`, `3.1` from `-3.1`, `100` from `100%`) or a Windows path prefix; the text stays
+  verbatim, and a changed meaning is for Chad's labels and the judge, not this heuristic.
+- **Section text is re-derived, never stored.** The check compares against the section
+  text exactly as `sampler.render_sections` offered it, re-read at check time by
+  `sampler.section_texts` from the fixture slice, with the page checked against the
+  offered page hash and against the committed manifest's hash and pin for that page.
+  The gate (`gate.item_checks`) and the collection's gate-report verification both go
+  through that one function, so a gate report is adopted only if its checks, the quote
+  check included, rerun identically on the collection's fixture slice. `bonsai-help
+  gate` therefore gains `--fixtures-dir` (default `tests/fixtures/docs`, as for
+  `generate` and `collect`); a changed fixture page stops the gate with a fixture error
+  (exit 1) and no report.
+- **Quotes are bound to their attempt.** Resume (`validate_evidence`) and the gate
+  (`_load_run`) re-derive the envelope's quotes from the attempt's `quotes` and refuse a
+  difference ("recorded quotes differ from the attempt's quotes"; "item ... has quotes
+  that differ from its attempt"), as they already do for citations.
+- **Prompt.** `prompts/generator-v1.md` asks for 1 to 3 short quotes; recorded as an
+  update of "Generator v1 completed before first use" above, with both hashes, rather
+  than a new prompt version.
+- **Tests.** Synthetic model outputs in the tests quote words copied from the fixture
+  sections they cite (`tests/fakes.py`, `fixture_quote`), so the existing gate and
+  collection tests keep passing the new check for the reason they did before. Schema and
+  model-client tests, which cite ids that are not fixture sections and never run the
+  check, carry one clearly synthetic quote.
 
 ## Open items (not yet decided)
 
