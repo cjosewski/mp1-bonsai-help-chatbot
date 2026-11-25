@@ -2981,6 +2981,25 @@ made yet; every judge run uses this text.
   from real development disagreements. Because a B8 assessment is judged with one frozen
   prompt version only, the rule also refuses to freeze a judge from a B8 assessment.
 
+### November 25, 2026: B6 labels complete and frozen; labeling method kept
+
+- **Labels.** Chad labeled all 30 items of assessment `b6-labels-1` with `bonsai-help
+  label`. On review he decided 12 dimension decisions he had first left unresolved (all
+  D6, blind ids `L-001` to `L-012`) and entered them as 12 corrections with `label --amend
+  --supersedes`, keeping D1 to D5 unchanged; the ledger holds 42 records (30 first labels
+  and 12 corrections) and nothing was overwritten. He then froze the human reference with
+  `freeze-human-reference --declare-blind`: 30 items, kind `arm` (baseline), 0 unresolved
+  decisions in every dimension, pinned to `bonsai-rubric-v1`. The reference stays under the
+  git-ignored `runs/`. No pass or failure rate is computed here: B7's calibration compares
+  the judge with this reference, and the improvement ratio's baseline figure comes from
+  B8's mixed queue (Chad's B6 answer 3).
+- **Labeling method kept (Chad, November 25, 2026).** In his words: "the method used in
+  this last round of labeling was much easier to use than the previous version and should
+  be used from here on." Every later human labeling or review step (the development
+  labels for judge v2, B8's mixed queue) uses the same interactive `assessment create` /
+  `label` / `label --amend` / `freeze-human-reference` flow with a runbook
+  (`docs/LABELING-RUNBOOK.md`), not Markdown review packets.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
