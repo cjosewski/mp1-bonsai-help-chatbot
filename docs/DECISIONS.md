@@ -2465,6 +2465,23 @@ Chad's answers are as the B6 plan records them, binding for B6 and B8:
   the rubric's blind-label count, and the label dimensions against the rubric's) are not
   written yet.
 
+### November 24, 2026: B6 assessment created; baseline report written
+
+On Chad's instruction "Do everything you can" (November 24, 2026), which gives the go-ahead
+for the step his B6 answer 5 left to the assistant ("Assistant, on go-ahead
+(Recommended)"):
+
+- **Baseline report.** `bonsai-help collection-report --collection-id
+  baseline-2026-11-24-r2 --report-id baseline-2026-11-24-r2-b5-report` wrote the report
+  once under the git-ignored `runs/reports/`. Its figures are those in "baseline
+  collection (B5)" above.
+- **Assessment.** `bonsai-help assessment create --assessment-id b6-labels-1 --cohort
+  baseline-b5-cohort-1 --count 30 --seed 20261124` selected 30 of the 50 cohort items
+  (kind `arm`, one source), pinned to `bonsai-rubric-v1` (SHA-256 `456aba48…`). Only its
+  blind summary was read; no label file exists. The 20 cohort items it did not select stay
+  for B8's mixed queue. Labeling is Chad's alone: `bonsai-help label --assessment-id
+  b6-labels-1 --reviewer "<name>"` in his own terminal.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
