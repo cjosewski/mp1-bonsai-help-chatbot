@@ -1,10 +1,12 @@
 """Command line: `bonsai-help snapshot | docs | lexicon | setup | gold`, the generation
-commands `generate | gate | collect | collection-status | cohort | cohort-status`, and
-`rubric check | show` (see `rubric`).
+commands `generate | gate | collect | collection-status | cohort | cohort-status`,
+`rubric check | show` (see `rubric`), and the assessment and labeling commands
+`assessment | label | label-status | freeze-human-reference` (see `evaluation_cli`).
 
 Exit codes: 0 success; 1 check failed; 2 usage or invalid config; 3 git or network
 failure; 4 upstream differs from the pins; 5 refused to write. The generation commands
-use 3 for controlled exhaustion instead (see `collection_cli`).
+use 3 for controlled exhaustion instead (see `collection_cli`); the assessment and labeling
+commands use 1 for a refused state and 130 for an interrupt (see `evaluation_cli`).
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from bonsai_help import (
     collection_cli,
     doc_snapshot,
     docs_index,
+    evaluation_cli,
     gold,
     gold_review,
     lexicons,
@@ -222,6 +225,7 @@ def _parser() -> argparse.ArgumentParser:
     gold_paths(sub, data=False)
     sub.add_argument("answers", type=Path, help='JSON lines: {"item_id": ..., "fields": {...}}')
     collection_cli.add_commands(commands)
+    evaluation_cli.add_commands(commands)
     rubric.add_commands(commands)
     return parser
 
@@ -259,6 +263,8 @@ def main(
     args = _parser().parse_args(argv)
     if args.command in collection_cli.COMMANDS:
         return collection_cli.run(args, transport=transport)
+    if args.command in evaluation_cli.COMMANDS:
+        return evaluation_cli.run(args)
     root = repository_root(Path.cwd())
     if args.command == "rubric":
         return rubric.run(args, root=root or Path.cwd())

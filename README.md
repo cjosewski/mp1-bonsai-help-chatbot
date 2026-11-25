@@ -25,21 +25,31 @@ edits Chad directed for this public copy are recorded in
 and setup facts) are done. B3 (gold set) was withdrawn from MP1 on November 23, 2026**
 and moves to Mini Project 4; its tooling, its tests and the 6 published items stay here,
 frozen, and the paused review packets GP-021 to GP-025 stay unimported. **B4 (generation
-and the first-pass gate) is done, with no model run yet**; it has no rubric, which Chad
-moved to B5 on November 24, 2026. **B5 (rubric and baseline run) has started**: the
-rubric `config/rubric.json` (`bonsai-rubric-v1`) is drafted and awaits Chad's approval
-(status `assistant_drafted`), and the run config can name a separate local embedding
-server. The first diagnostic smoke run on November 24, 2026 showed a thinking model spending its
-token budget on reasoning, so the run config can now turn that reasoning off
-(`enable_thinking`, below). The first baseline collection (`baseline-2026-11-24`,
-generator v1) was stopped during batch 2 on Chad's decision "Stop, fix, restart
-(Recommended)": batch 1's gate retained 19 of 70, mostly because v1 never asked for the
-gate's 60-word answer minimum and because quotes failed on RST inline markup. Its evidence
-is kept unchanged. The baseline restarts under a new collection ID with generator v1.1
-(`prompts/generator-v1.1.md`), and no baseline figure exists yet. Install, the offline tests, the
-documentation corpus rebuild, the section index, the lexicons, the setup-fact checks and
-the rubric commands (`rubric check`, `rubric show`) run today; steps 1 and 2 of the pipeline run offline against fake endpoints; every other
-step below is marked *not yet implemented* and will be filled in when its milestone lands.
+and the first-pass gate) is done**; it has no rubric, which Chad moved to B5 on November
+24, 2026. **B5 (rubric and baseline run) is done**:
+- Chad accepted the rubric `config/rubric.json` (`bonsai-rubric-v1`) as drafted on
+  November 24, 2026, so its status is `chad_accepted`.
+- The baseline collection `baseline-2026-11-24-r2` (generator v1.1,
+  `prompts/generator-v1.1.md`) is ready.
+- On Chad's decision "Freeze the cohort", cohort `baseline-b5-cohort-1` is frozen:
+  50 items, 10 per category, assessed split.
+
+The run config can name a separate local embedding server and can turn a thinking
+model's reasoning off (`enable_thinking`, below). The first baseline collection
+(`baseline-2026-11-24`, generator v1) was stopped during batch 2 on Chad's decision "Stop,
+fix, restart (Recommended)", and its evidence is kept unchanged.
+
+**B6 (baseline human labels): the tooling is built, and no label exists yet.** The
+assessment and labeling commands are described under
+[Human labels (B6)](#human-labels-b6). Labeling starts once an assessment is created:
+the assistant runs `assessment create` on Chad's go-ahead (30 of the 50 cohort items).
+After that only Chad labels, in his own terminal.
+
+What runs today: install, the offline tests, the documentation corpus rebuild, the section
+index, the lexicons, the setup-fact checks, the rubric commands (`rubric check`,
+`rubric show`) and the assessment and labeling commands. Steps 1 and 2 of the pipeline
+also run offline against fake endpoints. Every other step below is marked *not yet
+implemented* until its milestone lands.
 Chad's decisions on the B2 setup records (packet SR-001) are applied: 38 accepted and fact
 row SF-001 rejected. Setup review SR-003 (fact row SF-021) stays an MP1 item and is still
 pending.
@@ -75,8 +85,8 @@ packets remain as records. No new review decisions were imported.
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (Chad's SR-001 decisions applied) |
 | B3 | Gold set and multi-part and injection requests | Withdrawn from MP1 (moves to Mini Project 4); 6 of 110 items published and frozen; 104 drafts unreviewed |
 | B4 | Section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet; the rubric moved to B5 on November 24, 2026) |
-| B5 | Rubric (D1–D6) and baseline run | Baseline collected: `baseline-2026-11-24-r2` ready (70 of 70 valid initial attempts, 56 of 70 retained, at least 10 per category; see `docs/DECISIONS.md`). Rubric drafted (`assistant_drafted`, awaiting Chad's approval); cohort not yet frozen |
-| B6 | Baseline human labels | Not yet implemented |
+| B5 | Rubric (D1–D6) and baseline run | Done. Rubric accepted by Chad (`chad_accepted`, November 24, 2026). Baseline `baseline-2026-11-24-r2` ready (70 of 70 valid initial attempts, 56 of 70 retained, at least 10 per category; see `docs/DECISIONS.md`). Cohort `baseline-b5-cohort-1` frozen (50 items, 10 per category) |
+| B6 | Baseline human labels | Tooling built (assessments, blind labeling, append-only ledger, frozen human reference). No assessment created and no label entered yet |
 | B7 | Judge and Phase A calibration | Not yet implemented |
 | B8 | Phase B correction | Not yet implemented |
 | B9 | Analysis and charts | Not yet implemented |
@@ -135,7 +145,18 @@ failures, unstorable responses, code and prompt identity), each deterministic ch
 collections, cohorts and the generation commands with their exit codes. The B5 tests cover
 the rubric (shape and course-criterion refusals, malformed files, the hash, the overall-pass
 and relative-reduction rules, the command exit codes), its agreement with the B4 checks,
-collection target and cohort size, and the separate embedding endpoint and credential.
+collection target and cohort size, and the separate embedding endpoint and credential. The
+B6 tests build synthetic collections and cohorts in a temporary directory. They label
+only with scripted input, for a visibly synthetic reviewer and a synthetic test rubric, and
+never under `runs/` or `data/`. They cover:
+- decision values and unresolved decisions;
+- reproducible, category-balanced and disjoint selections;
+- the queue and key split, and display output that never contains the sentinel run,
+  model, prompt, item or cohort ids;
+- the rubric gate;
+- the terminal check with no bypass;
+- interrupted, truncated, edited and foreign ledgers, and leftover locks;
+- corrections and the freeze preconditions.
 
 ## Rebuild the documentation corpus
 
@@ -442,8 +463,10 @@ The published files are CC BY-SA 4.0 data; quotes keep their source license (`NO
 
 ## Generate and gate (B4)
 
-Diagnostic smoke runs have been made, and the first baseline collection was stopped
-(November 24, 2026; `docs/DECISIONS.md`); no baseline figure exists yet. B5 needs a reachable local endpoint and Chad's go-ahead; the offline
+Diagnostic smoke runs have been made. The first baseline collection was stopped, and the
+restarted baseline `baseline-2026-11-24-r2` is ready (November 24, 2026;
+`docs/DECISIONS.md`). No baseline failure rate exists yet: it needs B6's labels and B7's
+judge. A model run needs a reachable local endpoint and Chad's go-ahead, and the offline
 tests exercise the commands against fake endpoints only. Copy
 `config/run.example.json` to `config/run.local.json` (git-ignored by the pattern
 `config/*.local.json`; `config/run.json` would be tracked) or to a path outside the
@@ -582,11 +605,13 @@ dimensions in course order with their course names, a pass and a fail anchor for
 (from plan §6.2, with §6.3 for D2), labeling notes (what to check, common fail patterns,
 borderline rulings), each dimension's pass-rate minimum (D1 0.85, D2 0.90, D3 0.95,
 D4 0.95, D5 0.90, D6 0.85), the overall-pass rule (all six; one fail fails the item, and
-otherwise a missing decision is unresolved, never a pass) and the course thresholds. It is an assistant draft
-(`assistant_drafted`) until Chad accepts, edits or rejects it; only a dated entry in
-`docs/DECISIONS.md` in his words can make it `chad_accepted`. A threshold that differs
-from the course value, stricter or weaker, is refused: a change needs a dated amendment, a
-new rubric version and a code change. Labels (B6) will pin the rubric's version and hash.
+otherwise a missing decision is unresolved, never a pass) and the course thresholds. Chad
+accepted it as drafted on November 24, 2026 ("Accept as drafted"; `docs/DECISIONS.md`),
+so its status is `chad_accepted`. Only a dated entry in `docs/DECISIONS.md` in his words
+can set that status, and any later change is a new rubric version. A threshold that
+differs from the course value, stricter or weaker, is refused: a change needs a dated
+amendment, a new rubric version and a code change. Every B6 assessment and label pins the
+rubric's version and hash.
 
 ```text
 bonsai-help rubric check [--rubric RUBRIC]
@@ -603,19 +628,118 @@ while the status is `assistant_drafted`); 1 the rubric fails its check (malforme
 shape error or a departure from the course criteria); 2 a missing or unreadable file, or a
 usage error. Errors name only the file, never its absolute path.
 
-The baseline run procedure, the open question of which split it uses and what B5 cannot
-measure yet are in `docs/superpowers/plans/2026-11-24-b5-rubric-and-baseline.md`. The
-overall failure rate needs Chad's labels (B6) and the judge (B7); it is never estimated
-from the gate.
+The baseline run procedure and what B5 cannot measure yet are in
+`docs/superpowers/plans/2026-11-24-b5-rubric-and-baseline.md`. The overall failure rate
+needs Chad's labels (B6) and the judge (B7); it is never estimated from the gate.
+
+## Human labels (B6)
+
+The tooling is built. No assessment has been created and no label has been entered. The
+plan is `docs/superpowers/plans/2026-11-24-b6-labels.md`, and the assistant's calls are in
+`docs/DECISIONS.md` (November 24, 2026: B6 labeling tooling).
+
+```text
+bonsai-help assessment create [--artifact-root ARTIFACT_ROOT]
+                              --assessment-id ASSESSMENT_ID --cohort COHORT
+                              --count COUNT --seed SEED
+                              [--exclude-assessment EXCLUDE_ASSESSMENT]
+                              [--rubric RUBRIC]
+bonsai-help assessment status [--artifact-root ARTIFACT_ROOT]
+                              --assessment-id ASSESSMENT_ID
+bonsai-help label [--artifact-root ARTIFACT_ROOT] --assessment-id ASSESSMENT_ID
+                  --reviewer REVIEWER [--amend L-NNN] [--supersedes LABEL_ID]
+bonsai-help label-status [--artifact-root ARTIFACT_ROOT]
+                         --assessment-id ASSESSMENT_ID
+bonsai-help freeze-human-reference [--artifact-root ARTIFACT_ROOT]
+                                   --assessment-id ASSESSMENT_ID
+                                   --reviewer REVIEWER [--declare-blind]
+```
+
+`--cohort` and `--exclude-assessment` may be repeated: one cohort per arm, and any number
+of earlier assessments whose items are left out. `--count` is items per cohort, a multiple
+of 5. `--artifact-root` defaults to `runs`; it must be `runs/` or a path outside the
+repository. `uv run --locked bonsai-help <command> --help` prints the full text.
+
+| Command | What it does and writes |
+| --- | --- |
+| `assessment create` | Selects `--count` items from each frozen cohort and seals a new assessment under `<artifact root>/assessments/<id>/`. The selection is seeded, takes `count / 5` per category and refuses a shortfall. It writes `queue.json` (what the labeler sees), `key.json` (blind id to run, item and arm), a copy of the rubric and `manifest.json`, each once. It refuses unless the rubric is `chad_accepted`. It writes no label |
+| `assessment status` | Re-verifies the assessment against its cohorts. Reports blind totals, the rubric pin, whether the current rubric still matches it, and the ledger's state |
+| `label` | Chad's interactive labeling session (below) |
+| `label-status` | Blind progress: selected, completed, pending blind ids, effective label ids, unresolved decisions, and the ledger state. It never writes |
+| `freeze-human-reference` | Chad's interactive freeze. It writes `human-reference.json` once, the frozen input of B7's Phase A calibration |
+
+The labeling rules:
+
+- **Only Chad labels.** `label` and `freeze-human-reference` record the reviewer's own
+  decisions. They refuse (exit 2) unless stdin and stdout are both terminals, before
+  anything is shown, and no flag or environment variable bypasses that check. Each session
+  starts with a typed confirmation, `label <assessment-id>` or `freeze <assessment-id>`.
+  An assistant never runs either command, interactively or through a pseudo-terminal. An
+  assistant never enters, edits or imports a label.
+- **Rubric gate.** Labeling refuses before showing anything if the assessment's rubric
+  copy differs from its pin or is not `chad_accepted`. It also refuses if the
+  repository's `config/rubric.json` has changed since the assessment was created ("rubric
+  changed since the assessment was created; create a new assessment").
+- **Blind display.** Each item appears under an opaque blind id (`L-001`, ...), in one
+  seeded, shuffled order. The display shows the item's seven fields, its category, its
+  setup record (Blender and Bonsai versions, IFC schema, discipline, model state), the
+  model's quotes and the full text of each cited section. It never shows the run id, item
+  id, arm, prompt variant, model, generation time, collection or cohort id, gate results,
+  judge output or other labels. The labeling code never reads `key.json`. Control
+  characters in model or section text are shown escaped. Status commands print totals and
+  blind ids, never a count per arm.
+- **Decisions.** For each dimension D1 to D6, enter `0`, `1`, `u` (unresolved), `?` (the
+  dimension's labeling notes) or `q` (quit). There is no skip. After six answers the
+  summary is shown, then an optional note, then `save? [y/redo/q]`. Nothing is written
+  until `y`, and quitting mid-item writes nothing.
+- **Unresolved.** An unresolved decision is recorded and reported. It is never a pass,
+  and the item stays in every denominator.
+- **What a label carries.** The trace id, a UTC timestamp, the pinned rubric version and
+  SHA-256, the assessment's hash and the decisions. Notes stay in the local ledger and
+  never enter Git.
+- **Append-only.** Labels go to a hash-chained `labels.jsonl` with a checkpoint written
+  after each append, under an exclusive lock. To correct a label, run
+  `label --amend L-NNN --supersedes LABEL_ID`: it adds a new label that names the label
+  it supersedes, and the earlier label stays. An interrupted write, an edited, truncated
+  or foreign ledger, or a leftover lock makes `label`, `label-status` and the freeze
+  refuse with "preserve and inspect". Nothing is repaired or deleted.
+- **Freeze.** `freeze-human-reference --declare-blind` needs a blind label by the
+  declaring reviewer for every selected item. It also needs at least 20 labeled items
+  per arm (the rubric's minimum), an unchanged rubric, and no judge evidence under the
+  assessment. Unresolved decisions do not block it; they are counted in the reference.
+  Corrections after the freeze are `post_review` and never change the frozen reference.
+
+Procedure (Chad's answers of November 24, 2026 in `docs/DECISIONS.md`):
+
+1. On Chad's go-ahead, the assistant runs `assessment create --cohort baseline-b5-cohort-1
+   --count 30 --seed <seed>` under a neutral assessment id. It reports only the blind
+   summary. That leaves 20 unselected cohort items for B8.
+2. Chad runs `bonsai-help label --assessment-id <id> --reviewer <name>` in his own
+   terminal. Quitting and resuming is safe, and `label-status` shows progress.
+3. When `label-status` reports `complete`, Chad runs `freeze-human-reference
+   --assessment-id <id> --reviewer <name> --declare-blind`.
+
+B8 uses the same commands for one mixed assessment: the corrected cohort plus baseline
+items that B6 did not select (`--exclude-assessment <B6 id>`). Give a mixed assessment a
+neutral id (`b8-blind-1`, not `corrected-...`), because Chad types it. Chad chose B8's
+mixed-queue baseline labels as the baseline figure for the improvement ratio; B6's labels
+serve Phase A calibration.
+
+Exit codes: 0 done, or labeling complete. 1 a refused state: a rubric not accepted or
+changed, a ledger that is not intact or is locked, an incomplete selection, an unmet
+freeze precondition or an unmatched confirmation, or changed evidence; an existing
+assessment id is also 1. 2 a usage or configuration error, including a stdin or stdout
+that is not a terminal. 130 interrupted: run `label-status` and inspect before
+continuing. Errors are one line on stderr without absolute paths.
 
 ## Run each step
 
-Each step runs on its own against saved artifacts. Steps 1 and 2 exist (B4); the rest are
-not yet implemented (B6 to B9):
+Each step runs on its own against saved artifacts. Steps 1 and 2 exist (B4), and step 3's
+tooling exists (B6); the rest are not yet implemented (B7 to B9):
 
 1. Generate: one prompt per category and setup profile writes each item from pinned doc sections (B4, B5, B8). Implemented.
 2. First-pass gate: schema, deterministic checks, duplicates, category balance (B4, B5). Implemented.
-3. Human labels: blind, resumable labeling against the pinned rubric (rubric drafted at B5; labeling B6).
+3. Human labels: blind, resumable labeling against the pinned rubric (B6). Tooling implemented; no label entered yet.
 4. Judge: independent prompt at a lower temperature than the generator (B7).
 5. Analyze: pass rates, agreement, intervals and five charts (B9).
 6. Iterate: Phase A judge calibration, Phase B generator correction (B7, B8).
@@ -644,7 +768,7 @@ no model and no credentials.
 ├── uv.lock
 ├── config/
 │   ├── doc-sources.json  pinned commits, page selection, licenses, attribution
-│   ├── rubric.json       D1–D6 anchors, labeling notes and thresholds (assistant-drafted)
+│   ├── rubric.json       D1–D6 anchors, labeling notes and thresholds (accepted by Chad)
 │   ├── run.example.json  example run config (local endpoints)
 │   └── doc-manifest.json page hashes of every snapshot (written by the tool)
 ├── reference/
@@ -656,7 +780,7 @@ no model and no credentials.
 ├── docs/
 │   ├── DECISIONS.md     dated owner decisions and open items
 │   └── PORTING-MAP.md   what is ported from the earlier repository, and when
-├── src/bonsai_help/     the package: snapshots, section index, lexicons, setup checks, gold set, CLI
+├── src/bonsai_help/     the package: snapshots, section index, lexicons, setup checks, gold set, generation, gate, rubric, assessments, labels, CLI
 ├── tests/               offline behaviour tests
 │   └── fixtures/docs/   unmodified, attributed documentation fixture slice
 └── submission/          curated course submission set (filled at B10; datasets CC BY-SA 4.0)

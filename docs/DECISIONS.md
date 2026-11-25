@@ -2131,6 +2131,262 @@ rubric check` prints the new value). B6 labels pin this version and hash. Any la
 is a new rubric version with a new dated entry, and labels already made keep the version
 they pinned. This resolves B5 open question 2.
 
+### November 24, 2026: baseline cohort frozen; B5 done
+
+Owner decisions (Chad, November 24, 2026): "Freeze the cohort", then "Merge B5 and push".
+
+- **The cohort.** Cohort `baseline-b5-cohort-1` was frozen from the ready collection
+  `baseline-2026-11-24-r2` (`bonsai-help cohort`). It holds 50 items, 10 per category,
+  all on the assessed split and all written by generator v1.1. The selection is the cohort
+  module's own: 10 per category, seeded by the SHA-256 of the collection id. Its record
+  and the collection's freeze receipt stay under the git-ignored `runs/`, and
+  `cohort-status` verifies them.
+- **Read only from now on.** The cohort and its collection are never rewritten. B6 and B8
+  draw their labeling selections from this cohort. B6 selects 30 of the 50 items, and
+  the 20 that B6 does not select are left for B8's blind mixed queue (below).
+- **B5 is done.** The rubric is accepted (entry above), the baseline is collected and the
+  cohort is frozen. Still not in the package: the Clopper-Pearson `stats` code of the B5
+  plan's Task 3. The intervals in the baseline entry above are recorded figures; no
+  package command computes them yet.
+- **Not measured.** The baseline failure rate and its ≥15% target still need Chad's blind
+  labels (B6) and the calibrated judge (B7).
+
+### November 24, 2026: B6 labeling tooling (assistant's calls)
+
+Plan: `docs/superpowers/plans/2026-11-24-b6-labels.md`. The modules are
+`evaluation_schemas`, `assessment`, `labels`, `human_reference` and `evaluation_cli`,
+ported as behaviour-tested rewrites (PORTING-MAP §8). They come with the commands
+`assessment create | status`, `label`, `label-status` and `freeze-human-reference`. No
+label has been entered and no model was called. The tests write synthetic labels for
+synthetic assessments under a temporary directory only. Their reviewer is
+`"synthetic-reviewer"`, and their rubric's review words are "synthetic test acceptance,
+not Chad's".
+
+#### Chad's answers to the B6 questions (November 24, 2026)
+
+Chad's answers are as the B6 plan records them, binding for B6 and B8:
+
+1. **How many baseline items does B6 label?** (The minimum is 20, and the cohort has 50.)
+   Answer: "30". B6's assessment selects 30 of the 50 cohort items (`--count 30`), which
+   leaves 20 for B8.
+2. **The reading of "blind" for B6.** In B6 each item is blind on its own, and every item
+   is known to be a baseline item; arm blindness comes in B8's mixed queue. Answer: "Accept
+   (Recommended)".
+3. **Which baseline labels give the baseline figure for the improvement ratio?** Answer:
+   "B8 mixed-queue labels (Recommended)". B6's labels serve Phase A calibration, and the
+   improvement ratio uses B8's arm-blind baseline labels.
+4. **Development-split items for judge v2.** Answer: "Generate in B7 (Recommended)". No
+   development collection is made in B6. That collection is a new model run, and it needs
+   Chad's go-ahead.
+5. **Who runs `assessment create`?** Answer: "Assistant, on go-ahead (Recommended)". The
+   assistant may run it after Chad's go-ahead and reports only the blind summary.
+   `label` and `freeze-human-reference` stay Chad's alone.
+6. **Display contents.** Answer: "Show category and quotes". The display shows the
+   item's category and the model's quotes, each with the section id it names.
+
+#### Design (assistant's calls; Chad can overrule any, and a change is a new dated entry)
+
+1. **Two kinds of blindness.** In B6 each item is blind on its own. It is shown under an
+   opaque blind id (`L-001`, ...) in one seeded, shuffled order, and nothing on screen
+   names its run or arm. Plan §7 Step 3's arm blindness comes in B8. B8's mixed
+   assessment holds the corrected cohort's items and baseline items that no earlier
+   assessment selected (`--exclude-assessment`), shuffled into one queue. Development labels
+   for judge v2 come from their own assessment kind. That kind is never mixed with arm
+   sources and never enters an arm's denominator or the Phase A agreement.
+2. **Sources are frozen cohorts, one per arm.** Each source is loaded through
+   `cohort.load_cohort`, which re-verifies the collection evidence. The arm comes from the
+   collection's identity and is never typed by the operator. `purpose` must be `baseline`
+   or `corrected` and must equal `prompt_variant`, and `smoke` is refused. The split
+   decides the kind: `assessed` makes an `arm` source and `development` a `development`
+   source. Mixing kinds is refused.
+3. **Seeded selection** (`sha256-stratified-v2`, per source). It leaves out the items
+   that the excluded assessments selected. In each category it sorts the rest by
+   `sha256(seed, cohort_id, item_id)` and takes `count / 5`. `count` is a multiple of 5:
+   at least the rubric's `thresholds.blind_labels.minimum_per_arm` (20) for kind `arm`,
+   and at least 5 for kind `development`. A shortfall in any category is refused, never
+   padded. Each hash is the SHA-256 of the JSON array (`json.dumps` with default
+   separators, `ensure_ascii=False`). Ties are broken by item id or trace id.
+4. **Display order and blind ids.** All selected items are put into one order by
+   `sha256(seed, "order", trace_id)`. Blind ids are positions in that order, so a blind id
+   carries no source. A blind id is ASCII `L-[0-9]{3}`, and `L-000` is refused, because
+   the plan's `\d` would also allow non-ASCII digits.
+5. **Queue and key are kept apart.** `queue.json` holds only what the display and the
+   label pins need: the blind id, the trace id, the payload hash, the seven fields, the
+   category, the setup record, the quotes and the cited sections. `key.json` maps each
+   blind id to its source, item id, run id and arm. The manifest seals both by SHA-256.
+   `labels` and the display never read the key. Only `human_reference` reads it (after
+   labeling), and later B7+ stages will. `load_assessment` never reads its own
+   `key.json`. With excluded assessments, it reads their keys through an internal reader
+   to re-derive the selection. A tampered `key.json` is therefore found by `load_key`,
+   not by `load_assessment`.
+6. **What the display shows.**
+   - The item's seven fields, its category and the model's quotes, each quote with the
+     section id it names.
+   - A setup record rendered from `reference/setup-profiles.json` at create time:
+     Blender and Bonsai versions, IFC schema, discipline and model state. The setup id,
+     split, status and review are left out. Create refuses an item whose profile is
+     unknown, outside the source's split or on another version line. The rendered record
+     is protected by the queue hash, and `load_assessment` does not re-render it.
+   - Each cited section's source, path, heading and full text, re-derived from the
+     hash-verified fixture slice. The heading is the section's first nonblank line that is
+     not an RST adornment.
+   - Never shown: an offered section the item did not cite, the run id, the item id,
+     the arm, the prompt variant or hash, the model, the generation time, the collection
+     or cohort id, the gate results, judge output or other labels. The trace id and
+     payload hash are pinned in each label but not displayed.
+   - Characters in Unicode categories Cc (except newline and tab), Cf, Zl, Zp and Cs are
+     shown escaped, so model text cannot drive the terminal.
+7. **Rubric pin and gate.** `assessment create` refuses unless the rubric is
+   `chad_accepted`. It stores a byte copy as `rubric.json` and pins `rubric_version`
+   and `rubric_sha256`. `label`, each save and the freeze refuse before showing anything
+   in three cases: the copy's hash differs from the pin, the pinned rubric is not
+   `chad_accepted`, or the repository's current `config/rubric.json` has another hash.
+   The last case gives "rubric changed since the assessment was created; create a new
+   assessment".
+   - `load_assessment` records the current rubric's hash
+     (`Assessment.current_rubric_sha256`) and leaves the refusal to
+     `labels.check_rubric_gate`.
+   - `record_label` takes a required `rubric_path`, so every save re-runs the gate.
+   - `label` and `freeze-human-reference` have no `--rubric` option. They always compare
+     against the repository's `config/rubric.json`. Only `assessment create` takes
+     `--rubric`, and it still requires `chad_accepted`.
+8. **Decision values.** A label's `Decisions` has all six keys, each explicit, with the
+   value `0`, `1` or `null` (unresolved). Booleans, floats and strings are refused.
+   Unresolved is reported, is never a pass, and keeps the item in its denominator;
+   `rubric.overall_pass` gives `None` or `False` for it, never `True`. A judge's
+   `DimensionJudgment` allows only `0` or `1` with a nonblank reason. A judge that cannot
+   decide has a failed or missing attempt, which B7 reports as unresolved.
+9. **Interactive entry only.**
+   - `label` and `freeze-human-reference` refuse (exit 2) unless both stdin and stdout are
+     terminals. The refusal comes before anything is read or shown.
+   - No flag or environment variable bypasses the check. The old non-interactive
+     `--item-id/--decisions` path is not ported.
+   - Each session starts with a line saying that the decisions are recorded as the
+     reviewer's own, then a typed confirmation: `label <assessment_id>` or
+     `freeze <assessment_id>`. End of input or Ctrl-C at the confirmation counts as no
+     match, and nothing is written.
+   - Like `gold packet import`, the check would pass a pseudo-terminal. That an assistant
+     never uses one is a process rule in `AGENTS.md`.
+10. **Entering one item.**
+    - Each dimension takes `0`, `1`, `u` (unresolved), `?` (that dimension's labeling notes)
+      or `q` (quit). There is no skip, because the rubric says an item is never skipped;
+      `s` asks again.
+    - After six answers the summary is shown, then an optional note (stripped of
+      surrounding whitespace), then `save? [y/redo/q]`.
+    - Nothing is written until `y`. Quitting, end of input or Ctrl-C mid-item writes
+      nothing for that item, and the session ends with the label status.
+11. **Ledger.**
+    - Files: `labels.jsonl` holds hash-chained envelopes `{label, previous_sha256,
+      sha256}`, appended and never rewritten. `labels-checkpoint.json` holds
+      `{assessment_sha256, ledger_sha256, count}` and is written atomically after each
+      append. `.labels.lock` is the exclusive writer lock.
+    - `assessment create` writes no label file; the first saved label creates the ledger.
+    - States: neither file means no labels yet. A ledger without a checkpoint means the
+      first write was interrupted. A checkpoint without a ledger means evidence is
+      missing. A hash, count or chain mismatch means the ledger was interrupted or edited.
+      The last three, and a leftover lock, are refused with "preserve and inspect";
+      nothing repairs, truncates, re-signs or deletes a file.
+    - `ledger_state` returns the state with a detail text, and a broken chain reads as
+      `interrupted`. Wrong pins or a foreign label (another assessment's hash, a blind
+      id not in the queue) are reported by `load_labels`. `label_status` shows these with
+      status `not_intact` and a `problem` text, and leaves its counts empty; it never
+      takes the lock and never writes.
+    - `load_labels` also refuses a `blind` label after a `post_review` one, and a
+      `post_review` label when no human reference exists.
+12. **Corrections.** `label --amend L-NNN --supersedes LABEL_ID` shows the item again
+    without its earlier decisions and records a new label. `supersedes_label_id` must be
+    the current effective label for that blind id. It is typed as a UUID4 label id, is
+    always present (explicitly `null` for a first label) and may not equal the label's own
+    id. Before the freeze an amendment is `blind`. After it the amendment is `post_review`
+    and never changes the frozen reference.
+13. **Freezing the human reference.** `freeze_reference` writes `human-reference.json`
+    once, sealed by SHA-256. Every refusal comes before any write. It needs:
+    - the declaration (`--declare-blind` plus the typed confirmation) and a nonblank
+      reviewer;
+    - the rubric gate;
+    - an intact, unlocked ledger;
+    - an effective `blind` label from the declaring reviewer for every selected blind id;
+    - for kind `arm`, at least the rubric's per-arm minimum in each arm (kind
+      `development`: at least 5);
+    - no `judges/` entry of any kind under the assessment. Even an empty directory or a
+      plain file blocks the freeze, which is stricter than the old rule of "any files
+      inside".
+
+    The freeze reads the ledger and computes its prefix under the labels lock. The prefix
+    line count comes from the parsed lines, so a blank or broken line is refused. The
+    reference holds:
+    - the effective labels as full label records, notes included (it stays local, and
+      B10's exporter drops notes);
+    - the prefix's SHA-256 and line count, the kind and the pins;
+    - counts as a total plus groups (each arm for kind `arm`, the one group `development`
+      for kind `development`). Each group gives items, unresolved items and unresolved
+      decisions per dimension, read from the key now that labeling is complete.
+
+    Overall pass and fail rates are left to B7 and B9. Unresolved decisions do not block a
+    freeze; they are reported and stay in the denominators. `load_reference` re-checks the
+    per-group minimum and the key's arms. It refuses a `blind` label after the frozen
+    prefix and ignores later `post_review` labels.
+    - The error class is `HumanReferenceError`, not the plan's `ReferenceError`, which
+      would shadow Python's built-in.
+    - Obligation for B7: an assessed judge run calls `human_reference.load_reference`
+      first, refuses without a frozen reference, and writes only under
+      `<assessment>/judges/`. Judge evidence can therefore never come before the frozen
+      labels.
+14. **Ids, paths and immutability.**
+    - An assessment id follows the `tracing.run_directory` safe-id rule. README advises a
+      neutral id for a mixed assessment (`b8-blind-1`, not `corrected-...`), because Chad
+      types it.
+    - Assessments live under `<artifact root>/assessments/`. An artifact root inside the
+      repository other than `runs/` is refused, and so is a symlinked `assessments`
+      directory.
+    - Assessments, checkpoints and references are never overwritten. A directory without
+      `manifest.json`, which is written last, is an interrupted create: it is reported for
+      inspection and never reused.
+    - A second `assessment create` with an existing id exits 1 (a refused state), unlike
+      `collect`'s exit 2 for an existing id.
+    - Exclusion works on (cohort id, item id) pairs. Each excluded assessment's manifest
+      seal is pinned in `selection.excluded`.
+
+#### Schema and command details (assistant's calls)
+
+- **Label models.** Every model is `strict=True`, `extra="forbid"`, `frozen=True` and
+  `hide_input_in_errors=True`. A label cannot change after it is created, and a note never
+  appears in a validation error. `assessment_sha256`, `payload_sha256` and
+  `rubric_sha256` are 64 lower-case hex characters. `assessment_id` follows the safe-id
+  rule, and `rubric_version` the pattern `bonsai-rubric-vN`. A timestamp is any ISO-8601
+  UTC form with offset zero (`Z` or `+00:00`), and its exact text is kept. A label has no
+  provenance field (`arm`, `run_id`, `item_id`, `model`, `prompt_variant` are refused).
+- **Errors.** `assessment.UsageError` (a subclass of `AssessmentError`) marks a
+  malformed request: a bad id, seed, cohort or exclude list, a count that is not a
+  positive multiple of 5, or a count below the kind's minimum. It maps to exit 2. A
+  selection shortfall, including a count above what is available, is a refused state
+  (exit 1).
+- **Exit codes.** 0 means done, or labeling complete. 1 means a refused state: a rubric
+  not accepted or changed, a ledger not intact or locked, an incomplete selection
+  (`label` exits 1 when the session ends incomplete, like `label-status`), an unmet
+  freeze precondition, an unmatched confirmation, or changed or missing evidence. 2
+  means a usage or configuration error, including a stdin or stdout that is not a
+  terminal. 130 means interrupted. Errors are one line with absolute paths redacted.
+- **Freeze order.** `freeze-human-reference` checks every precondition it can before it
+  prints the declaration line and asks for `freeze <id>`: the declaration, the reviewer,
+  the assessment, the rubric gate, no existing reference, and an intact and complete
+  ledger.
+- **Fixed paths.** The fixtures, doc sources and setup profiles are the repository's
+  fixed paths; there are no `--fixtures-dir` or `--reference-dir` options here. The
+  artifact-root rule is the B4 rule.
+- **Blind summaries.** `assessment status` and `label-status` print blind totals, blind
+  ids, label ids and pins. They never print a run, item or trace id, an arm, a count per
+  arm, a model or a prompt. `assessment status` adds whether the current rubric still
+  matches the pin and the ledger's state. The freeze summary gives totals and unresolved
+  counts, not the per-arm groups.
+- **Test helper.** `tests/evaluation_support.py` builds the synthetic ready collections,
+  frozen cohorts and test rubric under a temporary directory. The tests use sentinel
+  run, model, prompt, collection and cohort ids, which no display or status output may
+  contain.
+- **Not built in B6.** The drift tests of the plan's Task 6 (the per-arm minimum against
+  the rubric's blind-label count, and the label dimensions against the rubric's) are not
+  written yet.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

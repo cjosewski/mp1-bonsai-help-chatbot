@@ -138,21 +138,54 @@ run yet. `bonsai-help generate`, `gate`, `collect`, `collection-status`, `cohort
 moved it to B5 on November 24, 2026 ("Refuse hosted for now; record the rubric as moved to
 B5"). The final-review fixes and the cleanup of November 24, 2026 are recorded there as
 assistant's calls.
-As of November 24, 2026, **B5 (rubric and baseline run) has started**. The rubric
-`config/rubric.json` (`bonsai-rubric-v1`, checked by `bonsai-help rubric check | show`) is `assistant_drafted` and awaits Chad's decision; only a dated
-`docs/DECISIONS.md` entry in his words can make it `chad_accepted`, and a threshold change
-needs a dated amendment, a new rubric version and a code change. Chad chose a separate
-local embedding server (`embedding_base_url`) and the chat server's key file for the key
-("Yes, use that file"); the path stays in the git-ignored local config. Model runs have
-been made: diagnostic smoke runs (never baseline evidence) and the first baseline
-collection `baseline-2026-11-24` (generator v1), which Chad stopped during batch 2 ("Stop,
-fix, restart (Recommended)"); it is kept unchanged under `runs/` and never resumed,
-repaired or counted. Both measured arms use the assessed split (Chad: "Assessed split
-(Recommended)"). The restarted baseline uses `prompts/generator-v1.1.md` (v1 plus the
-gate's 60-word answer minimum) under a new collection ID, and needs reachable local
-servers and Chad's go-ahead. `prompts/generator-v1.md` is frozen; the Phase B correction
-changes v1.1 (plan file `docs/superpowers/plans/2026-11-24-b5-rubric-and-baseline.md`).
-Then B6–B10 as the plan's §9 describes. B6 and B8 need Chad's labels.
+As of November 24, 2026, **B5 (rubric and baseline run) is done**:
+- **Rubric.** Chad accepted `config/rubric.json` (`bonsai-rubric-v1`, checked by
+  `bonsai-help rubric check | show`) as drafted, so it is `chad_accepted`. Only a dated
+  `docs/DECISIONS.md` entry in his words sets that status. Any change is a new rubric
+  version, and a threshold change also needs a dated amendment and a code change.
+- **Embedding server.** Chad chose a separate local embedding server
+  (`embedding_base_url`) and the chat server's key file for the key ("Yes, use that
+  file"). The path stays in the git-ignored local config.
+- **Kept runs.** Diagnostic smoke runs (never baseline evidence) and the stopped first
+  baseline `baseline-2026-11-24` (generator v1; Chad: "Stop, fix, restart (Recommended)")
+  are kept unchanged under `runs/`. They are never resumed, repaired or counted.
+- **Baseline.** Both measured arms use the assessed split (Chad: "Assessed split
+  (Recommended)"). The baseline collection `baseline-2026-11-24-r2` (generator v1.1) is
+  ready.
+- **Cohort.** On Chad's "Freeze the cohort", cohort `baseline-b5-cohort-1` is frozen
+  from it: 50 items, 10 per category. The cohort and its collection are read only.
+- **Prompts.** `prompts/generator-v1.md` is frozen, and the Phase B correction changes
+  v1.1.
+- **Still open.** The `stats` code for the 95% intervals (B5 plan Task 3) is not built.
+
+As of November 24, 2026, **B6 (baseline human labels) is next, and its tooling is built**:
+`bonsai-help assessment create | status`, `label`, `label-status` and
+`freeze-human-reference`, with the modules `evaluation_schemas`, `assessment`, `labels`,
+`human_reference` and `evaluation_cli`. The plan is
+`docs/superpowers/plans/2026-11-24-b6-labels.md`, and the calls and Chad's answers are in
+`docs/DECISIONS.md`. No assessment has been created and no label has been entered.
+- **Count.** B6 labels 30 of the 50 cohort items, and the other 20 stay unselected for
+  B8's blind mixed queue.
+- **Who runs what.** The assistant may run `assessment create` on Chad's go-ahead and
+  reports only its blind summary.
+- **Chad's commands.** Only Chad runs `label` and `freeze-human-reference`, in his own
+  interactive terminal. An assistant never runs them, interactively or through a
+  pseudo-terminal or any input script. It never writes, edits, moves or deletes a label
+  file, checkpoint, lock or human reference under `runs/` or `data/`.
+- **What an assistant may read.** It may read `label-status` and `assessment status`. It
+  never tells Chad a blind id's run, item or arm (from `key.json`) before his labels for
+  that assessment are frozen.
+- **Labeling refuses** while the rubric is not `chad_accepted` or has changed since the
+  assessment was created.
+- **Blind display.** The display shows the item's seven fields, its category, its setup
+  record, the model's quotes and the full text of its cited sections, never provenance.
+- **Labels are append-only.** A correction is `label --amend --supersedes`. A refused
+  ledger means preserve and inspect, never repair.
+- **Unresolved** is reported and is never a pass.
+- **B7** calls `human_reference.load_reference` first and writes judge evidence only
+  under `<assessment>/judges/`.
+
+Then B7–B10 as the plan's §9 describes. B8 needs Chad's labels too.
 
 B0 scope is the assistant's call, not Chad's: earlier pipeline modules were not copied.
 B4 ports them module by module, each with its tests, following `docs/PORTING-MAP.md`. The
