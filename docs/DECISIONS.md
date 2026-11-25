@@ -2049,7 +2049,10 @@ Iteration-log record for the prompt change (this carries into the B10 iteration 
 - **Before.** Batch 1 of the stopped collection, as above: 70 slots, 70 valid initial
   attempts, 19 of 70 retained, with `answer_length` dropping 33 items (15 to 59 words)
   under v1.
-- **After.** Pending the restarted baseline.
+- **After.** Restarted baseline `baseline-2026-11-24-r2`, batch 1 under v1.1:
+  `answer_length` dropped 3 of 70 items (4.3%, 95% interval 0.9% to 12.0%), against
+  33 of 70 under v1 (47.1%, 35.1% to 59.4%). The hypothesis held for this measure; it
+  says nothing yet about answer quality, which B6's labels and B7's judge decide.
 - **Decision** (assistant's call carrying out Chad's "Stop, fix, restart"; Chad can
   overrule it). v1.1 is the baseline prompt. This is a pre-baseline fix of a mismatch
   between the prompt and the gate, found by the first baseline collection, which was
@@ -2092,6 +2095,29 @@ new dated entry):
   checks both. Nothing in the code allows only `generator-v1.md`. On this date the field's
   default and `config/run.example.json` still name v1, so the restarted baseline config
   must name v1.1 itself.
+
+### November 24, 2026: baseline collection (B5)
+
+The restarted baseline collection `baseline-2026-11-24-r2` ran on the assessed split with
+generator v1.1, thinking off and the model pinned by its file hash. It reached `ready`
+after one batch of 70 slots (about 56 minutes) and stopped; the batch budget of 3 was not
+needed. Counts with 95% Clopper-Pearson intervals:
+
+- **Initial-attempt schema validity:** 70 of 70 (100%, 94.9% to 100%). The course's ≥95%
+  target is judged on this figure; the lower bound is just under 95%, which 70 slots
+  cannot rule out. Retry recovery 0, exhausted slots 0, unknown outcomes 0.
+- **Gate retention:** 56 of 70 (80.0%, 68.7% to 88.6%). Drops by check: `quotes_verbatim`
+  10, `answer_length` 3, `tip_not_step_copy` 1. No exact or near duplicates.
+- **Categories retained:** `bonsai_project_setup` 11, `bonsai_modeling` 10,
+  `ifc_data_and_materials` 12, `model_exploration` 11, `files_versions_troubleshooting` 12.
+  The collection's readiness rule (at least 50 retained, at least 10 per category) is
+  met. The batch's own distribution check did not pass: `bonsai_modeling` is 10 of 56
+  (17.9%), just under the 18% minimum share (B4 decision 6). This is reported, not
+  adjusted; the cohort freezes 10 items per category, so the labeled set is exactly 20%
+  per category.
+- **Not measured here:** the baseline failure rate and its ≥15% target need Chad's blind
+  labels (B6) and the calibrated judge (B7). Gate drops are heuristic screens, not rubric
+  decisions, and retained items are never compared with dropped ones.
 
 ## Open items (not yet decided)
 

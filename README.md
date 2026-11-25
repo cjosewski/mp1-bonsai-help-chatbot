@@ -75,7 +75,7 @@ packets remain as records. No new review decisions were imported.
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (Chad's SR-001 decisions applied) |
 | B3 | Gold set and multi-part and injection requests | Withdrawn from MP1 (moves to Mini Project 4); 6 of 110 items published and frozen; 104 drafts unreviewed |
 | B4 | Section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet; the rubric moved to B5 on November 24, 2026) |
-| B5 | Rubric (D1–D6) and baseline run | Started: rubric drafted (`assistant_drafted`, awaiting Chad's approval); diagnostic smoke runs; first baseline collection stopped and kept; restarted baseline (generator v1.1) not yet done |
+| B5 | Rubric (D1–D6) and baseline run | Baseline collected: `baseline-2026-11-24-r2` ready (70 of 70 valid initial attempts, 56 of 70 retained, at least 10 per category; see `docs/DECISIONS.md`). Rubric drafted (`assistant_drafted`, awaiting Chad's approval); cohort not yet frozen |
 | B6 | Baseline human labels | Not yet implemented |
 | B7 | Judge and Phase A calibration | Not yet implemented |
 | B8 | Phase B correction | Not yet implemented |
