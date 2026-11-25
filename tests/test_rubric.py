@@ -46,11 +46,13 @@ def mutated(change) -> dict:
 # --- the committed rubric ---------------------------------------------------------------
 
 
-def test_committed_rubric_loads_as_an_unapproved_draft_with_the_course_criteria():
+def test_committed_rubric_is_accepted_by_chad_with_the_course_criteria():
     loaded = rubric.load_rubric(COMMITTED)
     assert loaded.version == "bonsai-rubric-v1"
-    assert loaded.status == "assistant_drafted"
-    assert loaded.review is None
+    assert loaded.status == "chad_accepted"
+    assert loaded.review is not None
+    assert str(loaded.review.decided_on) == "2026-11-24"
+    assert loaded.review.words == "Accept as drafted"
     assert rubric.dimension_ids(loaded) == ("D1", "D2", "D3", "D4", "D5", "D6")
     assert [d.name for d in loaded.dimensions] == COURSE_NAMES
     assert rubric.thresholds(loaded) == {
@@ -186,10 +188,14 @@ REFUSALS = {
         "check",
     ),
     "status not allowed": (lambda d: d.update(status="approved"), "status"),
-    "accepted without Chad's review": (lambda d: d.update(status="chad_accepted"), "review"),
+    "accepted without Chad's review": (
+        lambda d: (d.update(status="chad_accepted"), d.pop("review", None)),
+        "review",
+    ),
     "draft carrying a review": (
         lambda d: d.update(
-            review={"decided_on": "2026-11-24", "words": "approve", "decisions_entry": "x"}
+            status="assistant_drafted",
+            review={"decided_on": "2026-11-24", "words": "approve", "decisions_entry": "x"},
         ),
         "review",
     ),
@@ -464,8 +470,17 @@ def test_cli_check_prints_version_status_and_hash(capsys):
     out, err = capsys.readouterr()
     sha = rubric.rubric_sha256(rubric.load_rubric(COMMITTED))
     assert "version: bonsai-rubric-v1" in out
-    assert "status: assistant_drafted" in out
+    assert "status: chad_accepted" in out
     assert f"sha256: {sha}" in out
+    assert "warning:" not in err
+
+
+def test_cli_check_warns_while_a_rubric_is_only_a_draft(tmp_path, capsys):
+    draft = mutated(lambda d: (d.update(status="assistant_drafted"), d.pop("review", None)))
+    path = write(tmp_path, draft)
+    assert cli.main(["rubric", "check", "--rubric", str(path)]) == 0
+    out, err = capsys.readouterr()
+    assert "status: assistant_drafted" in out
     assert "warning:" in err and "not accepted" in err
 
 
@@ -498,7 +513,8 @@ def test_cli_show_prints_every_dimension_with_its_anchors(capsys):
     assert cli.main(["rubric", "show", "--rubric", str(COMMITTED)]) == 0
     out = capsys.readouterr().out
     loaded = rubric.load_rubric(COMMITTED)
-    assert "status: assistant_drafted" in out
+    assert "status: chad_accepted" in out
+    assert "review: 2026-11-24 'Accept as drafted'" in out
     for dimension in loaded.dimensions:
         assert f"{dimension.id} {dimension.name}" in out
         assert dimension.pass_anchor in out and dimension.fail_anchor in out

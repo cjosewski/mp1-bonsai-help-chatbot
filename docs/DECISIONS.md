@@ -1779,7 +1779,9 @@ two wording changes below):
   accepts, edits or rejects it. The allowed statuses are `assistant_drafted` and
   `chad_accepted`. `chad_accepted` needs a review record (`decided_on`, `words`,
   `decisions_entry`) that points to a dated entry here in his own words, and
-  `assistant_drafted` may not carry one. An assistant never sets `chad_accepted`. While the
+  `assistant_drafted` may not carry one. An assistant never sets `chad_accepted` on its own
+  judgment; it may only record Chad's own decision, in his words, with a dated entry
+  (amended November 24, 2026, when Chad accepted the rubric). While the
   rubric is a draft, `rubric check` and `rubric show` exit 0 and print a warning.
 - **Wording drawn from plan §6.2.** Each dimension's pass anchor restates the plan §6.2
   "Passes when" text. The fail anchor is its converse, and D2 draws on plan §6.3. The
@@ -2118,6 +2120,16 @@ needed. Counts with 95% Clopper-Pearson intervals:
 - **Not measured here:** the baseline failure rate and its ≥15% target need Chad's blind
   labels (B6) and the calibrated judge (B7). Gate drops are heuristic screens, not rubric
   decisions, and retained items are never compared with dropped ones.
+
+### November 24, 2026: rubric accepted
+
+Chad reviewed `bonsai-rubric-v1` (labeling rules, the D1 to D6 anchors, labeling notes and
+borderline rulings, including the strict D3 and D5 rulings and the plan's sentence-case
+names) and decided on November 24, 2026: "Accept as drafted". `config/rubric.json` now has
+status `chad_accepted` with that review record, and its hash changes with it (`bonsai-help
+rubric check` prints the new value). B6 labels pin this version and hash. Any later change
+is a new rubric version with a new dated entry, and labels already made keep the version
+they pinned. This resolves B5 open question 2.
 
 ## Open items (not yet decided)
 

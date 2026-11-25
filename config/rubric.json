@@ -1,7 +1,12 @@
 {
   "schema_version": "1",
   "version": "bonsai-rubric-v1",
-  "status": "assistant_drafted",
+  "status": "chad_accepted",
+  "review": {
+    "decided_on": "2026-11-24",
+    "words": "Accept as drafted",
+    "decisions_entry": "November 24, 2026: rubric accepted"
+  },
   "basis": "Plan docs/MP1-BONSAI-HELP-CHATBOT.md §6.2 (dimensions, anchors and targets) and §6.3 (hazards for D2); AGENTS.md Criteria (thresholds). Course names and order are kept; the anchors are rewritten for Bonsai.",
   "label_values": [0, 1],
   "labeling_rules": [
