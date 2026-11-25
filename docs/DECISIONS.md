@@ -2654,7 +2654,8 @@ Judge configuration and prompt v1 (Task 1):
 - The premise test also checks that `menu_paths_known` never examines a menu path in the
   answer field, one more premise the prompt states.
 - `test_judge_v1_hash_is_pinned` is not added yet. It waits for Chad's answers to Open
-  questions 1, 3 and 4, and must be added before the first judge run.
+  questions 1, 3 and 4, and must be added before the first judge run. (Added November 25,
+  2026; see "November 25, 2026: judge v1 pinned and judge-freeze enforces the selection rule".)
 
 Acceptance policy (Task 2):
 - `acceptance_result` decides from the integer `matching` and `n` of each dimension alone
@@ -2721,7 +2722,8 @@ Calibration and the frozen judge (Task 5):
 - `freeze_judge` rebuilds the report from current evidence and refuses any difference
   except `report_id`, `created_at` and `sha256`. `load_selection` also checks the pinned
   report file's SHA-256. `freeze_judge` does not itself enforce the pre-registered
-  selection rule in Decision 13; the procedure does (Open question 14).
+  selection rule in Decision 13; the procedure does (Open question 14). (Superseded
+  November 25, 2026: the rule is enforced in code; see "November 25, 2026: judge v1 pinned and judge-freeze enforces the selection rule".)
 
 Judge v2 example pool and selection (Task 6):
 - Entry ids are `E-001`, `E-002`, ... in `calibration.agreement`'s order (dimension, then
@@ -2780,24 +2782,32 @@ dated entry after the Phase B comparison.
 - **Before and after.** No earlier judge exists, and no judge run has been made, so there is
   no measured figure. v1's development agreement is the first figure (procedure step 7).
 - **Decision.** Draft. v1's SHA-256 is pinned by `test_judge_v1_hash_is_pinned` once Chad
-  answers Open questions 1, 3 and 4, and before the first judge run.
+  answers Open questions 1, 3 and 4, and before the first judge run. (Pinned November 25,
+  2026; the record that carries into the iteration log is the one in that entry.)
 - **Next step.** Chad's answers, then the smoke run on his go-ahead.
 
 ### Open questions for Chad (B7)
 
-No answer is assumed; the recommended option applies only once Chad chooses it.
+No answer is assumed; the recommended option applies only once Chad chooses it. On November
+25, 2026 Chad answered 1, 3, 4 and 8, and the assistant settled 2, 5 and 9 to 14 as
+assistant's calls that Chad can overrule (each marked below; see "November 25, 2026: judge v1 pinned and judge-freeze enforces the selection rule"). 6 and 7 stay
+open.
 
 1. **Judge temperature.** It must be below the generator's 0.6. Recommended: 0.0, so the
    judge is as repeatable as the server allows. The alternative is 0.1, which may vary
    slightly between runs. The value is part of the frozen judge, so B8 uses it too.
+   **Answered (Chad, November 25, 2026):** "0.0 (Recommended)".
 2. **Serving the 70B judge.** Which local server and quantization, and which context
    window? A v1 request is about 6,000 to 7,000 tokens and a v2 request with 4 examples
    about 10,000. Recommended: a context of at least 16k tokens (32k for margin),
    `max_tokens` 1500 and `timeout_seconds` 300, raised to at most 600 if the server is
    slower, and `enable_thinking` left unset for a model that is not a thinking model.
+   **Assistant's call (November 25, 2026):** a local OpenAI-compatible server with at least
+   16k context and `enable_thinking` left unset, as recommended.
 3. **Does the judge see the category and the model's quotes, as Chad's display does?**
    Recommended: yes, so the judge sees what Chad saw plus the check results plan §7 Step 4
    adds. This is settled before v1's hash is pinned.
+   **Answered (Chad, November 25, 2026):** "Yes, same as me (Recommended)".
 4. **The three adaptations in "How these rules apply to you".** (a) Only the cited
    sections confirm a typical D2 hazard, because the judge has no other pages. (b) For D3,
    a name the cited sections show is confirmed; a `bim.` id in tools_required or steps is
@@ -2810,43 +2820,166 @@ No answer is assumed; the recommended option applies only once Chad chooses it.
    alternative is a new rubric version. Related: Chad's D2 labeling may use a pinned page
    outside the cited sections, which the judge cannot see; recommended, decide after the
    development disagreements whether v2 adds a fixed, cited set of hazard pages.
+   **Answered (Chad, November 25, 2026):** "Accept (Recommended)". The related hazard-page
+   question is not decided; it waits for the development disagreements.
 5. **Unresolved decisions in agreement.** Recommended (Decision 8): an unresolved human
    decision or a missing judge decision counts in `n` and never matches. The alternative is
    to leave them out of `n` and report them.
+   **Assistant's call (November 25, 2026):** strict, as recommended.
 6. **What Chad reads before B8.** Recommended: the main calibration reports only, and the
    disagreements files after B8's reference is frozen, so his B8 labels are not pulled
-   toward the judge.
+   toward the judge. **Open** (for Chad).
 7. **If Phase A is not met by v1 or v2:** (a) more development labels, then a v3 from
    development disagreements as the third and last measured run; (b) a dated threshold
    amendment with its reason; (c) report Phase A as not met and go on to B8 with the better
    judge under Decision 13's rule, which needs Chad's dated decision and a separately
    recorded `judge-freeze --phase-a-not-met --decision-ref TEXT` first. Recommended: (a),
    then (c) if v3 also falls short. No choice is needed until the result exists.
+   **Open** (for Chad, once a result exists).
 8. **Go-aheads.** Each when the servers are reachable: the development collection (plan
    procedure step 3, a new collection on the `development` split with the baseline's
    generator settings, about an hour of generation), the smoke judge run (step 4) and the
    measured judge runs (steps 7 and 10). Also: may the assistant run the development
    `assessment create` steps (4 and 6), as Chad allowed for B6?
+   **Answered (Chad, November 25, 2026):** "Yes, start dev collection". The development
+   collection `development-b7-1` is running from the main checkout, and the assistant may
+   run the development `assessment create` steps.
+   *Assistant's reading (not Chad's words):* the smoke judge run and the measured judge
+   runs still need their own go-aheads.
 
 Raised during the build:
 
 9. **Schema order.** Should B6's `DimensionJudgment` declare `reason` before `decision`, so
    the prompt can ask for the reason first? It is now decision first, matching the schema.
    This must be settled before v1's hash is pinned.
+   **Assistant's call (November 25, 2026):** decision before reason, unchanged.
 10. **Credential name.** Is the new environment-variable name `BONSAI_HELP_JUDGE_API_KEY`
     for the judge server acceptable, or should the judge use the generator's
     `BONSAI_HELP_API_KEY`?
+    **Assistant's call (November 25, 2026):** `BONSAI_HELP_JUDGE_API_KEY`, unchanged.
 11. **Smoke runs and example pools.** Should a smoke run be allowed to take an example pool?
     It is not refused now.
+    **Assistant's call (November 25, 2026):** allowed, diagnostic only, never calibration.
 12. **What a qualification is tied to.** Should a receipt be tied to the endpoint
     (`base_url`) and the attempt settings (`max_attempts`, `timeout_seconds`), as now, or
     only to the model and its sampling settings?
+    **Assistant's call (November 25, 2026):** tied to them, as now (stricter).
 13. **A reference removed after judging.** Should a measured run whose frozen reference was
     removed or changed after judging get a `pending` report listing that reason, rather
     than being refused as now?
+    **Assistant's call (November 25, 2026):** refused, as now (stricter).
 14. **Enforcing the freeze rule in code.** Should `judge-freeze` enforce Decision 13's
     pre-registered rule (v2 if `ready`, else v1), or one selection per assessment? Now any
     `ready` report can be frozen, and the rule is the procedure's.
+    **Assistant's call (November 25, 2026):** enforce the rule in code, and one selection
+    per assessment. Built the same day.
+
+### November 25, 2026: judge v1 pinned and judge-freeze enforces the selection rule
+
+Owner decisions (Chad, November 25, 2026), answering B7 Open questions 1, 3, 4 and 8:
+
+- Judge temperature (Open question 1): "0.0 (Recommended)".
+- The judge sees the category and the model's quotes (Open question 3): "Yes, same as me
+  (Recommended)".
+- The three adaptations in "How these rules apply to you" (Open question 4): "Accept
+  (Recommended)".
+- Go-ahead (Open question 8): "Yes, start dev collection". The development collection
+  `development-b7-1` is running from the main checkout, and the assistant may run the
+  development `assessment create` steps (plan procedure steps 4 and 6).
+
+The assistant reads the go-ahead strictly (not Chad's words): the smoke judge run and the
+measured judge runs still need their own go-aheads.
+
+Assistant's calls on the other open questions (Chad can overrule each; a change is a new
+dated entry):
+
+- Open question 5, unresolved decisions: an unresolved human decision or a missing judge
+  decision stays in `n` and never matches (strict), because `AGENTS.md` says "a missing
+  judgment is unresolved, not a pass".
+- Open question 9, schema order: B6's `DimensionJudgment` keeps `decision` before `reason`,
+  and judge v1 already matches that order, because changing the schema would alter B6's
+  committed module.
+- Open question 10, credential name: the judge's environment variable stays
+  `BONSAI_HELP_JUDGE_API_KEY`, because the local configs use `api_key_file` anyway.
+- Open question 11, smoke runs and example pools: a smoke run may take an example pool,
+  because a smoke run is diagnostic only and never calibration.
+- Open question 12, qualification: a receipt stays tied to `base_url`, `max_attempts` and
+  `timeout_seconds`, because that is the stricter choice.
+- Open question 13, a reference removed or changed after judging: the measured run is
+  refused, not reported `pending`, because that is the stricter choice.
+- Open question 14, the freeze rule: `judge-freeze` enforces Decision 13's pre-registered
+  rule in code, and one selection per assessment, so the rule does not rest on the
+  procedure alone (built below).
+- Open question 2, serving the judge: a local OpenAI-compatible server with at least 16k
+  context and `enable_thinking` left unset, because the v1 request is about 6,000 to 7,000
+  tokens and Llama 3.3 is not a thinking model. The server software and quantization are
+  Chad's, who serves the model.
+- Open questions 6 (Chad reads only the main reports before B8) and 7 (if Phase A is not
+  met) stay open for Chad; 7 is asked only once a result exists.
+
+Judge v1 is pinned: `prompts/judge-v1.md` is unchanged, and
+`tests/test_judge_prompts.py::test_judge_v1_hash_is_pinned` pins its SHA-256
+`d8d1604f94d40a40b28a0973257b0db82654549665f3f9b279862d2d04342471`. No judge run has been
+made yet; every judge run uses this text.
+
+#### Iteration-log record for judge v1 (this carries into the B10 iteration log)
+
+- **Date.** November 25, 2026.
+- **Change.** The first judge prompt, `prompts/judge-v1.md` (SHA-256
+  `d8d1604f94d40a40b28a0973257b0db82654549665f3f9b279862d2d04342471`): the accepted rubric's
+  labeling rules, anchors and labeling notes verbatim, the three adaptations in "How these
+  rules apply to you", the fenced input format of Decision 4 and a reply template.
+- **Hypothesis.** A judge given the rubric's own words and the labeler's evidence, plus the
+  recorded check results, agrees with Chad's blind labels in each dimension at least 80% of
+  the time.
+- **Before.** None: this is the first judge prompt.
+- **After.** Pending the development run (plan procedure step 7) and the Phase A runs on the
+  baseline reference (step 10).
+- **Decision.** v1 is pinned with Chad's answers above (temperature 0.0; the judge sees the
+  category and the quotes; the three adaptations accepted), with the decision before the
+  reason in each dimension to match `DimensionJudgment`'s schema order.
+- **Next step.** The development collection and cohort (running), the 5-item development
+  smoke assessment, then the smoke judge run on Chad's go-ahead and `judge-qualify`.
+
+#### Decision 13's rule in code (assistant's calls)
+
+- `calibration.preregistered_choice(root, assessment_id)` applies the rule. It runs only
+  when `judge-v1` and `judge-v2` have each been measured exactly once on the assessment
+  ("after v1 and v2 have each run once") and every measured run has a calibration report.
+  It verifies every report on the assessment and re-derives each from the evidence; a
+  report whose evidence changed is refused, as `freeze_judge` already refused for the frozen
+  report.
+- The choice is exactly the rule as pre-registered: v2 if its report is `ready`, else v1
+  if its report is `ready`, else Phase A is not met.
+- A measured run on the assessment whose prompt version is anything other than `judge-v1`
+  or `judge-v2` (a `judge-v3`, the spare in Decision 6, or a `judge-v1.1`) is outside the
+  rule, so `preregistered_choice` and `judge-freeze` refuse, saying that a third measured
+  run needs Chad's dated decision and a new rule. The code does not extend the rule to a
+  third run, because that would pre-decide Open question 7(a). The version is the recorded
+  prompt stem.
+- A prompt version measured twice on the assessment is refused, because the rule compares
+  one run per version; a repeat would need a new dated decision.
+- When no report is `ready`, Phase A is not met. `preregistered_choice` names the run the
+  rule would carry forward under Open question 7(c), by the stated tie-breaks between v1
+  and v2: more dimensions at or above the minimum, then the higher minimum per-dimension
+  agreement (exact fractions), then the later prompt version (v2). `judge-freeze` still
+  refuses, because `--phase-a-not-met` is not built and needs Chad's dated decision first.
+- `freeze_judge` refuses any report other than the rule's choice, naming the chosen run,
+  and refuses a second selection for an assessment that already has one, under any id. It
+  checks this before deriving anything and again under the selection lock. An unreadable
+  selection file is refused, because it might belong to the assessment.
+- Anything else in the assessment's `calibration/` directory (a lock, a leftover temporary
+  file, a disagreements file with no main report) is an interrupted or active write, and the
+  rule refuses until it is inspected.
+- The selection's `basis.rule` text now states the rule. No selection exists, so nothing
+  written is affected.
+- The code change is in `calibration.py` (exempt from the frozen judge list because it runs
+  after judging) and the `judge-freeze` help and docstring in `evaluation_cli.py`. No module
+  in `judge.FROZEN_JUDGE_MODULES` changed, and the gate files are unchanged.
+- The tests use a synthetic `judge-v2` stand-in prompt (v1's text plus one marked line)
+  under a temporary directory. It is not the pre-registered judge v2, which is still written
+  from real development disagreements. Because a B8 assessment is judged with one frozen
+  prompt version only, the rule also refuses to freeze a judge from a B8 assessment.
 
 ## Open items (not yet decided)
 

@@ -31,6 +31,9 @@ _PAGE = "bonsai-docs:src/bonsai/docs/guides/authoring/starting_new_project.rst"
 SECTION_ID = f"{_PAGE}#L6-L13"
 QUOTE = "This ensures there are no lingering connections or data from previous projects."
 REQUIRED = ("category", "setup", "item", "quotes", "sections", "checks", "fence")
+# Pinned on November 25, 2026, after Chad's answers to B7 Open questions 1, 3 and 4
+# (docs/DECISIONS.md, judge v1 iteration-log record); every judge run uses this text.
+V1_SHA256 = "d8d1604f94d40a40b28a0973257b0db82654549665f3f9b279862d2d04342471"
 
 
 def config_for(prompt: Path | str) -> JudgeConfig:
@@ -137,6 +140,12 @@ def rubric_strings() -> list[str]:
         strings += [dimension.pass_anchor, dimension.fail_anchor]
         strings += [*notes.check, *notes.common_fail_patterns, *notes.borderline]
     return strings
+
+
+def test_judge_v1_hash_is_pinned():
+    _, digest, version = load_judge_prompt(config_for(V1), with_examples=False)
+    assert (version, digest) == ("judge-v1", V1_SHA256)
+    assert hashlib.sha256(V1.read_bytes()).hexdigest() == V1_SHA256
 
 
 def test_judge_v1_carries_the_accepted_rubric_verbatim():

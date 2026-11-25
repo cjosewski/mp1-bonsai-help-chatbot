@@ -175,6 +175,21 @@ def arm(root, accepted):
     return made, judge_config
 
 
+V2_STANDIN = "\nsynthetic stand-in for judge v2 in tests, not the pre-registered prompt\n"
+
+
+def v2_config(judge_config, directory: Path, version: str = "judge-v2"):
+    """The judge config with a synthetic `judge-v2` prompt: v1's text plus a marked line.
+    Only its file stem (the prompt version) matters to Decision 13's rule."""
+    path = Path(directory) / f"{version}.md"
+    if not path.exists():
+        path.write_text(
+            (REPO / "prompts/judge-v1.md").read_text(encoding="utf-8") + V2_STANDIN,
+            encoding="utf-8",
+        )
+    return judge_config.model_copy(update={"prompt_path": str(path)})
+
+
 def run(root, made, run_id, judge_config, client, **kwargs):
     return judge.judge_run(
         root,
@@ -588,13 +603,23 @@ def test_freeze_judge_requires_ready_report_and_pins_identity(arm, root, accepte
     run(root, made, "v1", judge_config, agreeing(made))
     last = made.manifest["display_order"][-1]
     gap = by_item(made, lambda b, attempt: broken(b) if b == last else reply(b))
-    run(root, made, "v1-gap", judge_config, gap)
+    run(root, made, "v2-gap", v2_config(judge_config, tmp_path), gap)
     ready = report(root, ARM, "v1", "r-ready")
-    pending = report(root, ARM, "v1-gap", "r-pending")
+    pending = report(root, ARM, "v2-gap", "r-pending")
     assert (ready["status"], pending["status"]) == ("ready", "pending")
     with pytest.raises(CalibrationError, match="ready"):
         calibration.freeze_judge(root, ARM, "r-pending", "sel-pending")
 
+    # Evidence that changed after the report: the freeze re-checks it and refuses.
+    ledger = run_dir(root, SMOKE, "smoke-1") / judge.STARTS
+    original_ledger = ledger.read_bytes()
+    tamper_smoke_evidence(root)
+    with pytest.raises(CalibrationError, match="changed since"):
+        calibration.freeze_judge(root, ARM, "r-ready", "sel-0")
+    assert not (root / calibration.SELECTIONS / "sel-0.json").exists()
+    ledger.write_bytes(original_ledger)
+
+    # v2 is pending, so Decision 13's rule chooses v1.
     selection = calibration.freeze_judge(root, ARM, "r-ready", "sel-1")
     prompt = load_judge_prompt(judge_config, with_examples=False)
     assert selection["frozen_identity"] == judge.frozen_identity(judge_config, prompt)
@@ -629,8 +654,175 @@ def test_freeze_judge_requires_ready_report_and_pins_identity(arm, root, accepte
         calibration.load_selection(root, "sel-1")
     path.write_text(original, encoding="utf-8")
 
-    # Evidence that changed after the report: the freeze re-checks it and refuses.
-    tamper_smoke_evidence(root)
-    with pytest.raises(CalibrationError, match="changed since"):
-        calibration.freeze_judge(root, ARM, "r-ready", "sel-2")
-    assert not (root / calibration.SELECTIONS / "sel-2.json").exists()
+
+# ------------------------------------------- the pre-registered selection rule (Decision 13)
+
+
+def failing_on(made, count: int, *dimensions: str) -> FakeJudge:
+    """A synthetic judge that fails the given dimensions on the first `count` items in
+    display order; every human decision is 1, so each is a disagreement."""
+    wrong = set(made.manifest["display_order"][:count])
+    return by_item(
+        made, lambda b, attempt: reply(b, **{d: 0 for d in dimensions}) if b in wrong else reply(b)
+    )
+
+
+def test_freeze_takes_v2_when_both_reports_are_ready(arm, root, tmp_path):
+    made, judge_config = arm
+    run(root, made, "v1", judge_config, agreeing(made))
+    run(root, made, "v2", v2_config(judge_config, tmp_path), agreeing(made))
+    assert report(root, ARM, "v1", "r-v1")["status"] == "ready"
+    assert report(root, ARM, "v2", "r-v2")["status"] == "ready"
+    choice = calibration.preregistered_choice(root, ARM)
+    assert choice["phase_a_met"] is True
+    assert (choice["judge_run_id"], choice["prompt_version"]) == ("v2", "judge-v2")
+    assert [(r["judge_run_id"], r["status"]) for r in choice["runs"]] == [
+        ("v1", "ready"),
+        ("v2", "ready"),
+    ]
+
+    # v1 is ready too, but the rule chooses v2: refused, nothing written.
+    with pytest.raises(CalibrationError, match=r"chooses judge run 'v2' \(judge-v2\)"):
+        calibration.freeze_judge(root, ARM, "r-v1", "sel-v1")
+    assert not (root / calibration.SELECTIONS / "sel-v1.json").exists()
+
+    selection = calibration.freeze_judge(root, ARM, "r-v2", "sel-v2")
+    assert (selection["judge_run_id"], selection["prompt_version"]) == ("v2", "judge-v2")
+    assert selection["basis"] == calibration.SELECTION_BASIS
+    assert calibration.load_selection(root, "sel-v2") == selection
+
+    # A second frozen selection for the same assessment is refused, under any id and for
+    # any of its reports, even another report of the chosen run.
+    report(root, ARM, "v2", "r-v2-again")
+    for report_id in ("r-v2", "r-v2-again", "r-v1"):
+        with pytest.raises(CalibrationError, match="already has a frozen judge selection"):
+            calibration.freeze_judge(root, ARM, report_id, f"sel-{report_id}-2")
+        assert not (root / calibration.SELECTIONS / f"sel-{report_id}-2.json").exists()
+
+
+def test_freeze_takes_v1_when_only_v1_is_ready(arm, root, tmp_path):
+    made, judge_config = arm
+    run(root, made, "v1", judge_config, agreeing(made))
+    run(root, made, "v2", v2_config(judge_config, tmp_path), failing_on(made, 5, "D3"))
+    assert report(root, ARM, "v1", "r-v1")["status"] == "ready"
+    assert report(root, ARM, "v2", "r-v2")["status"] == "pending"
+    with pytest.raises(CalibrationError, match="ready"):
+        calibration.freeze_judge(root, ARM, "r-v2", "sel-v2")
+    selection = calibration.freeze_judge(root, ARM, "r-v1", "sel-v1")
+    assert (selection["judge_run_id"], selection["prompt_version"]) == ("v1", "judge-v1")
+
+
+def test_freeze_waits_until_v1_and_v2_have_each_run_with_a_report(arm, root, tmp_path):
+    made, judge_config = arm
+    run(root, made, "v1", judge_config, agreeing(made))
+    report(root, ARM, "v1", "r-v1")
+    # v1 is ready, but v2 has not run: the rule cannot be applied yet.
+    with pytest.raises(CalibrationError, match="judge-v2"):
+        calibration.freeze_judge(root, ARM, "r-v1", "sel-1")
+    # v2 has run but has no calibration report.
+    run(root, made, "v2", v2_config(judge_config, tmp_path), agreeing(made))
+    with pytest.raises(CalibrationError, match=r"'v2' \(judge-v2\) has no calibration report"):
+        calibration.freeze_judge(root, ARM, "r-v1", "sel-1")
+    assert not (root / calibration.SELECTIONS).exists()
+    report(root, ARM, "v2", "r-v2")
+    with pytest.raises(CalibrationError, match="chooses judge run 'v2'"):
+        calibration.freeze_judge(root, ARM, "r-v1", "sel-1")
+    assert calibration.freeze_judge(root, ARM, "r-v2", "sel-1")["judge_run_id"] == "v2"
+
+
+def test_freeze_refuses_a_prompt_version_measured_twice(arm, root, tmp_path):
+    made, judge_config = arm
+    run(root, made, "v1", judge_config, agreeing(made))
+    run(root, made, "v1-again", judge_config, agreeing(made))
+    run(root, made, "v2", v2_config(judge_config, tmp_path), failing_on(made, 5, "D1"))
+    for run_id in ("v1", "v1-again", "v2"):
+        report(root, ARM, run_id, f"r-{run_id}")
+    with pytest.raises(CalibrationError, match="judge-v1 was measured more than once"):
+        calibration.freeze_judge(root, ARM, "r-v1", "sel-1")
+    assert not (root / calibration.SELECTIONS).exists()
+
+
+@pytest.mark.parametrize(
+    ("third", "pre_registered_ready"),
+    [
+        # A third measured run (the spare in Decision 6) as a v3, with v1 and v2 ready.
+        ("judge-v3", True),
+        # A judge-v1.1 run, ready while v1 and v2 are both pending.
+        ("judge-v1.1", False),
+    ],
+)
+def test_freeze_refuses_a_measured_run_outside_the_preregistered_versions(
+    arm, root, tmp_path, third, pre_registered_ready
+):
+    made, judge_config = arm
+    source = agreeing(made) if pre_registered_ready else failing_on(made, 5, "D3")
+    run(root, made, "v1", judge_config, source)
+    source = agreeing(made) if pre_registered_ready else failing_on(made, 5, "D3")
+    run(root, made, "v2", v2_config(judge_config, tmp_path), source)
+    run(root, made, "third", v2_config(judge_config, tmp_path, third), agreeing(made))
+    expected = ("ready",) * 2 if pre_registered_ready else ("pending",) * 2
+    assert (
+        report(root, ARM, "v1", "r-v1")["status"],
+        report(root, ARM, "v2", "r-v2")["status"],
+    ) == expected
+    assert report(root, ARM, "third", "r-third")["status"] == "ready"
+    # Decision 13 names only v1 and v2: neither the third run nor either of them is
+    # frozen, and the refusal says the third run needs Chad's dated decision.
+    refusal = rf"{re.escape(third)}.*Chad's dated decision and a new rule"
+    with pytest.raises(CalibrationError, match=refusal):
+        calibration.preregistered_choice(root, ARM)
+    # A pending report is refused first because it is not ready.
+    frozen_ids = ("r-v1", "r-v2", "r-third") if pre_registered_ready else ("r-third",)
+    for report_id in frozen_ids:
+        with pytest.raises(CalibrationError, match=refusal):
+            calibration.freeze_judge(root, ARM, report_id, f"sel-{report_id}")
+    assert not (root / calibration.SELECTIONS).exists()
+
+
+def test_freeze_refuses_an_interrupted_report_write(arm, root, tmp_path):
+    made, judge_config = arm
+    run(root, made, "v1", judge_config, agreeing(made))
+    run(root, made, "v2", v2_config(judge_config, tmp_path), agreeing(made))
+    report(root, ARM, "v1", "r-v1")
+    report(root, ARM, "v2", "r-v2")
+    # A disagreements file with no main report: a write stopped between the two files.
+    _, side = report_paths(root, ARM, "r-v2")
+    _, orphan = report_paths(root, ARM, "r-stopped")
+    shutil.copy2(side, orphan)
+    with pytest.raises(CalibrationError, match="r-stopped"):
+        calibration.freeze_judge(root, ARM, "r-v2", "sel-1")
+    assert orphan.exists() and not (root / calibration.SELECTIONS).exists()
+
+
+@pytest.mark.parametrize(
+    ("v1_fails", "v2_fails", "carried"),
+    [
+        # More dimensions at or above the minimum: v1 (5 of 6) over v2 (4 of 6).
+        ((5, ("D6",)), (5, ("D5", "D6")), "v1"),
+        # The same count, then the higher minimum per-dimension agreement: v1 (15/20).
+        ((5, ("D6",)), (6, ("D6",)), "v1"),
+        # The same count and minimum, then the later prompt version: v2.
+        ((5, ("D6",)), (5, ("D6",)), "v2"),
+    ],
+)
+def test_phase_a_not_met_refuses_and_names_the_preregistered_carry_forward(
+    arm, root, tmp_path, v1_fails, v2_fails, carried
+):
+    made, judge_config = arm
+    count, dimensions = v1_fails
+    run(root, made, "v1", judge_config, failing_on(made, count, *dimensions))
+    count, dimensions = v2_fails
+    run(root, made, "v2", v2_config(judge_config, tmp_path), failing_on(made, count, *dimensions))
+    assert report(root, ARM, "v1", "r-v1")["status"] == "pending"
+    assert report(root, ARM, "v2", "r-v2")["status"] == "pending"
+    choice = calibration.preregistered_choice(root, ARM)
+    assert choice["phase_a_met"] is False
+    assert choice["judge_run_id"] == carried
+    v1_row = choice["runs"][0]
+    assert v1_row["dimensions_at_minimum"] == 5
+    assert v1_row["minimum_agreement"] == {"matching": 15, "n": 20}
+    # Neither report is ready, so nothing is frozen; the refusal names the rule's
+    # carry-forward judge and what option (c) needs first.
+    with pytest.raises(CalibrationError, match="ready"):
+        calibration.freeze_judge(root, ARM, f"r-{carried}", "sel-1")
+    assert not (root / calibration.SELECTIONS).exists()

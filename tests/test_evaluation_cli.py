@@ -810,7 +810,9 @@ def test_calibrate_exit_codes(root, accepted, tmp_path, capsys, judge_key):
         made,
         lambda b, attempt: test_calibration.broken(b) if b == last else test_calibration.reply(b),
     )
-    assert run(root, made, "v1-gap", judge_config, gap)["status"] == "incomplete"
+    # The gap run is a synthetic judge-v2, so Decision 13's rule can choose v1 below.
+    v2 = test_calibration.v2_config(judge_config, tmp_path)
+    assert run(root, made, "v2-gap", v2, gap)["status"] == "incomplete"
 
     # ready: 0, the status on the first line, no judge reason or paired decision printed.
     code, out, err = run_cli(calibrate_args(root, ARM, "v1", "r-ready"), capsys)
@@ -829,7 +831,7 @@ def test_calibrate_exit_codes(root, accepted, tmp_path, capsys, judge_key):
     assert test_calibration.report_paths(root, SMOKE, "r-smoke")[0].exists()
 
     # pending: 1, still written.
-    code, out, err = run_cli(calibrate_args(root, ARM, "v1-gap", "r-pending"), capsys)
+    code, out, err = run_cli(calibrate_args(root, ARM, "v2-gap", "r-pending"), capsys)
     assert code == 1
     assert out.splitlines()[0] == "status: pending"
     assert any("incomplete" in line for line in out.splitlines())
@@ -857,6 +859,9 @@ def test_calibrate_exit_codes(root, accepted, tmp_path, capsys, judge_key):
     assert "frozen_identity" not in shown
     code, _, err = run_cli(freeze_args(root, ARM, "r-ready", "sel-1"), capsys)
     assert code == 1 and "already exists" in err
+    # One frozen selection per assessment, under any id.
+    code, out, err = run_cli(freeze_args(root, ARM, "r-ready", "sel-2"), capsys)
+    assert (code, out) == (1, "") and "already has a frozen judge selection" in err
 
     # A later measured run must match the frozen judge exactly.
     other = test_calibration.frozen_with(

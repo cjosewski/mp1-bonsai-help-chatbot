@@ -34,8 +34,20 @@ attempt, and an item left without a valid judgment makes the run incomplete. Evi
 cannot be verified (a tampered judge run, or a measured run whose frozen reference is gone)
 is refused and nothing is written.
 
-`freeze_judge` accepts only a `ready` report, re-derives it from the evidence (a change since
-the report is refused), and writes a selection once to
+`freeze_judge` accepts only a `ready` report, and only the one Decision 13's pre-registered
+rule chooses (`preregistered_choice`): once `judge-v1` and `judge-v2` have each been measured
+once on the assessment, no other prompt version has been measured on it, and every measured
+run has a calibration report, the frozen judge is v2 if its report is `ready`, else v1 if
+its report is `ready`. A measured run of any other version (a `judge-v3`, or a
+`judge-v1.1`) is outside the rule and is refused: it needs Chad's dated decision and a new
+rule. Every report on the assessment is verified and re-derived from the evidence (a change
+since a report was written is refused), and an assessment gets at most one frozen
+selection. If no report is `ready`, Phase A is not met and nothing is frozen;
+`preregistered_choice` still names the judge the rule would carry forward under Open
+question 7(c) (more dimensions at or above the minimum, then the higher minimum
+per-dimension agreement, then v2 over v1), which needs Chad's dated decision and a
+separately recorded `--phase-a-not-met` freeze that is not built. The selection is written
+once to
 `<artifact root>/judge-selections/<selection_id>.json` with the report's SHA-256 and the
 run's frozen identity (`judge.frozen_identity`), which a later `--frozen-judge` run must
 match exactly. Nothing here calls a model endpoint, and nothing is overwritten or repaired.
@@ -81,9 +93,16 @@ SELECTION_LOCK = ".freeze.lock"
 DEVELOPMENT_GROUP = "development"
 CONFUSION = ("h1_j1", "h1_j0", "h0_j1", "h0_j0")
 INSPECT = "preserve and inspect the files; a report or selection is never repaired or replaced"
+# Decision 13's rule names exactly these prompt versions, each measured once, in order of
+# preference: a measured run of any other version on the assessment is refused.
+PREREGISTERED_VERSIONS = ("judge-v1", "judge-v2")
 SELECTION_BASIS = {
     "status": "ready",
-    "rule": "judge-freeze accepts only a ready calibration report (B7 Decision 13)",
+    "rule": (
+        "B7 Decision 13, pre-registered: after judge-v1 and judge-v2 have each been measured "
+        "once and no other prompt version measured, v2 if its calibration report is ready, "
+        "else v1 if its report is ready; one frozen selection per assessment"
+    ),
 }
 # Fields of a report that `freeze_judge` re-derives from the evidence and compares.
 _DERIVED_EXCLUDED = frozenset({"report_id", "created_at", "sha256"})
@@ -730,12 +749,207 @@ def selection_path(root: Path, selection_id: str) -> Path:
     return target.with_name(f"{selection_id}.json")
 
 
+def _written_reports(root: Path, made: Assessment) -> dict[str, dict]:
+    """Every calibration report of the assessment, verified. Anything else in the
+    calibration directory (a lock, a leftover temporary file, a disagreements file with no
+    main report) is an interrupted or active write to inspect, and is refused."""
+    directory = made.directory / CALIBRATION
+    if directory.is_symlink():
+        raise CalibrationError(f"a symlinked {CALIBRATION} directory is not supported")
+    if not directory.is_dir():
+        return {}
+    names = {path.name for path in directory.iterdir()}
+    if LOCK in names:
+        raise CalibrationError(
+            f"{LOCK} exists: a calibration report is being written, or a write stopped "
+            "abruptly; inspect it (it is never removed by code)"
+        )
+    reports: dict[str, dict] = {}
+    for name in sorted(names):
+        if name.endswith(DISAGREEMENTS_SUFFIX):
+            report_id = name[: -len(DISAGREEMENTS_SUFFIX)]
+            if f"{report_id}.json" not in names:
+                raise CalibrationError(
+                    f"calibration report {report_id!r} has a disagreements file but no main "
+                    f"report: its write was interrupted; {INSPECT}"
+                )
+            continue
+        if name.startswith(".") or not name.endswith(".json"):
+            raise CalibrationError(
+                f"unexpected file {name!r} among the calibration reports (an interrupted "
+                f"write?); {INSPECT}"
+            )
+        report_id = name.removesuffix(".json")
+        reports[report_id] = load_report(root, made.manifest["assessment_id"], report_id)
+    return reports
+
+
+def _minimum_agreement(dimensions: dict | None) -> tuple[int, Fraction | None, dict | None]:
+    """Dimensions at or above the minimum, and the lowest per-dimension agreement."""
+    if not dimensions:
+        return 0, None, None
+    lowest = min(dimensions.values(), key=lambda row: Fraction(row["matching"], row["n"] or 1))
+    meeting = sum(1 for row in dimensions.values() if row["meets_minimum"])
+    return (
+        meeting,
+        Fraction(lowest["matching"], lowest["n"] or 1),
+        {"matching": lowest["matching"], "n": lowest["n"]},
+    )
+
+
+def preregistered_choice(root: Path, assessment_id: str) -> dict:
+    """The judge Decision 13's pre-registered rule chooses on this assessment.
+
+    The rule applies only once each of `PREREGISTERED_VERSIONS` has been measured exactly
+    once, no other prompt version has been measured on the assessment (a third measured
+    run, such as a `judge-v3` or a `judge-v1.1`, needs Chad's dated decision and a new
+    rule), and every measured run has a written calibration report. Every report is
+    verified and re-derived from the evidence. The choice is v2 if its report is `ready`,
+    else v1 if its report is `ready` (`phase_a_met` true). Otherwise Phase A is not met
+    (`phase_a_met` false), and the choice is the run the rule would carry forward under
+    Open question 7(c): more dimensions at or above the minimum, then the higher minimum
+    per-dimension agreement, then the later prompt version (v2 over v1). Returns
+    `{phase_a_met, judge_run_id, prompt_version, report_ids, runs}`; raises
+    CalibrationError when the rule cannot be applied."""
+    root = Path(root)
+    made = _assessment(root, assessment_id)
+    reports = _written_reports(root, made)
+    judges_dir = made.directory / judge.JUDGES
+    run_ids = (
+        sorted(p.name for p in judges_dir.iterdir() if not p.name.startswith("."))
+        if judges_dir.is_dir()
+        else []
+    )
+    measured: dict[str, dict] = {}
+    for run_id in run_ids:
+        manifest = _judge_run(made, run_id)[0]
+        if manifest["purpose"] == "measured":
+            measured[run_id] = manifest
+    seen: dict[str, str] = {}
+    for run_id, manifest in measured.items():
+        version = manifest["identity"]["prompt_version"]
+        if version not in PREREGISTERED_VERSIONS:
+            raise CalibrationError(
+                f"measured judge run {run_id!r} is {version}, outside Decision 13's "
+                "pre-registered rule, which names only "
+                + " and ".join(PREREGISTERED_VERSIONS)
+                + "; a measured run of another prompt version (a third measured run) needs "
+                "Chad's dated decision and a new rule before any judge is frozen on this "
+                "assessment"
+            )
+        if version in seen:
+            raise CalibrationError(
+                f"{version} was measured more than once on this assessment (judge runs "
+                f"{seen[version]!r} and {run_id!r}); Decision 13's rule compares one measured "
+                "run per prompt version, so a freeze needs a new dated decision"
+            )
+        seen[version] = run_id
+    derived: dict[str, dict] = {}
+    for report_id, written in reports.items():
+        run_id = written["judge_run_id"]
+        if run_id not in derived:
+            derived[run_id] = _derive(root, made, run_id)[0]
+        stored = {k: v for k, v in written.items() if k not in _DERIVED_EXCLUDED}
+        if derived[run_id] != stored:
+            raise CalibrationError(
+                f"the evidence of calibration report {report_id!r} changed since it was "
+                f"written (now {derived[run_id]['status']}); {INSPECT}"
+            )
+    runs: list[dict] = []
+    for run_id, manifest in measured.items():
+        version = manifest["identity"]["prompt_version"]
+        report_ids = [r for r, written in reports.items() if written["judge_run_id"] == run_id]
+        if not report_ids:
+            raise CalibrationError(
+                f"measured judge run {run_id!r} ({version}) has no calibration report; "
+                "Decision 13's rule needs every measured run's report (run calibrate first)"
+            )
+        body = derived[run_id]
+        meeting, lowest, shown = _minimum_agreement(body["dimensions"])
+        runs.append(
+            {
+                "judge_run_id": run_id,
+                "prompt_version": version,
+                "status": body["status"],
+                "report_ids": report_ids,
+                "dimensions_at_minimum": meeting,
+                "minimum_agreement": shown,
+                "_order": (
+                    meeting,
+                    lowest if lowest is not None else Fraction(-1),
+                    PREREGISTERED_VERSIONS.index(version),
+                ),
+            }
+        )
+    versions = {run["prompt_version"] for run in runs}
+    missing = [v for v in PREREGISTERED_VERSIONS if v not in versions]
+    if missing:
+        raise CalibrationError(
+            "Decision 13's rule applies after "
+            + " and ".join(PREREGISTERED_VERSIONS)
+            + " have each been measured once on this assessment; not yet measured: "
+            + ", ".join(missing)
+        )
+    by_version = {run["prompt_version"]: run for run in runs}
+    # v2 if its report is ready, else v1 if its report is ready.
+    ready = [
+        by_version[v]
+        for v in reversed(PREREGISTERED_VERSIONS)
+        if by_version[v]["status"] == "ready"
+    ]
+    if ready:
+        chosen = ready[0]
+    else:
+        chosen = max(runs, key=lambda run: run["_order"])
+    for run in runs:
+        del run["_order"]
+    return {
+        "phase_a_met": bool(ready),
+        "judge_run_id": chosen["judge_run_id"],
+        "prompt_version": chosen["prompt_version"],
+        "report_ids": chosen["report_ids"],
+        "runs": runs,
+    }
+
+
+def _selections_for(root: Path, assessment_id: str) -> list[str]:
+    """The selection ids already written for this assessment (any unreadable selection is
+    refused, since it might be this assessment's)."""
+    directory = Path(root) / SELECTIONS
+    if not directory.is_dir():
+        return []
+    found = []
+    for path in sorted(directory.iterdir()):
+        if path.name.startswith("."):
+            continue
+        try:
+            record = json.loads(path.read_bytes()) if not path.is_symlink() else None
+        except (OSError, ValueError):
+            record = None
+        if not isinstance(record, dict):
+            raise CalibrationError(f"judge selection file {path.name!r} is unreadable; {INSPECT}")
+        if record.get("assessment_id") == assessment_id:
+            found.append(path.name.removesuffix(".json"))
+    return found
+
+
+def _refuse_second_selection(root: Path, assessment_id: str) -> None:
+    existing = _selections_for(root, assessment_id)
+    if existing:
+        raise CalibrationError(
+            f"assessment {assessment_id!r} already has a frozen judge selection "
+            f"({', '.join(existing)}); a second selection is never written"
+        )
+
+
 def freeze_judge(root: Path, assessment_id: str, report_id: str, selection_id: str) -> dict:
     """Freeze the judge of a `ready` calibration report (B7 Decision 13); written once.
 
-    The report is verified and re-derived from the evidence; any difference since it was
-    written is refused. The selection pins the report's SHA-256 and the run's frozen
-    identity, which a later `--frozen-judge` run must match exactly."""
+    The report must be the one Decision 13's pre-registered rule chooses
+    (`preregistered_choice`), and the assessment must have no frozen selection yet. Every
+    report on the assessment is verified and re-derived from the evidence; any difference
+    since it was written is refused. The selection pins the report's SHA-256 and the run's
+    frozen identity, which a later `--frozen-judge` run must match exactly."""
     root = Path(root)
     path = selection_path(root, selection_id)
     if _present(path):
@@ -746,16 +960,17 @@ def freeze_judge(root: Path, assessment_id: str, report_id: str, selection_id: s
             f"judge-freeze accepts only a ready calibration report; {report_id!r} is "
             f"{report['status']}"
         )
+    _refuse_second_selection(root, assessment_id)
+    choice = preregistered_choice(root, assessment_id)
+    if choice["judge_run_id"] != report["judge_run_id"]:
+        raise CalibrationError(
+            f"Decision 13's pre-registered rule chooses judge run {choice['judge_run_id']!r} "
+            f"({choice['prompt_version']}), not {report['judge_run_id']!r}; freeze one of its "
+            f"reports ({', '.join(choice['report_ids'])})"
+        )
     made = _assessment(root, assessment_id)
     main, _ = _report_paths(made.directory, report_id)
     report_sha256 = hashlib.sha256(main.read_bytes()).hexdigest()
-    body, _ = _derive(root, made, report["judge_run_id"])
-    stored = {k: v for k, v in report.items() if k not in _DERIVED_EXCLUDED}
-    if body != stored:
-        raise CalibrationError(
-            f"the evidence of calibration report {report_id!r} changed since it was written "
-            f"(now {body['status']}); {INSPECT}"
-        )
     identity = report["pins"]["judge_identity"]
     selection = {
         "schema_version": SCHEMA_VERSION,
@@ -773,6 +988,7 @@ def freeze_judge(root: Path, assessment_id: str, report_id: str, selection_id: s
     selection["sha256"] = _sealed(selection)
     path.parent.mkdir(parents=True, exist_ok=True)
     with _locked(path.parent / SELECTION_LOCK, "a judge selection is being written, or a write"):
+        _refuse_second_selection(root, assessment_id)
         _write_once(path, _dumps(selection), f"judge selection {selection_id!r}")
     return selection
 

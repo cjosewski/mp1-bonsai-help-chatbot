@@ -97,7 +97,7 @@ packets remain as records. No new review decisions were imported.
 | B4 | Section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet; the rubric moved to B5 on November 24, 2026) |
 | B5 | Rubric (D1–D6) and baseline run | Done: rubric accepted by Chad ("Accept as drafted"); baseline `baseline-2026-11-24-r2` ready (70 of 70 valid initial attempts, 56 of 70 retained, at least 10 per category); cohort `baseline-b5-cohort-1` frozen; `collection-report` built (see `docs/DECISIONS.md`) |
 | B6 | Baseline human labels | Tooling built (assessments, blind labeling, append-only ledger, frozen human reference). Assessment `b6-labels-1` created (30 items); no label entered yet |
-| B7 | Judge and Phase A calibration | Tooling built (judge v1 prompt and config, bounded judge runs, qualification, calibration with TPR, TNR and intervals, v2 example pool, frozen judge, commands). Judge v2 not written; no judge run, agreement figure or calibration yet |
+| B7 | Judge and Phase A calibration | Tooling built: judge v1 prompt (SHA-256 pinned November 25, 2026) and config, bounded judge runs, qualification, calibration with TPR, TNR and intervals, v2 example pool, frozen judge, commands. Judge v2 not written; no judge run, agreement figure or calibration yet |
 | B8 | Phase B correction | Not yet implemented |
 | B9 | Analysis and charts | Not yet implemented |
 | B10 | Submission set, pipeline replay demo, iteration log, demo video, coaching approval | Not yet implemented |
@@ -758,7 +758,9 @@ figure or calibration exists: the measured runs need Chad's frozen labels, his g
 and a judge server that is already reachable. The plan is
 `docs/superpowers/plans/2026-11-24-b7-judge.md`, Chad's judge decision ("use Llama 3.3 70B
 for the judge") and the assistant's calls are in `docs/DECISIONS.md` (November 24, 2026:
-judge model; B7 judge), and the open questions for Chad are listed there.
+judge model; B7 judge), and the open questions for Chad are listed there. Chad answered
+the judge temperature, the judge's inputs and the three adaptations on November 25, 2026,
+and judge v1's SHA-256 is now pinned by `test_judge_v1_hash_is_pinned`.
 
 The judge is MP1's Step 4: a separate prompt (`prompts/judge-v1.md`; `judge-v2.md` is
 written later from development disagreements) at a lower temperature than every generator
@@ -821,7 +823,7 @@ repository. `uv run --locked bonsai-help <command> --help` prints the full text.
 | `judge-qualify` | Writes a qualification receipt once to `<artifact root>/judge-qualifications/<id>.json`, with a complete smoke run of the same model and settings as evidence. It makes no model call, and its printed summary leaves out `model_identity` and `model_sha256` |
 | `judge-examples` | Builds judge v2's example pool once, `<artifact root>/judge-examples/<pool_id>/pool.json`, from a development assessment's disagreements with a complete measured v1 run. It calls only the embedding endpoint. An `arm` assessment is refused |
 | `calibrate` | Writes a calibration report once as two files under `<assessment>/calibration/`: `<report_id>.json` (status, reasons, pins and the aggregate figures) and `<report_id>.disagreements.json` (the per-item disagreements). Prints only the aggregate figures, with the status on the first line |
-| `judge-freeze` | Freezes the judge of a `ready` report into `<artifact root>/judge-selections/<id>.json`, for B8's `--frozen-judge` |
+| `judge-freeze` | Freezes the judge of a `ready` report into `<artifact root>/judge-selections/<id>.json`, for B8's `--frozen-judge`. It freezes only the report the pre-registered rule chooses (`calibration.preregistered_choice`: once `judge-v1` and `judge-v2` have each been measured once on the assessment and each has a calibration report, v2 if its report is `ready`, else v1 if its report is `ready`), and at most one selection per assessment. A measured run of any other prompt version on the assessment (a `judge-v3` or `judge-v1.1`) is refused: it needs Chad's dated decision and a new rule |
 
 The judge rules:
 
@@ -861,14 +863,18 @@ The judge rules:
   report of an `arm` assessment, never its disagreements file.
 - **Frozen judge.** `judge-freeze` pins the judge's settings, prompt, example pool, the
   modules on its render path, the libraries that build its request and parse its reply,
-  and its response schema. A `--frozen-judge` run must match all of them.
+  and its response schema. A `--frozen-judge` run must match all of them. The code
+  enforces the pre-registered selection rule: it refuses before v1 and v2 have each been
+  measured once with a report, when a prompt version was measured twice, for any report
+  other than the rule's choice, and for a second selection on the same assessment.
 
 Exit codes: 0 done, a complete judge run, a `ready` report, or a `diagnostic` report
 (`calibrate` then prints `status: diagnostic (never calibration)` first; on a development
 assessment or a smoke run that is the planned outcome, not a refusal). 1 a refused or
 pending state: an unfrozen reference, a spent judge-run budget, changed evidence, a
 qualification mismatch, a `pending` report (still written), a freeze of a report that is
-not `ready`, a lock, or an existing id. 2 a usage or configuration error, including a bad
+not `ready` or not the pre-registered rule's choice, a second selection for an assessment,
+a lock, or an existing id. 2 a usage or configuration error, including a bad
 judge prompt and an `--artifact-root` that differs from the config's. 3 controlled
 exhaustion: the judge run is `incomplete` (`judge-status` exits 3 too). 130 interrupted:
 run `judge-status`, then `judge --resume`. Errors are one line on stderr with absolute paths

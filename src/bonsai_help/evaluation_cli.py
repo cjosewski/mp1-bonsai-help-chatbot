@@ -50,7 +50,8 @@ identity records is the root written to.
   the status on the first line (`status: diagnostic (never calibration)` for a smoke run
   or a development assessment).
 - `judge-freeze --report-id ID --selection-id ID` freezes the judge of a `ready` report
-  (`calibration.freeze_judge`).
+  (`calibration.freeze_judge`), only the one Decision 13's pre-registered rule chooses
+  (`calibration.preregistered_choice`) and only once per assessment.
 
 Exit codes: 0 done, labeling complete, a complete judge run, a `ready` report or a
 `diagnostic` one (the planned outcome on a development assessment or a smoke run, never
@@ -58,8 +59,9 @@ calibration); 1 a refused or pending state (a rubric not accepted or changed, a 
 is not intact or is locked, an incomplete selection, an unmet freeze precondition or an
 unmatched confirmation, changed or missing cohort, assessment or judge evidence, an
 unfrozen reference, a spent judge-run budget, a qualification mismatch, a `pending`
-report, which is still written, a freeze of a report that is not `ready`, a lock, an id
-that already exists); 2 usage or configuration error, a stdin or stdout that is not a
+report, which is still written, a freeze of a report that is not `ready` or not the
+pre-registered rule's choice, a second selection for an assessment, a lock, an id that
+already exists); 2 usage or configuration error, a stdin or stdout that is not a
 terminal included; 3 controlled exhaustion (a judge run left `incomplete`); 130
 interrupted (check `label-status`, `judge-status` or `assessment status` and inspect
 before continuing). Errors are one `error:` line on stderr with every absolute path
@@ -275,7 +277,10 @@ def _add_judge_commands(commands) -> None:
     sub.add_argument("--judge-run-id", required=True)
     sub.add_argument("--report-id", required=True)
 
-    sub = commands.add_parser("judge-freeze", help="freeze the judge of a ready report (once)")
+    sub = commands.add_parser(
+        "judge-freeze",
+        help="freeze the judge the pre-registered rule chooses (once per assessment)",
+    )
     root(sub)
     sub.add_argument("--assessment-id", required=True)
     sub.add_argument("--report-id", required=True)
