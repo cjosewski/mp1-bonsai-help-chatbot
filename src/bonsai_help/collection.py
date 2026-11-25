@@ -422,6 +422,62 @@ def verified_batches(root: Path, manifest: dict) -> list[dict]:
     return [_batch(root, entry, identity) for entry in manifest["batches"]]
 
 
+def batch_recorded_checks(
+    root: Path,
+    collection_id: str,
+    run_id: str,
+    *,
+    fixtures_dir: Path = FIXTURES,
+    reference_dir: Path = REFERENCE,
+) -> dict[str, list[dict]]:
+    """Every item's recorded checks in one gated batch, by item id; read-only (B7).
+
+    The collection is verified (`load_collection`), the batch through `verified_batches`
+    (ledgers, manifest and gate report bound by hash), and the report again through the
+    same verification that bound it (`_verify_gate_report`: the per-item checks rerun with
+    the collection's lexicons from the saved items and the fixture slice, and the
+    decisions re-derived). The reference directory must be the one the collection was
+    made with (`_inputs`). The checks are the gate's `CheckResult` records as it wrote
+    them, in its order; nothing is rerun into them or changed. Never writes.
+    """
+    root = Path(root)
+    _, manifest = load_collection(root, collection_id)
+    identity = manifest["identity"]
+    if _inputs(reference_dir) != identity["inputs"]:
+        raise CollectionError(
+            f"collection {collection_id}: the reference lexicons, setup profiles or doc "
+            "sources differ from the ones it was collected with; inspect them"
+        )
+    batch = next((b for b in verified_batches(root, manifest) if b["run_id"] == run_id), None)
+    if batch is None or batch["gate"] is None:
+        raise CollectionError(f"{run_id}: not a gated batch of collection {collection_id}")
+    _verify_gate_report(
+        run_directory(root, run_id), run_id, identity, load_lexicons(reference_dir), fixtures_dir
+    )
+    return {
+        item_id: json.loads(json.dumps(entry["checks"]))
+        for item_id, entry in batch["gate"]["per_item"].items()
+    }
+
+
+def recorded_checks(
+    root: Path,
+    collection_id: str,
+    run_id: str,
+    item_id: str,
+    *,
+    fixtures_dir: Path = FIXTURES,
+    reference_dir: Path = REFERENCE,
+) -> list[dict]:
+    """One item's checks from its batch's verified gate report (`batch_recorded_checks`)."""
+    checks = batch_recorded_checks(
+        root, collection_id, run_id, fixtures_dir=fixtures_dir, reference_dir=reference_dir
+    )
+    if item_id not in checks:
+        raise CollectionError(f"{run_id}: the gate report has no item {item_id!r}")
+    return checks[item_id]
+
+
 def _inputs(reference_dir: Path) -> dict:
     files = [reference_dir / "setup-profiles.json", *sorted((reference_dir / "lexicons").glob("*"))]
     return {

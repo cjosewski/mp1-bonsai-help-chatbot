@@ -156,14 +156,17 @@ As of November 24, 2026, **B5 (rubric and baseline run) is done**:
   from it: 50 items, 10 per category. The cohort and its collection are read only.
 - **Prompts.** `prompts/generator-v1.md` is frozen, and the Phase B correction changes
   v1.1.
-- **Still open.** The `stats` code for the 95% intervals (B5 plan Task 3) is not built.
+- **Report.** The `stats` code for the 95% intervals and `collection-report` (B5 plan
+  Task 3) are built, and the gate is frozen until the Phase B comparison (`checks.py`,
+  `gate.py`, `sampler.py`, the quote and lexicon rules; `tests/test_gate_freeze.py`).
 
 As of November 24, 2026, **B6 (baseline human labels) is next, and its tooling is built**:
 `bonsai-help assessment create | status`, `label`, `label-status` and
 `freeze-human-reference`, with the modules `evaluation_schemas`, `assessment`, `labels`,
 `human_reference` and `evaluation_cli`. The plan is
 `docs/superpowers/plans/2026-11-24-b6-labels.md`, and the calls and Chad's answers are in
-`docs/DECISIONS.md`. No assessment has been created and no label has been entered.
+`docs/DECISIONS.md`. On Chad's go-ahead the assistant created assessment `b6-labels-1`
+(30 items); no label has been entered.
 - **Count.** B6 labels 30 of the 50 cohort items, and the other 20 stay unselected for
   B8's blind mixed queue.
 - **Who runs what.** The assistant may run `assessment create` on Chad's go-ahead and
@@ -185,7 +188,40 @@ As of November 24, 2026, **B6 (baseline human labels) is next, and its tooling i
 - **B7** calls `human_reference.load_reference` first and writes judge evidence only
   under `<assessment>/judges/`.
 
-Then B7–B10 as the plan's §9 describes. B8 needs Chad's labels too.
+As of November 24, 2026, **B7 (judge and Phase A calibration): the tooling is built, and
+the measured runs are pending**. Chad chose the judge model: "use Llama 3.3 70B for the
+judge". The commands are `bonsai-help judge`, `judge-status`, `judge-qualify`,
+`judge-examples`, `calibrate` and `judge-freeze`, with the modules `judge_config`,
+`judge`, `display`, `qualification`, `acceptance`, `calibration` and `judge_examples`, the
+prompt `prompts/judge-v1.md` and `config/judge.example.json`. The plan is
+`docs/superpowers/plans/2026-11-24-b7-judge.md`; the assistant's calls and the open
+questions for Chad are in `docs/DECISIONS.md` (November 24, 2026: B7 judge). No judge run,
+agreement figure or calibration exists, and none may be claimed until the measured runs
+are done and the calibration report says `ready`.
+- **Model.** The judge model's file name and hash go only in the git-ignored
+  `config/judge.local.json` or a file outside the repository, never in Git, a commit
+  message, a README example or a test. Examples use placeholders.
+- **No call without Chad.** An assistant never calls a model endpoint without Chad's
+  go-ahead for that run (the development collection, the smoke judge run, each measured
+  judge run) and a server that is already reachable. Tests use fakes only.
+- **No judge evidence before frozen labels.** A measured run refuses an assessment whose
+  human reference is not frozen. A smoke run is allowed only on a development assessment
+  that will never be labeled.
+- **Diagnostic is never calibration.** A smoke run, a development assessment or a
+  same-model judge gives a `diagnostic` report. Never present one as calibration or as
+  Phase A evidence.
+- **Development and assessed stay apart.** Judge v2's rules and examples come only from
+  development-split disagreements. Whoever writes a judge prompt reads only the main
+  report of an `arm` assessment, never its `.disagreements.json` file.
+- **Pins.** `test_judge_v1_hash_is_pinned` is added, and v1's SHA-256 pinned, only after
+  Chad answers the open questions on the judge temperature, the judge's inputs and the
+  prompt's adaptations, and before the first judge run. Judge v2 is pre-registered in a
+  dated `docs/DECISIONS.md` entry before any judge result on the baseline reference is
+  read. B8 changes no module in `judge.FROZEN_JUDGE_MODULES`.
+- **Budgets.** At most 3 measured judge runs per assessment; the third needs Chad's
+  decision.
+
+Then B8–B10 as the plan's §9 describes. B8 needs Chad's labels too.
 
 B0 scope is the assistant's call, not Chad's: earlier pipeline modules were not copied.
 B4 ports them module by module, each with its tests, following `docs/PORTING-MAP.md`. The

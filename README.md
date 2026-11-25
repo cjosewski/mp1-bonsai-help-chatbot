@@ -42,14 +42,23 @@ fix, restart (Recommended)", and its evidence is kept unchanged.
 
 **B6 (baseline human labels): the tooling is built, and no label exists yet.** The
 assessment and labeling commands are described under
-[Human labels (B6)](#human-labels-b6). Labeling starts once an assessment is created:
-the assistant runs `assessment create` on Chad's go-ahead (30 of the 50 cohort items).
-After that only Chad labels, in his own terminal.
+[Human labels (B6)](#human-labels-b6). On Chad's go-ahead the assistant created the
+assessment `b6-labels-1` (30 of the 50 cohort items; `docs/DECISIONS.md`). Only Chad labels
+it, in his own terminal.
+
+**B7 (judge and Phase A calibration): the tooling is built, and no judge run exists.** The
+judge, qualification, calibration, example-pool and frozen-judge commands are described
+under [Judge and calibration (B7)](#judge-and-calibration-b7). Chad chose the judge model
+on November 24, 2026 ("use Llama 3.3 70B for the judge"). Every judge run waits for Chad's
+frozen labels, his go-ahead and a reachable judge server, and B7's acceptance (at least
+80% agreement in every dimension) is met only when the measured runs are done and the
+calibration report says so.
 
 What runs today: install, the offline tests, the documentation corpus rebuild, the section
 index, the lexicons, the setup-fact checks, the rubric commands (`rubric check`,
-`rubric show`) and the assessment and labeling commands. Steps 1 and 2 of the pipeline
-also run offline against fake endpoints. Every other step below is marked *not yet
+`rubric show`) and the assessment and labeling commands. Steps 1 and 2 of the pipeline,
+and the judge and calibration commands of steps 4 and 6, also run offline against fake
+endpoints in the tests. Every other step below is marked *not yet
 implemented* until its milestone lands.
 Chad's decisions on the B2 setup records (packet SR-001) are applied: 38 accepted and fact
 row SF-001 rejected. Setup review SR-003 (fact row SF-021) stays an MP1 item and is still
@@ -87,8 +96,8 @@ packets remain as records. No new review decisions were imported.
 | B3 | Gold set and multi-part and injection requests | Withdrawn from MP1 (moves to Mini Project 4); 6 of 110 items published and frozen; 104 drafts unreviewed |
 | B4 | Section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet; the rubric moved to B5 on November 24, 2026) |
 | B5 | Rubric (D1–D6) and baseline run | Done: rubric accepted by Chad ("Accept as drafted"); baseline `baseline-2026-11-24-r2` ready (70 of 70 valid initial attempts, 56 of 70 retained, at least 10 per category); cohort `baseline-b5-cohort-1` frozen; `collection-report` built (see `docs/DECISIONS.md`) |
-| B6 | Baseline human labels | Tooling built (assessments, blind labeling, append-only ledger, frozen human reference). No assessment created and no label entered yet |
-| B7 | Judge and Phase A calibration | Not yet implemented |
+| B6 | Baseline human labels | Tooling built (assessments, blind labeling, append-only ledger, frozen human reference). Assessment `b6-labels-1` created (30 items); no label entered yet |
+| B7 | Judge and Phase A calibration | Tooling built (judge v1 prompt and config, bounded judge runs, qualification, calibration with TPR, TNR and intervals, v2 example pool, frozen judge, commands). Judge v2 not written; no judge run, agreement figure or calibration yet |
 | B8 | Phase B correction | Not yet implemented |
 | B9 | Analysis and charts | Not yet implemented |
 | B10 | Submission set, pipeline replay demo, iteration log, demo video, coaching approval | Not yet implemented |
@@ -643,7 +652,8 @@ needs Chad's labels (B6) and the judge (B7); it is never estimated from the gate
 
 ## Human labels (B6)
 
-The tooling is built. No assessment has been created and no label has been entered. The
+The tooling is built. On Chad's go-ahead the assistant created assessment `b6-labels-1`
+(30 of the 50 cohort items); no label has been entered. The
 plan is `docs/superpowers/plans/2026-11-24-b6-labels.md`, and the assistant's calls are in
 `docs/DECISIONS.md` (November 24, 2026: B6 labeling tooling).
 
@@ -741,17 +751,166 @@ assessment id is also 1. 2 a usage or configuration error, including a stdin or 
 that is not a terminal. 130 interrupted: run `label-status` and inspect before
 continuing. Errors are one line on stderr without absolute paths.
 
+## Judge and calibration (B7)
+
+The tooling is built and runs offline against fake endpoints. No judge run, agreement
+figure or calibration exists: the measured runs need Chad's frozen labels, his go-ahead
+and a judge server that is already reachable. The plan is
+`docs/superpowers/plans/2026-11-24-b7-judge.md`, Chad's judge decision ("use Llama 3.3 70B
+for the judge") and the assistant's calls are in `docs/DECISIONS.md` (November 24, 2026:
+judge model; B7 judge), and the open questions for Chad are listed there.
+
+The judge is MP1's Step 4: a separate prompt (`prompts/judge-v1.md`; `judge-v2.md` is
+written later from development disagreements) at a lower temperature than every generator
+collection it judges, with Instructor/Pydantic output of six binary decisions, each with a
+reason. Its config is a `judge_config.JudgeConfig` file. `config/judge.example.json` shows
+the shape with placeholder model ids; the real config, with `model_identity` and
+`model_sha256`, is `config/judge.local.json` (git-ignored), and the judge model's file name
+and hash never enter Git.
+
+```text
+bonsai-help judge [-h] --config CONFIG [--artifact-root ARTIFACT_ROOT]
+                  --assessment-id ASSESSMENT_ID --judge-run-id JUDGE_RUN_ID
+                  [--qualification ID] [--examples POOL_ID]
+                  [--frozen-judge SELECTION_ID] [--resume]
+bonsai-help judge-status [-h] [--artifact-root ARTIFACT_ROOT]
+                         --assessment-id ASSESSMENT_ID --judge-run-id JUDGE_RUN_ID
+bonsai-help judge-qualify [-h] --config CONFIG [--artifact-root ARTIFACT_ROOT]
+                          --smoke-assessment-id SMOKE_ASSESSMENT_ID
+                          --smoke-judge-run-id SMOKE_JUDGE_RUN_ID
+                          --qualification-id QUALIFICATION_ID
+bonsai-help judge-examples [-h] --config CONFIG [--artifact-root ARTIFACT_ROOT]
+                           --assessment-id ASSESSMENT_ID --judge-run-id JUDGE_RUN_ID
+                           --pool-id POOL_ID
+bonsai-help calibrate [-h] [--artifact-root ARTIFACT_ROOT]
+                      --assessment-id ASSESSMENT_ID --judge-run-id JUDGE_RUN_ID
+                      --report-id REPORT_ID
+bonsai-help judge-freeze [-h] [--artifact-root ARTIFACT_ROOT]
+                         --assessment-id ASSESSMENT_ID --report-id REPORT_ID
+                         --selection-id SELECTION_ID
+```
+
+The options of `judge`, as `--help` prints them:
+
+```text
+  --config CONFIG       judge config (JSON, git-ignored)
+  --artifact-root ARTIFACT_ROOT
+                        artifact root; must equal the config's artifact_root
+                        (default: the config's artifact_root)
+  --assessment-id ASSESSMENT_ID
+  --judge-run-id JUDGE_RUN_ID
+  --qualification ID    the judge's qualification receipt (measured)
+  --examples POOL_ID    judge v2: the development example pool
+  --frozen-judge SELECTION_ID
+                        the judge-freeze selection this measured run must
+                        match exactly
+  --resume              continue an unfinished judge run
+```
+
+**`--artifact-root`.** `judge`, `judge-qualify` and `judge-examples` take a `--config`, and
+for them `--artifact-root` defaults to the config's `artifact_root`. A different
+`--artifact-root` is refused (exit 2), because the config's `artifact_root` is part of the
+run identity. `judge-status`, `calibrate` and `judge-freeze` have no config and default to
+`runs`, as the B6 commands do. Either way the root must be `runs/` or a path outside the
+repository. `uv run --locked bonsai-help <command> --help` prints the full text.
+
+| Command | What it does and writes |
+| --- | --- |
+| `judge` | Runs or resumes one judge run under `<assessment>/judges/<judge_run_id>/` (manifest, prompt copy, start and attempt ledgers, and for v2 `examples.json`). A `measured` run needs a frozen human reference and a valid qualification receipt, both checked before any directory is created or any call is made. A `smoke` run is refused on an `arm` assessment. `--examples` (v2) selects each item's examples by similarity before any chat call. `--frozen-judge` must match a `judge-freeze` selection exactly. Prints the run's blind status |
+| `judge-status` | Verifies a judge run and prints its blind status: counts, unknown-outcome attempt ids, unresolved blind ids and reported model ids, never a decision, a reason or an item id |
+| `judge-qualify` | Writes a qualification receipt once to `<artifact root>/judge-qualifications/<id>.json`, with a complete smoke run of the same model and settings as evidence. It makes no model call, and its printed summary leaves out `model_identity` and `model_sha256` |
+| `judge-examples` | Builds judge v2's example pool once, `<artifact root>/judge-examples/<pool_id>/pool.json`, from a development assessment's disagreements with a complete measured v1 run. It calls only the embedding endpoint. An `arm` assessment is refused |
+| `calibrate` | Writes a calibration report once as two files under `<assessment>/calibration/`: `<report_id>.json` (status, reasons, pins and the aggregate figures) and `<report_id>.disagreements.json` (the per-item disagreements). Prints only the aggregate figures, with the status on the first line |
+| `judge-freeze` | Freezes the judge of a `ready` report into `<artifact root>/judge-selections/<id>.json`, for B8's `--frozen-judge` |
+
+The judge rules:
+
+- **Blind inputs.** The judge sees what Chad's display shows (the item's category, setup
+  record, seven fields, the model's quotes and the full text of its cited sections) plus
+  the deterministic check results the gate recorded for the item. It never sees a run,
+  item or trace id, an arm, a prompt variant, a generator model, a collection or cohort id,
+  a human label or note, or another judge's output. Item, quote, section and check text
+  sits in blocks fenced by a code derived from the item's own text, so item text cannot
+  forge a boundary.
+- **No judge evidence before frozen labels.** A measured run refuses an assessment whose
+  human reference is not frozen. A smoke run is allowed only on a development assessment
+  that will never be labeled, and once it exists B6's freeze refuses that assessment.
+- **Distinct judge.** A measured run refuses a judge whose `model`, `model_identity` or
+  `model_sha256` equals a source generator's, and a judge temperature that is not below
+  every source generator's recorded temperature. A reply that reports another model id is
+  a failed attempt and blocks calibration.
+- **Attempts.** A durable start record comes before each call, and every completion is kept
+  raw, including malformed output, schema-invalid output and transport failures. A start
+  with no completion is an unknown outcome: it uses up its attempt and is disclosed. Each
+  item gets at most `max_attempts` (default 2, at most 3); a resume keeps the original
+  settings, prompt, examples, code and reference and gives an exhausted item no more. An
+  assessment allows at most 3 measured judge runs.
+- **Agreement.** Per dimension, `matching / n` over every selected blind id. An unresolved
+  human decision or a missing judge decision stays in `n` and never matches. A dimension
+  meets the rubric's minimum (0.8) when `matching / n >= 0.8`, compared exactly (24 of 30
+  meets it, 23 of 30 does not). Agreement, TPR and TNR each carry a 95% Clopper-Pearson
+  interval, and a zero denominator is undefined, never 0 or 1.
+- **Report status.** `ready` only on an `arm` assessment with a frozen, verified
+  reference, a complete measured run, a valid qualification, every reply from the
+  configured model, a judge temperature below every generator's, the reference's rubric pin
+  and every dimension at or above the minimum. Otherwise `pending`, with every reason
+  listed. A development assessment, a smoke run or a same-model judge gives `diagnostic`,
+  whatever its agreement: diagnostic agreement never counts as calibration.
+- **Development and assessed stay apart.** Judge v2's examples come only from
+  development-split disagreements. Whoever writes a later judge prompt reads only the main
+  report of an `arm` assessment, never its disagreements file.
+- **Frozen judge.** `judge-freeze` pins the judge's settings, prompt, example pool, the
+  modules on its render path, the libraries that build its request and parse its reply,
+  and its response schema. A `--frozen-judge` run must match all of them.
+
+Exit codes: 0 done, a complete judge run, a `ready` report, or a `diagnostic` report
+(`calibrate` then prints `status: diagnostic (never calibration)` first; on a development
+assessment or a smoke run that is the planned outcome, not a refusal). 1 a refused or
+pending state: an unfrozen reference, a spent judge-run budget, changed evidence, a
+qualification mismatch, a `pending` report (still written), a freeze of a report that is
+not `ready`, a lock, or an existing id. 2 a usage or configuration error, including a bad
+judge prompt and an `--artifact-root` that differs from the config's. 3 controlled
+exhaustion: the judge run is `incomplete` (`judge-status` exits 3 too). 130 interrupted:
+run `judge-status`, then `judge --resume`. Errors are one line on stderr with absolute paths
+redacted and every credential value read scrubbed.
+
+Procedure (the plan's order of operations; Chad's steps are his alone, and every model run
+needs his go-ahead and a reachable server):
+
+1. Chad labels the B6 assessment `b6-labels-1` and freezes it
+   (`freeze-human-reference --declare-blind`). Nothing judges it before then.
+2. Chad serves the judge model locally and writes `config/judge.local.json` from
+   `config/judge.example.json`.
+3. On Chad's go-ahead, a development collection with the baseline's generator settings on
+   the `development` split, then a 50-item development cohort.
+4. On Chad's go-ahead, a 5-item development assessment and a `smoke` judge run on it
+   (diagnostic only).
+5. `judge-qualify` with the smoke run as evidence (no model call).
+6. A 20-item development assessment, which Chad labels and freezes.
+7. On Chad's go-ahead, judge v1 (`measured`) on the development assessment, then
+   `calibrate`, which gives a `diagnostic` report.
+8. `judge-examples` on that run (embedding server only).
+9. Judge v2 is written from the development disagreements and pre-registered in
+   `docs/DECISIONS.md` (prompt and pool SHA-256, `examples_k`, the selection rule) before
+   any judge result on the baseline reference is read.
+10. On Chad's go-ahead, judge v1 and then v2 once each on `b6-labels-1`, then `calibrate`
+    for each.
+11. `judge-freeze` on the report the pre-registered rule chooses (v2 if `ready`, else v1 if
+    `ready`). If neither is `ready`, Phase A is not met, no judge is frozen, and Chad
+    decides the next step.
+
 ## Run each step
 
-Each step runs on its own against saved artifacts. Steps 1 and 2 exist (B4), and step 3's
-tooling exists (B6); the rest are not yet implemented (B7 to B9):
+Each step runs on its own against saved artifacts. Steps 1 and 2 exist (B4), step 3's
+tooling exists (B6), and the tooling of step 4 and of step 6's Phase A exists (B7); the
+rest are not yet implemented (B8, B9):
 
 1. Generate: one prompt per category and setup profile writes each item from pinned doc sections (B4, B5, B8). Implemented.
 2. First-pass gate: schema, deterministic checks, duplicates, category balance (B4, B5). Implemented.
 3. Human labels: blind, resumable labeling against the pinned rubric (B6). Tooling implemented; no label entered yet.
-4. Judge: independent prompt at a lower temperature than the generator (B7).
+4. Judge: independent prompt at a lower temperature than the generator (B7). Tooling implemented; no judge run yet.
 5. Analyze: pass rates, agreement, intervals and five charts (B9).
-6. Iterate: Phase A judge calibration, Phase B generator correction (B7, B8).
+6. Iterate: Phase A judge calibration, Phase B generator correction (B7, B8). Phase A tooling implemented; no calibration yet.
 
 A model is configured explicitly as a local OpenAI-compatible endpoint. The hosted path
 for graders without local models is refused for now (Chad, November 24, 2026): a run
@@ -779,6 +938,7 @@ no model and no credentials.
 │   ├── doc-sources.json  pinned commits, page selection, licenses, attribution
 │   ├── rubric.json       D1–D6 anchors, labeling notes and thresholds (accepted by Chad)
 │   ├── run.example.json  example run config (local endpoints)
+│   ├── judge.example.json  example judge config (local endpoint, placeholder model ids)
 │   └── doc-manifest.json page hashes of every snapshot (written by the tool)
 ├── reference/
 │   ├── docs-index.json   digest of the section index (written by the tool)
@@ -789,7 +949,7 @@ no model and no credentials.
 ├── docs/
 │   ├── DECISIONS.md     dated owner decisions and open items
 │   └── PORTING-MAP.md   what is ported from the earlier repository, and when
-├── src/bonsai_help/     the package: snapshots, section index, lexicons, setup checks, gold set, generation, gate, rubric, assessments, labels, CLI
+├── src/bonsai_help/     the package: snapshots, section index, lexicons, setup checks, gold set, generation, gate, rubric, assessments, labels, judge, calibration, CLI
 ├── tests/               offline behaviour tests
 │   └── fixtures/docs/   unmodified, attributed documentation fixture slice
 └── submission/          curated course submission set (filled at B10; datasets CC BY-SA 4.0)

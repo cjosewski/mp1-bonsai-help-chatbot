@@ -1,12 +1,15 @@
 """Command line: `bonsai-help snapshot | docs | lexicon | setup | gold`, the generation
 commands `generate | gate | collect | collection-status | collection-report | cohort |
-cohort-status`, `rubric check | show` (see `rubric`), and the assessment and labeling
-commands `assessment | label | label-status | freeze-human-reference` (see `evaluation_cli`).
+cohort-status`, `rubric check | show` (see `rubric`), the assessment and labeling
+commands `assessment | label | label-status | freeze-human-reference`, and the judge and
+calibration commands `judge | judge-status | judge-qualify | judge-examples | calibrate |
+judge-freeze` (see `evaluation_cli`).
 
 Exit codes: 0 success; 1 check failed; 2 usage or invalid config; 3 git or network
 failure; 4 upstream differs from the pins; 5 refused to write. The generation commands
-use 3 for controlled exhaustion instead (see `collection_cli`); the assessment and labeling
-commands use 1 for a refused state and 130 for an interrupt (see `evaluation_cli`).
+use 3 for controlled exhaustion instead (see `collection_cli`); the assessment, labeling,
+judge and calibration commands use 1 for a refused or pending state, 3 for a judge run
+left `incomplete` and 130 for an interrupt (see `evaluation_cli`).
 """
 
 from __future__ import annotations
@@ -264,7 +267,7 @@ def main(
     if args.command in collection_cli.COMMANDS:
         return collection_cli.run(args, transport=transport)
     if args.command in evaluation_cli.COMMANDS:
-        return evaluation_cli.run(args)
+        return evaluation_cli.run(args, transport=transport)
     root = repository_root(Path.cwd())
     if args.command == "rubric":
         return rubric.run(args, root=root or Path.cwd())

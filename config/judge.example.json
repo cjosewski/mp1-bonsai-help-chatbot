@@ -1,0 +1,13 @@
+{
+  "base_url": "http://127.0.0.1:8082/v1",
+  "model": "local-judge-model-id",
+  "purpose": "smoke",
+  "prompt_path": "prompts/judge-v1.md",
+  "mode": "json",
+  "temperature": 0.0,
+  "timeout_seconds": 300,
+  "max_tokens": 1500,
+  "max_attempts": 2,
+  "api_key_env": "BONSAI_HELP_JUDGE_API_KEY",
+  "artifact_root": "runs"
+}

@@ -2482,6 +2482,372 @@ for the step his B6 answer 5 left to the assistant ("Assistant, on go-ahead
   for B8's mixed queue. Labeling is Chad's alone: `bonsai-help label --assessment-id
   b6-labels-1 --reviewer "<name>"` in his own terminal.
 
+### November 24, 2026: judge model
+
+Owner decision (Chad, November 24, 2026): "use Llama 3.3 70B for the judge".
+
+- The judge is a different model family from the baseline's generator (a local Qwen
+  model), which `AGENTS.md` requires for assessed use. The qualification basis is
+  therefore `distinct_model`, with this entry as its decision reference.
+- The judge model's file name and hash go only in the git-ignored local judge config
+  (`config/judge.local.json`, covered by `config/*.local.json`) or a file outside the
+  repository, never in Git. `config/judge.example.json` uses placeholder model ids.
+- No judge run has been made. Serving the model, its settings and each judge run need
+  Chad's answers below and his go-ahead.
+
+### November 24, 2026: B7 judge (assistant's calls)
+
+Plan: `docs/superpowers/plans/2026-11-24-b7-judge.md`, including its final "Refinements to
+apply during the build". The modules are `judge_config`, `judge`, `display`,
+`qualification`, `acceptance`, `calibration` and `judge_examples`, with a read-only
+`collection.recorded_checks` and the commands `judge`, `judge-status`, `judge-qualify`,
+`judge-examples`, `calibrate` and `judge-freeze`. These are the assistant's calls, not
+Chad's decisions; Chad can overrule any, and a change is a new dated entry.
+
+No model was called. No judge run, agreement figure, calibration report, qualification
+receipt, example pool or frozen judge exists outside the tests, which use synthetic
+assessments, labels and references under a temporary directory and fake transports.
+Judge v2 (`prompts/judge-v2.md`) is not written: it is written from real development
+disagreements and pre-registered in its own dated entry. `checks.py`, `gate.py` and
+`sampler.py` are unchanged (gate freeze above; `tests/test_gate_freeze.py` pins their
+hashes).
+
+#### Design (the plan's Decisions 1 to 16)
+
+1. **A separate `JudgeConfig`** (`judge_config.py`), not a subclass of `RunConfig`. It has
+   the local-endpoint and credential rules of `RunConfig` (one credential source, values
+   never in config, prompts, arguments, logs or manifests; `hosted: true` refused at
+   load), `purpose` `smoke` or `measured` (`measured` needs `model_identity` and
+   `model_sha256`), temperature default 0.0, `timeout_seconds` default 300 and at most 600,
+   `max_tokens` default 1500, `max_attempts` default 2 and at most 3, `examples_k` default
+   4 (1 to 6), and optional embedding settings for v2. `public_settings()` leaves out every
+   credential name and path.
+2. **Prompt version and placeholders.** The version is the file stem (`judge-v1`), and the
+   identity records it with the file's SHA-256; the run directory keeps a copy. The prompt
+   must hold exactly `{category}`, `{setup}`, `{item}`, `{quotes}`, `{sections}`, `{checks}`
+   and `{fence}`, plus `{examples}` if and only if the run has an example pool. The rendered
+   prompt is the system message; the user message is fixed.
+3. **Judge v1 is criteria and labeling rules only.** `prompts/judge-v1.md` carries the
+   accepted rubric's labeling rules, anchors and labeling notes verbatim, with no examples,
+   and a short section, "How these rules apply to you", with three adaptations for the
+   judge's evidence (Open question 4). A drift test fails if a rubric string is missing,
+   and a premise test pins what the prompt says about the frozen checks.
+4. **What the judge sees.** What Chad's display shows (category, setup record, seven
+   fields, the model's quotes and the full cited section texts, re-derived from the
+   hash-verified fixture slice, with B6's control-character escaping), plus the check
+   results the gate recorded for the item (plan §7 Step 4). Each kind of text sits in its
+   own block, `<<<BEGIN {fence} NAME>>>` to `<<<END {fence} NAME>>>`, where the fence is the
+   first 16 hex characters of the SHA-256 of the canonical JSON of the unfenced inputs under
+   the domain `bonsai-judge-fence-v1`. A fence that occurs in any block's text is refused
+   before the attempt starts. The judge reads `key.json` only to find each item's run and
+   gate record; nothing from the key reaches a message.
+5. **Run layout.** `<assessment>/judges/<judge_run_id>/` holds `manifest.json`, `prompt.md`,
+   `starts.jsonl`, `attempts.jsonl` and, for v2, `examples.json`. The identity covers the
+   public settings, the prompt, the assessment, the reference and qualification (measured
+   runs), the pool and `examples_k` (v2), the source generators' temperatures and model
+   hashes, and the implementation identity. Attempt ids are
+   `<judge_run_id>:<blind_id>:<n>`.
+6. **Budgets.** At most `max_attempts` per item, never more on resume. At most 3 measured
+   judge runs per assessment: on the B6 baseline reference these are v1 and v2, plus one
+   spare that needs Chad's decision.
+7. **Qualification.** `judge-qualify` writes `<artifact root>/judge-qualifications/<id>.json`
+   once, with the judge's public settings, `model_identity` and `model_sha256` (under
+   git-ignored `runs/` only), the basis `distinct_model` with the reference "DECISIONS.md,
+   November 24, 2026: judge model", and as evidence a complete smoke run of the same model
+   and settings in which every reply reported the configured model id. The same-model basis
+   of PORTING-MAP §3.3 is not built, because Chad chose a distinct model.
+8. **Agreement.** Per dimension, over every selected blind id: `agreement = matching / n`.
+   An unresolved human decision or a missing judge decision is in `n` and never matches;
+   both are counted. Confusion counts are over the pairs where both decisions exist. TPR is
+   `h1_j1 / (h1_j1 + h1_j0)` and TNR `h0_j0 / (h0_j0 + h0_j1)`. Agreement, TPR and TNR each
+   carry a 95% Clopper-Pearson interval; a zero denominator is null. The minimum is met
+   when `matching / n >= 0.8`, compared exactly as fractions (24 of 30 meets it, 23 of 30
+   does not). Per-category agreement has no threshold.
+9. **Readiness.** A report is `ready` only for an `arm` assessment with a frozen, verified
+   reference, a complete measured run, a valid qualification, every reply from the
+   configured model, a judge temperature below every source generator's, the reference's
+   rubric pin and every dimension at or above the minimum; otherwise `pending` with every
+   reason. A development assessment or a smoke run is `diagnostic`. An unknown outcome is
+   disclosed (count and attempt ids) and does not by itself block readiness; an item left
+   without a valid judgment does, because it counts against agreement.
+10. **Example pool for v2.** Built once from a development assessment with a frozen
+    reference and a complete measured v1 run: the (blind id, dimension) pairs where Chad's
+    resolved decision differs from the judge's, each with the item's category, setup,
+    fields, that dimension's check lines, Chad's decision and the matching rubric anchor.
+    No note and no judge reason enters it. One vector per item (`question + "\n" + answer`)
+    with the gate's embedding model; another model is refused. Sealed by SHA-256.
+11. **Selection by similarity.** For a v2 run, each judged item's vector is computed when the
+    run is created, before any chat call; the `examples_k` nearest entries by cosine
+    similarity are chosen, ties broken by entry id, and each start record lists its
+    `example_ids`. A pool that shares a trace id or payload hash with the judged assessment,
+    or comes from a non-development source, is refused.
+12. **Judge v2 is pre-registered.** v2 is v1 plus a "Rules from development disagreements"
+    section and an `{examples}` placeholder. Each rule comes from at least two development
+    disagreements in the same dimension and direction, names the rubric note it applies and
+    never changes the rubric's meaning. Before any judge result on the baseline reference is
+    read, a dated entry records the v2 SHA-256, the pool SHA-256, `examples_k` and the
+    selection rule in 13; it is also v2's iteration-log record. v2 is not scored on the
+    development assessment, whose disagreements are its examples.
+13. **Which judge is frozen.** After v1 and v2 have each run once on the B6 baseline
+    reference: v2 if its report is `ready`, otherwise v1 if `ready`, otherwise Phase A is
+    not met and Chad decides (Open question 7). `judge-freeze` accepts only a `ready` report
+    and writes `<artifact root>/judge-selections/<id>.json`. The frozen identity pins the
+    public settings, `model_identity`, `model_sha256`, the prompt, the pool and
+    `examples_k`, the SHA-256 of each module in `judge.FROZEN_JUDGE_MODULES`, the installed
+    versions of `judge.MESSAGE_PATH_DISTRIBUTIONS` (each checked against `uv.lock`), the
+    SHA-256 of `Judgment.model_json_schema()` and the SHA-256 of the request schema
+    Instructor prepares for the configured mode. `judge.render_path_closure()` follows every
+    `bonsai_help` import by AST from the judge modules; every module it reaches must be
+    frozen or listed in `judge.RENDER_PATH_EXEMPT` with a reason, or `frozen_identity`
+    refuses. On the built package the closure reaches 29 modules:
+    - frozen (19): `judge`, `judge_config`, `judge_examples`, `display`, `docs_index`,
+      `schemas`, `doc_sources`, `doc_snapshot`, `git_fetch`, `setup`,
+      `evaluation_schemas`, `model_client`, `assessment`, `rubric`, `collection`, `gate`,
+      `generate`, `sampler`, `checks`;
+    - exempt (10): `config`, `tracing`, `cohort`, `labels`, `human_reference`,
+      `qualification`, `calibration`, `acceptance`, `stats`, `__init__`.
+
+    The message-path distributions are `instructor`, `openai`, `pydantic`, `pydantic-core`,
+    `httpx`, `jiter` and `docstring-parser` (refinement 1). A `--frozen-judge` run must
+    match the frozen identity exactly. B8 changes no frozen module; if it must, that is a
+    dated entry and the judge is no longer the frozen one. The whole-package implementation
+    identity is recorded but not required to match, because B8 adds modules.
+14. **Stats extract.** B7 uses only `stats.clopper_pearson`. Fisher, Holm and McNemar move to
+    B8 with `analysis` (PORTING-MAP §8).
+15. **A read-only gate-record helper.** `collection.recorded_checks` returns an item's
+    checks from a verified gate report. `collection.py` is not under the gate freeze; from
+    `judge-freeze` on it is in the frozen judge identity.
+16. **Per-item disagreements in a separate file.** A calibration report is
+    `<assessment>/calibration/<report_id>.json` (status, reasons, pins and the aggregate
+    figures per dimension, category and arm) and `<report_id>.disagreements.json` (blind
+    id, dimension, human decision, judge decision, judge reason), whose SHA-256 the main
+    report pins. `calibrate` prints only the aggregate figures.
+
+Reading rule for later judge prompts: whoever writes a judge prompt after v2 (v3 or later)
+reads only the main report of an `arm` assessment, never its disagreements file, and
+`judge_examples` never reads either file of an `arm` report; if an author has seen an `arm`
+disagreements file, that prompt's iteration-log entry says so and the prompt is reported
+as written with knowledge of the assessed reference.
+
+Export rule (not in B7): any B10 export of judge runs, calibration reports, qualification
+receipts or frozen-judge selections keeps the public settings minus `model_identity`,
+`model_sha256`, and `model` or any reported model id when it holds the model file name,
+drops any path holding the model file name, and keeps the prompt and the model family
+Chad stated ("Llama 3.3 70B").
+
+#### Calls made during the build
+
+Judge configuration and prompt v1 (Task 1):
+- B6 kept `decision` before `reason` in `DimensionJudgment`, so Decision 3's fallback
+  applies: judge v1's "Your reply" paragraph and JSON template put the decision first and
+  no longer ask for the reason first. B6's `evaluation_schemas.py` is unchanged.
+  `test_judge_prompt_template_matches_schema_order` holds the prompt to the schema's order.
+- `purpose` has no default, so every judge config says `smoke` or `measured`. Neither
+  credential field has a default, so the one credential source is always set explicitly.
+  The example config names a new environment variable, `BONSAI_HELP_JUDGE_API_KEY`.
+- The embedding endpoint and credential fall back to the chat ones when only
+  `embedding_model` is set, as in `RunConfig`; embedding fields without `embedding_model`
+  are refused.
+- The prompt file's stem must match `judge-v<N>` (optionally `.M`), so the recorded
+  version always reads as a version. `load_judge_prompt` raises `ValueError`, which the
+  CLI maps to exit 2.
+- The premise test also checks that `menu_paths_known` never examines a menu path in the
+  answer field, one more premise the prompt states.
+- `test_judge_v1_hash_is_pinned` is not added yet. It waits for Chad's answers to Open
+  questions 1, 3 and 4, and must be added before the first judge run.
+
+Acceptance policy (Task 2):
+- `acceptance_result` decides from the integer `matching` and `n` of each dimension alone
+  and ignores any precomputed agreement field, so the comparison is exact. A dimension that
+  is missing or has `n == 0` fails; malformed rows and unknown dimension ids raise
+  `ValueError`.
+- It refuses a rubric whose `per_dimension_minimum` differs from
+  `rubric.COURSE_THRESHOLDS`, the one place the course value lives, so no value is typed a
+  second time. The decimal minimum is read exactly (`Fraction(repr(value))`).
+- `policy_sha256` is the digest of the policy (its minimum and dimension ids); the rubric is
+  pinned separately by calibration.
+
+Qualification (Task 3):
+- The smoke evidence must report `status` complete, `purpose` smoke, the same public
+  settings, and every reported model id equal to the configured one.
+- The qualified settings are the model and how it is called. `purpose`, `prompt_path`, the
+  embedding settings, `examples_k`, `artifact_root` and `hosted` are left out, so one
+  receipt covers judge v1 and v2 with the same model and settings. The endpoint
+  (`base_url`) and the attempt settings (`max_attempts`, `timeout_seconds`) are qualified,
+  so moving the server or changing the timeout needs a new receipt (Open question 12).
+- Distinctness compares model names and identities across both fields, ignoring letter
+  case; `model_sha256` is compared exactly.
+- `validate_qualification` re-reads the smoke assessment and smoke run every time and
+  refuses any change to the evidence. The receipt records the smoke assessment's
+  generators (model, identity, hash, temperature) under the git-ignored artifact root.
+
+Judge run (Task 4):
+- A smoke run is also refused on a development assessment that already has a labels
+  ledger, a frozen reference or a labels lock, and it refuses a qualification or a frozen
+  judge.
+- The reported-model check applies to smoke runs too, so the qualification evidence shows
+  the real reported model ids. A reply with no model id is never a valid judgment.
+- Check order, all before any write: smoke and kind rules, then the generator
+  temperature and the distinct model, then the frozen reference, then the qualification.
+- The measured-run budget counts every run directory under `judges/` whose manifest purpose
+  is not `smoke`; an unreadable directory, such as an interrupted create, counts as
+  measured.
+- The frozen identity's `settings` is the whole `public_settings()`, so a B8 config must
+  match it exactly.
+- The fence's input is the documented unfenced values, with sections as a list of
+  [block name, body] pairs; setup values and quote and check text stay on one line, with
+  each line break shown as `\n`.
+- `collection.batch_recorded_checks` was added beside `recorded_checks`, so each batch's
+  gate report is verified once per run rather than once per item.
+- `labels.py` now imports `escape_control` and `section_heading` from `display.py`, with no
+  behaviour change; B6's display tests pass unchanged.
+
+Calibration and the frozen judge (Task 5):
+- The qualification is re-checked by rebuilding the `JudgeConfig` from the run's recorded
+  public settings, with placeholder credential sources that are never read.
+- A measured run whose frozen reference is missing or changed is refused
+  (`CalibrationError`, nothing written) rather than given a `pending` report, because the
+  run cannot be verified (Open question 13). A smoke run with no reference gets a
+  `diagnostic` report with null figures and that reason.
+- A same-model judge (by `model`, `model_identity` or `model_sha256`) gives `diagnostic`.
+  A reply that reported another model id, no id, or a generator's id blocks readiness even
+  when the run is complete; the reason counts such replies without printing the id.
+- Disagreements are resolved pairs that differ only; an unresolved human decision or a
+  missing judgment is never a disagreement. The disagreements file is a JSON list of
+  entries with exactly `blind_id`, `dimension`, `human`, `judge` and `judge_reason`.
+- Per-category and per-arm rows carry no `meets_minimum` and add no reasons. A development
+  assessment's group is `development`. All five categories are listed, those with `n = 0`
+  with null figures.
+- `freeze_judge` rebuilds the report from current evidence and refuses any difference
+  except `report_id`, `created_at` and `sha256`. `load_selection` also checks the pinned
+  report file's SHA-256. `freeze_judge` does not itself enforce the pre-registered
+  selection rule in Decision 13; the procedure does (Open question 14).
+
+Judge v2 example pool and selection (Task 6):
+- Entry ids are `E-001`, `E-002`, ... in `calibration.agreement`'s order (dimension, then
+  display order). Each entry is self-contained; vectors, trace ids and payload hashes are
+  stored once per item.
+- A "judge v1 run" is a measured, complete run whose identity has no example pool.
+  `build_pool` refuses a run with no disagreements, and `select_examples` refuses an
+  `examples_k` larger than the pool, so every judged item gets exactly `k` examples.
+- `load_pool` re-checks the seal, the development source, each pooled item against its
+  queue entry and each human decision against the frozen reference; it does not re-validate
+  the source judge run's ledgers.
+- A v2 run's `examples.json` also stores the judged items' vectors, so validation can
+  re-derive the selection; they stay in that run and never enter a pool.
+- `render_examples` shows the dimension, the setup record, the dimension's fields, its
+  check lines, `Human decision: N (pass|fail)` and the anchor, each example in its own
+  fenced `EXAMPLE n` block (domain `bonsai-judge-examples-fence-v1`), and not the
+  category. Its field map is D1 question, answer, steps; D2 steps, safety_info; D3 answer,
+  tools_required, steps; D4 question, answer, steps; D5 answer, steps; D6 steps, tips
+  (refinement 2: the D4 and D5 checks rest on the steps).
+- `judge_examples.embedder_for(config)` builds the embedding client from the judge config.
+- Start records always carry `example_ids` (null for v1). `judge_run` refuses an existing
+  run id and a spent budget before the embedding call.
+
+Commands (Task 7):
+- `judge`, `judge-qualify` and `judge-examples` default `--artifact-root` to the config's
+  `artifact_root` and refuse a different one (exit 2), because it is part of the run
+  identity. `judge-status`, `calibrate` and `judge-freeze` default to `runs`, as B6's
+  commands do.
+- A bad or unreadable judge prompt is refused by `judge` before any credential is read or
+  any call is made, with exit 2.
+- `judge-status` exits 0 for complete, 3 for incomplete and 1 for an interrupted run. An
+  interrupted `judge` exits 130 and points to `judge-status` and `--resume`.
+- `judge-qualify` prints only the receipt id, SHA-256, basis and evidence, so
+  `model_identity` and `model_sha256` stay out of terminal output.
+- Credential values read by `judge` and `judge-examples` are scrubbed from stdout and
+  stderr.
+
+Drift and freeze tests (Task 8): `test_judge_default_temperature_below_generator_default`,
+`test_agreement_minimum_is_the_rubric_minimum` and
+`test_judgment_dimensions_are_the_rubric_dimensions` in `tests/test_rubric_pipeline.py`, and
+`test_gate_files_unchanged_until_phase_b` in `tests/test_gate_freeze.py`, which pins the
+SHA-256 of `checks.py`, `gate.py` and `sampler.py` at `3b3c51e` and may change only with a
+dated entry after the Phase B comparison.
+
+#### Iteration-log record for judge v1 (this carries into the B10 iteration log)
+
+- **Date.** November 24, 2026.
+- **Change.** New prompt `prompts/judge-v1.md`: the accepted rubric's labeling rules,
+  anchors and labeling notes verbatim, the three adaptations in "How these rules apply to
+  you", the fenced input format of Decision 4 and a reply template. During the build the
+  reply order became decision first, then reason, to match `DimensionJudgment`'s property
+  order; the draft's reason-first order was dropped (Decision 3).
+- **Hypothesis.** A judge given the rubric's own words and the labeler's evidence, plus the
+  recorded check results, agrees with Chad's blind labels in each dimension at least 80% of
+  the time.
+- **Before and after.** No earlier judge exists, and no judge run has been made, so there is
+  no measured figure. v1's development agreement is the first figure (procedure step 7).
+- **Decision.** Draft. v1's SHA-256 is pinned by `test_judge_v1_hash_is_pinned` once Chad
+  answers Open questions 1, 3 and 4, and before the first judge run.
+- **Next step.** Chad's answers, then the smoke run on his go-ahead.
+
+### Open questions for Chad (B7)
+
+No answer is assumed; the recommended option applies only once Chad chooses it.
+
+1. **Judge temperature.** It must be below the generator's 0.6. Recommended: 0.0, so the
+   judge is as repeatable as the server allows. The alternative is 0.1, which may vary
+   slightly between runs. The value is part of the frozen judge, so B8 uses it too.
+2. **Serving the 70B judge.** Which local server and quantization, and which context
+   window? A v1 request is about 6,000 to 7,000 tokens and a v2 request with 4 examples
+   about 10,000. Recommended: a context of at least 16k tokens (32k for margin),
+   `max_tokens` 1500 and `timeout_seconds` 300, raised to at most 600 if the server is
+   slower, and `enable_thinking` left unset for a model that is not a thinking model.
+3. **Does the judge see the category and the model's quotes, as Chad's display does?**
+   Recommended: yes, so the judge sees what Chad saw plus the check results plan §7 Step 4
+   adds. This is settled before v1's hash is pinned.
+4. **The three adaptations in "How these rules apply to you".** (a) Only the cited
+   sections confirm a typical D2 hazard, because the judge has no other pages. (b) For D3,
+   a name the cited sections show is confirmed; a `bim.` id in tools_required or steps is
+   confirmed to exist when `bim_operators_known` passed, but that confirms no panel, menu,
+   setting or hotkey; `blender_operators_known` and `menu_paths_known` never confirm a name;
+   every other name is confirmed only by the cited sections or D3 decides 0; memory never
+   confirms a name. (c) Decide 0 when a pass cannot be confirmed. Recommended: keep these.
+   The stricter alternative is that only the cited sections confirm any name, `bim.` ids
+   included. Do they keep the meaning of the accepted rubric? If one changes it, the
+   alternative is a new rubric version. Related: Chad's D2 labeling may use a pinned page
+   outside the cited sections, which the judge cannot see; recommended, decide after the
+   development disagreements whether v2 adds a fixed, cited set of hazard pages.
+5. **Unresolved decisions in agreement.** Recommended (Decision 8): an unresolved human
+   decision or a missing judge decision counts in `n` and never matches. The alternative is
+   to leave them out of `n` and report them.
+6. **What Chad reads before B8.** Recommended: the main calibration reports only, and the
+   disagreements files after B8's reference is frozen, so his B8 labels are not pulled
+   toward the judge.
+7. **If Phase A is not met by v1 or v2:** (a) more development labels, then a v3 from
+   development disagreements as the third and last measured run; (b) a dated threshold
+   amendment with its reason; (c) report Phase A as not met and go on to B8 with the better
+   judge under Decision 13's rule, which needs Chad's dated decision and a separately
+   recorded `judge-freeze --phase-a-not-met --decision-ref TEXT` first. Recommended: (a),
+   then (c) if v3 also falls short. No choice is needed until the result exists.
+8. **Go-aheads.** Each when the servers are reachable: the development collection (plan
+   procedure step 3, a new collection on the `development` split with the baseline's
+   generator settings, about an hour of generation), the smoke judge run (step 4) and the
+   measured judge runs (steps 7 and 10). Also: may the assistant run the development
+   `assessment create` steps (4 and 6), as Chad allowed for B6?
+
+Raised during the build:
+
+9. **Schema order.** Should B6's `DimensionJudgment` declare `reason` before `decision`, so
+   the prompt can ask for the reason first? It is now decision first, matching the schema.
+   This must be settled before v1's hash is pinned.
+10. **Credential name.** Is the new environment-variable name `BONSAI_HELP_JUDGE_API_KEY`
+    for the judge server acceptable, or should the judge use the generator's
+    `BONSAI_HELP_API_KEY`?
+11. **Smoke runs and example pools.** Should a smoke run be allowed to take an example pool?
+    It is not refused now.
+12. **What a qualification is tied to.** Should a receipt be tied to the endpoint
+    (`base_url`) and the attempt settings (`max_attempts`, `timeout_seconds`), as now, or
+    only to the model and its sampling settings?
+13. **A reference removed after judging.** Should a measured run whose frozen reference was
+    removed or changed after judging get a `pending` report listing that reason, rather
+    than being refused as now?
+14. **Enforcing the freeze rule in code.** Should `judge-freeze` enforce Decision 13's
+    pre-registered rule (v2 if `ready`, else v1), or one selection per assessment? Now any
+    `ready` report can be frozen, and the rule is the procedure's.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

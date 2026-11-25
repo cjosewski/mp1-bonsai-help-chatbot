@@ -34,7 +34,6 @@ calls a model endpoint.
 from __future__ import annotations
 
 import hashlib
-import unicodedata
 import uuid
 from collections.abc import Callable
 from contextlib import ExitStack
@@ -44,7 +43,7 @@ from typing import Literal, NamedTuple
 from pydantic import ValidationError
 
 from bonsai_help.assessment import ACCEPTED, RUBRIC_COPY, Assessment, BlindItem
-from bonsai_help.docs_index import is_adornment
+from bonsai_help.display import escape_control, section_heading
 from bonsai_help.evaluation_schemas import DIMENSIONS, Decisions, HumanLabel
 from bonsai_help.rubric import Rubric, RubricError, load_rubric, rubric_sha256
 from bonsai_help.sampler import SamplerError, section_texts
@@ -263,28 +262,8 @@ def check_rubric_gate(assessment: Assessment, rubric_path: Path) -> None:
         raise LabelError(CHANGED)
 
 
-def _escape(text: str) -> str:
-    """Control and format characters shown as escapes, so item text cannot drive a terminal."""
-    out = []
-    for char in text:
-        if char in "\n\t" or unicodedata.category(char) not in ("Cc", "Cf", "Zl", "Zp", "Cs"):
-            out.append(char)
-        elif ord(char) <= 0xFF:
-            out.append(f"\\x{ord(char):02x}")
-        else:
-            out.append(f"\\u{ord(char):04x}")
-    return "".join(out)
-
-
 def _indent(text: str, prefix: str = "    ") -> str:
     return "\n".join(prefix + line if line else line for line in text.split("\n"))
-
-
-def _heading(text: str) -> str:
-    for line in text.split("\n"):
-        if line.strip() and not is_adornment(line):
-            return line.strip()
-    return "(none)"
 
 
 def render_item(blind_item: BlindItem, section_texts: dict[str, str], rubric: Rubric) -> str:
@@ -335,11 +314,11 @@ def render_item(blind_item: BlindItem, section_texts: dict[str, str], rubric: Ru
             f"--- {section.id} ---",
             f"Source: {section.source}",
             f"Path: {path}",
-            f"Heading: {_heading(text)}",
+            f"Heading: {section_heading(text)}",
             text,
             f"--- end of {section.id} ---",
         ]
-    return _escape("\n".join(lines))
+    return escape_control("\n".join(lines))
 
 
 def _writer(directory: Path) -> ExitStack:
@@ -500,7 +479,7 @@ def _ask_item(rubric: Rubric, input_fn, output) -> tuple[Decisions, str]:
         values: dict[str, int | None] = {}
         for dimension in rubric.dimensions:
             output(
-                _escape(
+                escape_control(
                     f"{dimension.id} {dimension.name}\n  Pass: {dimension.pass_anchor}\n"
                     f"  Fail: {dimension.fail_anchor}"
                 )
@@ -510,7 +489,7 @@ def _ask_item(rubric: Rubric, input_fn, output) -> tuple[Decisions, str]:
                 if answer == "q":
                     raise _Quit
                 if answer == "?":
-                    output(_escape(_notes_text(dimension)))
+                    output(escape_control(_notes_text(dimension)))
                     continue
                 if answer in ANSWERS:
                     values[dimension.id] = ANSWERS[answer]
@@ -585,7 +564,7 @@ def interactive_label(
     except SamplerError as exc:
         raise LabelError(f"fixture slice: {exc}") from None
     output(
-        _escape(
+        escape_control(
             f"Blind labeling of {assessment_id} under rubric {assessment.rubric.version}. "
             f"Each decision you save is recorded as the reviewer {reviewer.strip()}'s own."
         )
