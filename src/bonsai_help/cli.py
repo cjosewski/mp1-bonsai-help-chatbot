@@ -1,7 +1,7 @@
 """Command line: `bonsai-help snapshot | docs | lexicon | setup | gold`, the generation
-commands `generate | gate | collect | collection-status | cohort | cohort-status`,
-`rubric check | show` (see `rubric`), and the assessment and labeling commands
-`assessment | label | label-status | freeze-human-reference` (see `evaluation_cli`).
+commands `generate | gate | collect | collection-status | collection-report | cohort |
+cohort-status`, `rubric check | show` (see `rubric`), and the assessment and labeling
+commands `assessment | label | label-status | freeze-human-reference` (see `evaluation_cli`).
 
 Exit codes: 0 success; 1 check failed; 2 usage or invalid config; 3 git or network
 failure; 4 upstream differs from the pins; 5 refused to write. The generation commands

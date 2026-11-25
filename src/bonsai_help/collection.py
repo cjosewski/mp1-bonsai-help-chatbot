@@ -415,6 +415,13 @@ def collection_status(root: Path, collection_id: str) -> dict:
     return summarize(root, manifest)
 
 
+def verified_batches(root: Path, manifest: dict) -> list[dict]:
+    """Each batch with the checks `summarize` applies: a gated batch's ledgers, manifest and
+    gate report are hash-verified and its metrics recomputed; never writes."""
+    identity = manifest["identity"]
+    return [_batch(root, entry, identity) for entry in manifest["batches"]]
+
+
 def _inputs(reference_dir: Path) -> dict:
     files = [reference_dir / "setup-profiles.json", *sorted((reference_dir / "lexicons").glob("*"))]
     return {

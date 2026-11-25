@@ -1,7 +1,8 @@
-"""Generation commands: `generate`, `gate`, `collect`, `collection-status`, `cohort`,
-`cohort-status`.
+"""Generation commands: `generate`, `gate`, `collect`, `collection-status`,
+`collection-report`, `cohort`, `cohort-status`.
 
-Each prints one JSON summary on stdout. Exit codes: 0 done; 1 check failed, not ready, or
+Each prints one JSON summary on stdout, except `collection-report`, which writes its JSON
+report once under `reports/` and prints a short text summary. Exit codes: 0 done; 1 check failed, not ready, or
 evidence to inspect (changed ledgers, a leftover lock, a refused gate); 2 usage or
 configuration error (bad run config, missing credential, invalid count or ID, an ID that
 already exists); 3 controlled exhaustion (a generation run left `incomplete`, or a
@@ -25,7 +26,7 @@ from pathlib import Path
 import httpx
 from pydantic import ValidationError
 
-from bonsai_help import cohort, collection, gate, generate
+from bonsai_help import cohort, collection, collection_report, gate, generate
 from bonsai_help.checks import load_lexicons
 from bonsai_help.config import REPOSITORY, load_config, load_prompt
 from bonsai_help.doc_sources import ConfigError
@@ -36,7 +37,15 @@ from bonsai_help.schemas import GenerationOutput
 from bonsai_help.setup import SetupProfiles
 from bonsai_help.tracing import run_directory
 
-COMMANDS = ("generate", "gate", "collect", "collection-status", "cohort", "cohort-status")
+COMMANDS = (
+    "generate",
+    "gate",
+    "collect",
+    "collection-status",
+    "collection-report",
+    "cohort",
+    "cohort-status",
+)
 FIXTURES = Path("tests/fixtures/docs")
 REFERENCE = Path("reference")
 ARTIFACTS = Path("runs")
@@ -93,6 +102,15 @@ def add_commands(commands) -> None:
     inputs(sub)
     sub = commands.add_parser("collection-status", help="verify a collection and show its budget")
     sub.add_argument("--collection-id", required=True)
+    artifact_root(sub)
+    sub = commands.add_parser(
+        "collection-report",
+        help="write a read-only report of a collection's figures with 95%% intervals (once)",
+    )
+    sub.add_argument("--collection-id", required=True)
+    sub.add_argument(
+        "--report-id", help="report file reports/<ID>.json (default <collection-id>-report)"
+    )
     artifact_root(sub)
     sub = commands.add_parser("cohort", help="freeze a ready collection into a 50-item cohort")
     sub.add_argument("--collection-id", required=True)
@@ -183,7 +201,8 @@ def _run(args, transport) -> int:
         name = Path(error.filename).name if error.filename else "a file"
         message = f"cannot read {name}: {error.strerror or type(error).__name__}"
         return _error(secrets, message, 2, error)
-    print(secrets.scrub(json.dumps(result, indent=2, ensure_ascii=False)))
+    text = result if isinstance(result, str) else json.dumps(result, indent=2, ensure_ascii=False)
+    print(secrets.scrub(text))
     return code
 
 
@@ -248,13 +267,20 @@ def _compact(summary: dict) -> dict:
     return {k: v for k, v in summary.items() if k not in {"members", "decisions", "items"}}
 
 
-def _dispatch(args, secrets: _Secrets, transport) -> tuple[dict, int]:
+def _dispatch(args, secrets: _Secrets, transport) -> tuple[dict | str, int]:
     command = args.command
     if command == "collection-status":
         summary = collection.collection_status(
             _artifact_root(args.artifact_root), args.collection_id
         )
         return _compact(summary), 0 if summary["status"] == "ready" else 1
+    if command == "collection-report":
+        path, report = collection_report.write_report(
+            _artifact_root(args.artifact_root), args.collection_id, args.report_id
+        )
+        return collection_report.render_summary(report, path), (
+            0 if report["status"] == "ready" else 1
+        )
     if command == "cohort":
         frozen = cohort.freeze_cohort(
             _artifact_root(args.artifact_root), args.collection_id, args.cohort_id

@@ -33,6 +33,7 @@ and the first-pass gate) is done**; it has no rubric, which Chad moved to B5 on 
   `prompts/generator-v1.1.md`) is ready.
 - On Chad's decision "Freeze the cohort", cohort `baseline-b5-cohort-1` is frozen:
   50 items, 10 per category, assessed split.
+- `collection-report` reports the baseline's figures with 95% intervals.
 
 The run config can name a separate local embedding server and can turn a thinking
 model's reasoning off (`enable_thinking`, below). The first baseline collection
@@ -85,7 +86,7 @@ packets remain as records. No new review decisions were imported.
 | B2 | Operator lexicons; setup profiles and cited fact table | Done (Chad's SR-001 decisions applied) |
 | B3 | Gold set and multi-part and injection requests | Withdrawn from MP1 (moves to Mini Project 4); 6 of 110 items published and frozen; 104 drafts unreviewed |
 | B4 | Section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet; the rubric moved to B5 on November 24, 2026) |
-| B5 | Rubric (D1–D6) and baseline run | Done. Rubric accepted by Chad (`chad_accepted`, November 24, 2026). Baseline `baseline-2026-11-24-r2` ready (70 of 70 valid initial attempts, 56 of 70 retained, at least 10 per category; see `docs/DECISIONS.md`). Cohort `baseline-b5-cohort-1` frozen (50 items, 10 per category) |
+| B5 | Rubric (D1–D6) and baseline run | Done: rubric accepted by Chad ("Accept as drafted"); baseline `baseline-2026-11-24-r2` ready (70 of 70 valid initial attempts, 56 of 70 retained, at least 10 per category); cohort `baseline-b5-cohort-1` frozen; `collection-report` built (see `docs/DECISIONS.md`) |
 | B6 | Baseline human labels | Tooling built (assessments, blind labeling, append-only ledger, frozen human reference). No assessment created and no label entered yet |
 | B7 | Judge and Phase A calibration | Not yet implemented |
 | B8 | Phase B correction | Not yet implemented |
@@ -145,7 +146,11 @@ failures, unstorable responses, code and prompt identity), each deterministic ch
 collections, cohorts and the generation commands with their exit codes. The B5 tests cover
 the rubric (shape and course-criterion refusals, malformed files, the hash, the overall-pass
 and relative-reduction rules, the command exit codes), its agreement with the B4 checks,
-collection target and cohort size, and the separate embedding endpoint and credential. The
+collection target and cohort size, the separate embedding endpoint and credential, the
+exact Clopper-Pearson interval (reference values, the binomial-tail definition, edges and
+impossible counts) and `collection-report` (figures and intervals on synthetic
+collections, undefined rates, write-once, a locked or changed collection refused, exit
+codes). The
 B6 tests build synthetic collections and cohorts in a temporary directory. They label
 only with scripted input, for a visibly synthetic reviewer and a synthetic test rubric, and
 never under `runs/` or `data/`. They cover:
@@ -507,6 +512,8 @@ bonsai-help collect --config CONFIG --collection-id COLLECTION_ID
                     [--max-batches MAX_BATCHES] [--resume]
                     [--fixtures-dir FIXTURES_DIR] [--reference-dir REFERENCE_DIR]
 bonsai-help collection-status --collection-id COLLECTION_ID [--artifact-root ARTIFACT_ROOT]
+bonsai-help collection-report --collection-id COLLECTION_ID [--report-id REPORT_ID]
+                              [--artifact-root ARTIFACT_ROOT]
 bonsai-help cohort --collection-id COLLECTION_ID --cohort-id COHORT_ID
                    [--artifact-root ARTIFACT_ROOT]
 bonsai-help cohort-status --cohort-id COHORT_ID [--artifact-root ARTIFACT_ROOT]
@@ -531,6 +538,7 @@ config sets `prompt_path` itself.
 | `gate` | Runs the first-pass gate on a saved run: schema, deterministic checks, exact and near-duplicate removal, category balance. The quote check reads each item's offered sections again from the fixture slice (`--fixtures-dir`), verified against the offered page hash and the committed manifest; a changed page stops the gate with exit 1 and no report. Writes one file, `gate-report.json`, next to the run, once: each item's check results and drop reasons (`per_item`), `retained_ids`, `drops_per_check`, `pass_rates_per_check` (every check, the evidence-only ones too, over `pass_rates_denominator`, the schema-valid items entering the gate), exact and near duplicates, per-category counts and the distribution result, the embedding model, the embedding endpoint (`embedding_base_url`) and the threshold (0.92). Retained payloads are read from `items.jsonl` by `retained_ids`. Unknown Blender operators and menu paths are evidence only; the other checks drop, among them `quotes_verbatim` (D3, below). Checks are heuristics that drop obvious defects and feed the judge; they never replace a human or judge decision. A zero or non-finite embedding vector stops the gate with an error and no report; two schema-valid attempts for one slot or item ID are refused ("more than one successful attempt for slot ...; inspect the run"). |
 | `collect` | Runs generate and gate in batches until enough items are retained (at least 10 per category) or the batch budget is spent. Each batch has its own derived seed, and retained items are screened for near-duplicates across batches; a question that exactly repeats an accepted member's is dropped. Batch run IDs `<collection-id>-b01` to `-bNN` belong to the collection: a fresh `collect` refuses (exit 2) if any of them within `--max-batches` already exists, and a batch run it does not own, or a gate report made with another embedding model, embedding endpoint, threshold, minimum share or lexicons, or whose per-item checks differ when rerun with the collection's lexicons and fixture slice (the quote check included), is refused (exit 1), never adopted. An assessed collection (`purpose` `baseline` or `corrected`) without `model_identity` and `model_sha256`, or a fixture slice that fails verification, is refused before anything is written. Batch denominators are recomputed from the hash-bound ledgers. A gate report made outside the collection is adopted only if its retention decisions re-derive from its per-item checks (retained flags, `dropped_by`, exact duplicates, `retained_ids`, per-category counts, the distribution result; near-duplicate drops stay trusted); otherwise "gate report decisions differ from its per-item checks; inspect it" (exit 1). A batch slot plan that is not a list of exact slot objects is "batch slot plan is malformed; inspect it" (exit 1). A cross-batch embedding that fails, or returns a zero or non-finite vector, stops the screen with exit 1 and leaves that batch unscreened for `--resume`. |
 | `collection-status` | Reads a collection and reports its batches, retained counts per category and whether it is ready. |
+| `collection-report` | Reads a collection with the same verification as `collection-status` (no generation, no gate, no endpoint) and writes one new file, `reports/<report-id>.json` under the artifact root (default ID `<collection-id>-report`; an existing file is refused with exit 2 and never replaced). It prints a short text summary: the three denominators below, each with its counts and an exact 95% Clopper-Pearson interval (`stats.clopper_pearson`), a rate with denominator 0 shown as undefined, never 0 or 1; exhausted slots and unknown outcomes (with their IDs in the file); gate drops per check (one item can fail several) and cross-batch drops; retained counts and shares per category; the collection's per-category minimum and each batch's gate share check; the frozen cohort, re-verified, if there is one; the collection ID and manifest SHA-256 it was made from; and the recorded hashes of the gate-freeze files (`checks.py`, `gate.py`, `sampler.py`) and the prompt. Only gated batches are counted. It never states a failure rate. Exit 0 for a ready collection, 1 for one that is not ready (the report is still written, with its status and reasons) or for evidence to inspect. |
 | `cohort` | Freezes 10 retained items per category (seeded) from a ready collection into a new cohort. The collection's freeze receipt (`frozen.json`) is written before `cohort.json`, so a failed cohort write leaves a frozen collection with a missing cohort to inspect and never lets the collection freeze a second cohort. |
 | `cohort-status` | Reads a frozen cohort and verifies its hashes. |
 
@@ -594,7 +602,8 @@ Three denominators are reported separately and never mixed:
 - **Initial-attempt schema validity**: valid initial responses over all initial slots. The
   95% structural target is judged on this figure.
 - **Retry recovery**: schema-valid results that came from a retry (attempt 2 or later),
-  counted apart from the initial figure and never added to it.
+  counted apart from the initial figure and never added to it. `collection-report` gives
+  it as a rate over the slots without a schema-valid first attempt.
 - **Gate retention**: items retained by the gate over the schema-valid items that entered
   it. Retained items are never compared against filtered ones.
 

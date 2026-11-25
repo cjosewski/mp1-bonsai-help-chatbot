@@ -232,12 +232,11 @@ def test_resume_refuses_changed_settings_prompt_or_code(config, tmp_path, monkey
         # timeout_seconds 120 into 120.0, which changes the identity by itself.
         config = config.model_copy(update={"enable_thinking": change == "thinking_on"})
     elif change == "embedding_endpoint":
-        # Only the embedding server moves; the chat endpoint and everything else stay.
-        changed = config.model_dump() | {"embedding_base_url": "http://127.0.0.1:8081/v1"}
-        config = RunConfig.model_validate(changed)
+        # Only the embedding server moves; the chat endpoint and everything else stay
+        # (model_copy for the same reason as above: only this field may differ).
+        config = config.model_copy(update={"embedding_base_url": "http://127.0.0.1:8081/v1"})
     elif change == "embedding_credential":
-        changed = config.model_dump() | {"embedding_api_key_env": "SYNTHETIC_EMBED_KEY"}
-        config = RunConfig.model_validate(changed)
+        config = config.model_copy(update={"embedding_api_key_env": "SYNTHETIC_EMBED_KEY"})
     elif change == "prompt":
         prompt_file.write_text(prompt_file.read_text() + "\nBe brief.\n")
     elif change == "code":

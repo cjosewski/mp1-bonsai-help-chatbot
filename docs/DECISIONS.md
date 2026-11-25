@@ -2145,11 +2145,89 @@ Owner decisions (Chad, November 24, 2026): "Freeze the cohort", then "Merge B5 a
   draw their labeling selections from this cohort. B6 selects 30 of the 50 items, and
   the 20 that B6 does not select are left for B8's blind mixed queue (below).
 - **B5 is done.** The rubric is accepted (entry above), the baseline is collected and the
-  cohort is frozen. Still not in the package: the Clopper-Pearson `stats` code of the B5
-  plan's Task 3. The intervals in the baseline entry above are recorded figures; no
-  package command computes them yet.
+  cohort is frozen. The Clopper-Pearson `stats` code of the B5 plan's
+  Task 3 and the `collection-report` command were built the same day on a separate branch
+  and merged into B6 (next entry).
 - **Not measured.** The baseline failure rate and its ≥15% target still need Chad's blind
   labels (B6) and the calibrated judge (B7).
+
+### November 24, 2026: B5 report and gate freeze (assistant's calls)
+
+These close B5 Task 3 (plan step 6). They are the assistant's calls, not Chad's decisions.
+
+- **Clopper-Pearson interval.** `stats.clopper_pearson(k, n, confidence=0.95)` is ported
+  from the earlier `compare_human` (PORTING-MAP §3.4, Clopper-Pearson only; Fisher, Holm
+  and McNemar stay in B7-B8). `uv.lock` has no SciPy, so no dependency was added: each bound
+  is bisected to 2^-64 on exact integer binomial tails, P(X >= k) for the lower bound and
+  P(X <= k) for the upper, each equal to (1 - confidence) / 2, and the bracket's outer end
+  is kept. The lower bound is exactly 0 for 0 of n and the upper exactly 1 for n of n.
+  Counts that are not integers (a bool included), negative, above n, or with n = 0 are
+  refused, and so is a confidence outside (0, 1). A float confidence is read through its
+  decimal text, so 0.95 is exactly 19/20. The tests check reference values (70 of 70: lower
+  bound 0.9487; 56 of 70: 0.6873 to 0.8861; 15 of 20: 0.5090 to 0.9134) and also that the
+  binomial tail at each bound is the stated 2.5%, computed independently.
+- **`collection-report` definitions.** The report reads a collection only through the
+  checks `collection-status` applies (hash-verified ledgers and gate reports, metrics
+  recomputed). It never generates, gates or calls an endpoint. Only gated batches count;
+  an ungated or unstarted batch is listed, never counted. The three figures each carry a
+  numerator, a denominator, the rate and a 95% Clopper-Pearson interval:
+  - Initial-attempt schema validity: schema-valid first attempts over planned slots. The
+    ≥95% target is judged on the point estimate, compared exactly (57 of 60 meets it), with
+    the interval beside it.
+  - Retry recovery: the code counts schema-valid results at attempt 2 or later
+    (`generate.generation_metrics`). The report divides that count by the slots without a
+    schema-valid first attempt (`initial_slots - initial_valid`, which covers invalid
+    output, transport failures and unknown outcomes). It is never added to the first
+    figure.
+  - Gate retention: items the gate retained over schema-valid items entering the gate. The
+    cross-batch screens that run after the gate are reported apart, as drop counts.
+
+  A rate whose denominator is 0 is undefined (`rate` and `interval` are null, and the text
+  says "undefined"), never 0 or 1. The report also lists exhausted slot IDs and
+  unknown-outcome attempt IDs, gate drops per check (one item can fail several checks, so
+  the drops do not sum to the items dropped), retained counts and shares per category, the
+  collection's own per-category minimum, and each batch's recorded gate share check. If
+  the collection is frozen, it names the cohort and re-verifies it. It records the
+  collection ID and manifest SHA-256 it was made from and the recorded hashes of
+  `checks.py`, `gate.py`, `sampler.py` and the prompt. It states no failure rate, which
+  needs Chad's blind labels (B6) and the judge (B7). The file is written once to
+  `reports/<report-id>.json` under the artifact root (git-ignored `runs/`; the default ID
+  is `<collection-id>-report`) by a hard link from a temporary file, so an existing report
+  is never replaced (exit 2, "already exists; choose a new ID"). The exit codes follow
+  `collection-status`: 0 for a ready collection; 1 for one that is not ready (the report is
+  still written, with its status and reasons), a lock or changed evidence; 2 for a bad
+  report ID. The command was demonstrated read-only on a copy of
+  `baseline-2026-11-24-r2`'s evidence. Its figures match the baseline entry above: 70 of
+  70 initial (94.9% to 100%), retry recovery undefined (0 of 0), 56 of 70 retained (68.7% to
+  88.6%), 0 exhausted, 0 unknown, cohort `baseline-b5-cohort-1` verified. The report file
+  under `runs/reports/` is written by running the command on the checkout.
+- **Test fix.** In `test_resume_refuses_changed_settings_prompt_or_code`, the
+  `embedding_endpoint` and `embedding_credential` cases rebuilt the config through a
+  `model_dump` round trip. That round trip alone turns `timeout_seconds` 120 into 120.0,
+  so both cases passed even with the embedding fields left out of the run identity. They
+  now use `model_copy(update=...)`. In a scratch copy, the two mutations were checked:
+  dropping `embedding_base_url` from `public_settings` fails the new `embedding_endpoint`
+  case, and dropping `embedding_authentication` fails the new `embedding_credential` case.
+  The old test passed under both mutations. `public_settings` and the identity
+  normalisation are unchanged, so existing runs keep their identities.
+- **Gate freeze.** `checks.py`, `gate.py`, `sampler.py`, the quote rules and the lexicon
+  rules stay unchanged until the Phase B comparison is done. The corrected arm must differ
+  from the baseline by the one pre-registered prompt change only, and a changed check
+  would move both the gate figures and the items that reach labeling. Each batch records
+  per-file hashes in its implementation identity, so the corrected arm's report can show
+  the same hashes for these files. The whole source-tree hash still changes with any other
+  code change, such as B6's labeling modules. The baseline's recorded hashes equal the
+  current files' hashes on this date. The known check notes are kept as they are, for the
+  same reason:
+  - Two lead-in words in a row, such as "Then Open Object", are flagged.
+  - A note on a Ctrl-C interrupt replaces the `--resume` advice.
+  - A quote may drop a leading sign or a trailing unit.
+  - The reviewer's note on literal-block stripping stands as written.
+
+  Any of these may be revisited after B8, as a new dated entry.
+- **B5 done.** The baseline collection is ready, cohort `baseline-b5-cohort-1` is frozen
+  (the collection's `frozen.json` names it, and `cohort-status` and the report verify it),
+  Chad accepted the rubric ("Accept as drafted"), and the report is built. Next is B6.
 
 ### November 24, 2026: B6 labeling tooling (assistant's calls)
 
