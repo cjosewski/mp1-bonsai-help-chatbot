@@ -3000,6 +3000,36 @@ made yet; every judge run uses this text.
   `label` / `label --amend` / `freeze-human-reference` flow with a runbook
   (`docs/LABELING-RUNBOOK.md`), not Markdown review packets.
 
+### November 25, 2026: judge smoke run and qualification; a baseline run stopped
+
+On Chad's instruction "Go ahead with the judge" (November 25, 2026), with Llama 3.3 70B
+served locally:
+
+- **Smoke run** `smoke-v1` (judge v1, `purpose: smoke`) on `dev-judge-smoke` (5
+  development items, never labeled): 5 of 5 judged on the first attempt, no unknown
+  outcomes, the server reporting the configured model id, about 90 seconds per item. It is
+  diagnostic only. Observation, not a measurement: the judge passed every dimension on all
+  5 items, and its D5 reason accepted versions the answer only "implies", where the
+  accepted rubric requires the answer to state them. Calibration measures this; nothing was
+  changed to make the judge agree.
+- **Qualification** `judge-v1-q1` from that smoke run (no model call): basis
+  `distinct_model`.
+- **Departure, stopped.** The assistant then started a measured judge v1 run
+  (`phase-a-v1`) on the frozen baseline reference `b6-labels-1`. That breaks the B7
+  plan's order (procedure step 9: until judge v2 is pre-registered, "no measured run is
+  made on the baseline assessment"), which keeps v2 from being shaped by v1's baseline
+  results. The assistant had also told Chad that v1 on the baseline could run now; that
+  was wrong. The run was stopped within seconds: 1 request start, 0 completed attempts,
+  so no judgment on any baseline item was produced, recorded or read. Its evidence stays
+  under `runs/assessments/b6-labels-1/judges/phase-a-v1/`, unchanged; the one started
+  request is an unknown outcome, disclosed here; the run id is never resumed. Judge v1's
+  baseline run will use a new run id after v2's pre-registration entry exists. The code
+  does not enforce this ordering; that gap is recorded here and left to a dated change.
+- **Next, in the plan's order:** Chad labels and freezes `dev-labels-1` (20 development
+  items); then judge v1 on it (a diagnostic report), the example pool, judge v2 written and
+  pre-registered from development disagreements only, and only then judge v1 and v2 on the
+  baseline reference (Phase A).
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
