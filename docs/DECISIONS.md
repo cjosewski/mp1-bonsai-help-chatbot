@@ -3163,6 +3163,101 @@ record.
   reported with the disclosure that the judge did not meet Phase A. Not yet done: no
   selection is written by this entry.
 
+### November 25, 2026: the stopped run `phase-a-v1` voided by record; `judge-void`
+
+- **Owner decision (Chad, November 25, 2026).** For the stopped run `phase-a-v1` on
+  `b6-labels-1` (measured, `judge-v1`, status `running`, 1 request start, 0 completed
+  attempts, its `.judge.lock` left in place; entry "judge smoke run and qualification; a
+  baseline run stopped"), Chad chose "Void it, keep all files (Recommended)". This
+  answers the "Not yet possible on the recorded evidence" item of the entry above.
+- **Built for it: `bonsai-help judge-void --assessment-id ID --judge-run-id ID
+  --decision-ref TEXT`** (`calibration.void_judge_run`). Its mechanics are the
+  assistant's calls (Chad can overrule each; a change is a new dated entry):
+  - It writes one record once, `<judge run>/void.json` (linked into place, so a second
+    write fails), sealed by SHA-256. The record holds the decision reference, the time, the
+    counts it verified from the run's own evidence (purpose, run status, prompt version,
+    started and completed attempts, unknown-outcome attempt ids), pins of the assessment,
+    the judge manifest, its fingerprint and its ledger hashes, and whether a lock was
+    present. It is not a `*.jsonl` file, so the run's ledger hashes do not change. It
+    deletes, edits or moves no file, and the `.judge.lock` stays where it is.
+  - It verifies the run with `judge.validate_judge`, which reads no lock. It refuses a run
+    whose ledgers hold any completed attempt, valid or not. It also refuses a run with a
+    calibration report, a second void, and a missing, blank or multi-line decision
+    reference (at most 500 printable characters). The CLI exits 2 for a missing or blank
+    reference and 1 for the other refusals. Any purpose is allowed. Every refusal comes
+    before the write.
+- **Check change (dated, assistant's call): the pre-registered rule leaves out a verified
+  void, and nothing else.** `calibration.preregistered_choice`, and so both forms of
+  `judge-freeze`, skips a judge run only when its void verifies on that load. The seal
+  and fields must hold, and the run must be re-verified from its own evidence with the
+  same counts and pins and still no completed attempt. A record changed without being
+  resealed, a resealed record that changes anything re-derived from the run (the counts,
+  the pins, the ids, the kind, the schema version or the effect), a changed run or a run
+  with a completed attempt since its void is refused, not skipped. The seal has no key, so
+  the decision reference, the time and the lock flag are protected only by the seal: a
+  resealed change to those three still verifies (nothing in the run can re-derive them). Every other run is read as before, lock check included. A written report of a
+  voided run is refused by the rule, and `calibrate` refuses a voided run. The choice
+  lists the voided run ids (`voided`). `judge-status` shows a voided run, verified, with
+  status `voided`, its own status as `run_status` and the void's decision reference. It
+  exits 1, because a voided run is never complete. Whether a lock is present is recorded
+  at the void but not re-checked: removing a lock after inspection changes no evidence,
+  and a resume after that would add attempts, which the re-check refuses.
+- **Gap closed (assistant's calls, revised after review the same day).**
+  `load_selection` now checks, for every receipt:
+  - that the receipt's run, prompt version, frozen identity and implementation are its
+    report's;
+  - that a `ready` basis has a `ready` report (option (c)'s `pending` basis already needed
+    a `pending` report with the same reasons);
+  - that Decision 13's rule, re-run on the evidence (`preregistered_choice` on the
+    receipt's assessment), chooses that report's run, with Phase A met for a `ready`
+    basis and not met for a `pending` one;
+  - that the receipt is the only selection of its assessment (before, one selection per
+    assessment was enforced only when a selection was written).
+
+  Before this change, a resealed receipt consistent with v1's pending report would have
+  loaded, and so would the same receipt relabeled with the `ready` basis; B8 reports made
+  with it would have had no "Phase A not met" disclosure and could have been `ready`. A
+  valid receipt copied under another selection id and resealed would have loaded too;
+  now both copies are refused. Each of these is refused on the synthetic arm and on the
+  scratch copy of the recorded evidence.
+- **A run matched to the judge frozen from its own assessment is never calibrated
+  (assistant's call).** Re-checking a selection re-derives every report on its
+  assessment, so a calibration report of a `--frozen-judge` run on that same assessment
+  could never be re-checked. `calibrate` refuses such a run with that reason, before the
+  selection is loaded and before anything is written. B8 judges its own assessment with
+  the frozen judge, so this does not limit the plan. A cycle across assessments (a
+  report re-derived for one selection's re-check that is of a run matched to another
+  selection whose re-check leads back) is refused with its own message; it never loops. Because every
+  receipt is re-run against the rule, a measured run added to the selection's assessment
+  after the freeze (a second `judge-v1` or `judge-v2`, or another version) makes the rule
+  refuse, and so the selection is refused, not kept; `b6-labels-1` has spent its 3
+  measured runs, so no such run can be added there.
+- **Cleanup.** A blank `--decision-ref` on `judge-freeze` now exits 2 (usage), like a
+  missing one. Before, it was refused with exit 1.
+- **Unchanged.** Only `calibration.py` and `evaluation_cli.py` changed (with their tests,
+  README and this entry). No module in `judge.FROZEN_JUDGE_MODULES` changed, and no
+  prompt, gate or sampler file. A voided run still counts toward `judge.py`'s 3 measured
+  runs per assessment, so `b6-labels-1` still allows no further measured run. A hard kill
+  during the void's write can leave a `.void.json.*.tmp` file in the run's directory, to
+  inspect. No threshold changed.
+- **Checked on a scratch copy, not evidence.** A test copies the whole git-ignored `runs/`
+  tree under a temporary directory outside the repository and works on the copy:
+  - it voids `phase-a-v1`;
+  - both written reports (`phase-a-v1-r2-report`, `phase-a-v2-report`) re-derive
+    unchanged;
+  - the rule names `phase-a-v2` with Phase A not met;
+  - the option (c) freeze writes a selection on the copy;
+  - a resealed pending receipt pointing at v1's report is refused, and so is the same
+    receipt relabeled with the `ready` basis.
+
+  The test also checks that the real `runs/` is byte for byte unchanged. No void or
+  selection under `runs/` comes from it.
+- **Not yet done.** `judge-void` has not been run on `runs/`; `phase-a-v1` has no void
+  and no judge selection exists. Next, in order: `judge-void --assessment-id b6-labels-1
+  --judge-run-id phase-a-v1` with a decision reference to this entry; then
+  `judge-freeze --phase-a-not-met` on `phase-a-v2-report` with a decision reference to
+  the entry "Phase A not met; judge v2 carried to B8 (Chad's option (c))"; then B8.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

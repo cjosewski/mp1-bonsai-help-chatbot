@@ -53,10 +53,30 @@ and its basis has status `pending`, every reason of the report and the decision
 reference. A calibration report on a run matched to such a selection (`--frozen-judge`,
 B8) puts `Phase A not met` first among its reasons and on its status line, pins the
 selection under `pins.frozen_judge`, and is never `ready`; a run matched to an identity
-that no selection holds is refused. The selection is written once to
+that no selection holds is refused, and so is a run matched to the judge frozen from its
+own assessment (re-checking the selection re-derives every report there, so such a run is
+never calibrated). The selection is written once to
 `<artifact root>/judge-selections/<selection_id>.json` with the report's SHA-256 and the
 run's frozen identity (`judge.frozen_identity`), which a later `--frozen-judge` run must
-match exactly. Nothing here calls a model endpoint, and nothing is overwritten or repaired.
+match exactly. `load_selection` re-checks every receipt against the evidence: it must be
+its assessment's only selection; its run, prompt version and frozen identity must be its
+report's; a `ready` basis needs a `ready` report; and `preregistered_choice`, re-run, must
+still choose that report's run, with Phase A met for a `ready` basis and not met for
+option (c)'s `pending` one.
+
+**Void** (Chad's decision of November 25, 2026, "Void it, keep all files (Recommended)").
+`void_judge_run` writes one write-once record, `<judge run>/void.json`, sealed by SHA-256,
+for a judge run whose own ledgers show no completed attempt (valid or not) and that has no
+calibration report; it holds the decision reference, the time, the counts it verified and
+pins of the run's manifest and ledgers. It deletes, edits or moves no file and leaves a
+`.judge.lock` in place. `preregistered_choice` (and so the freeze) skips a run only when its
+void verifies on every load: the seal, the fields, and the run re-verified from its own
+evidence with the same counts and pins and still no completed attempt. A void that does
+not verify is refused, never skipped. The seal has no key: a resealed change to anything
+re-derived from the run is refused, while the decision reference, the time and the lock
+flag are protected only by the seal; a voided run is never calibrated, and a report that names one is
+refused. The voided run still counts toward `judge.py`'s three measured runs per assessment.
+Nothing here calls a model endpoint, and nothing is overwritten or repaired.
 """
 
 from __future__ import annotations
@@ -67,6 +87,7 @@ import os
 import tempfile
 from collections.abc import Mapping, Sequence
 from contextlib import ExitStack
+from contextvars import ContextVar
 from fractions import Fraction
 from pathlib import Path
 
@@ -125,6 +146,36 @@ PHASE_A_NOT_MET_RULE = (
 )
 PHASE_A_BASIS_FIELDS = frozenset({"status", "phase_a", "rule", "decision_ref", "reasons"})
 DECISION_REF_MAX = 500
+# The void of a judge run with no completed attempt (Chad, November 25, 2026: "Void it, keep
+# all files (Recommended)"). It is written once inside the run's directory, never a
+# `*.jsonl` file, so the run's own ledger hashes (`tracing.artifact_hashes`) are unchanged.
+VOID = "void.json"
+VOID_KIND = "judge_run_void"
+VOID_FIELDS = frozenset(
+    {
+        "schema_version",
+        "kind",
+        "assessment_id",
+        "judge_run_id",
+        "created_at",
+        "decision_ref",
+        "verified",
+        "pins",
+        "lock_present_at_void",
+        "effect",
+        "sha256",
+    }
+)
+VOID_EFFECT = (
+    "voided on Chad's dated decision: excluded from B7 Decision 13's pre-registered rule "
+    "(calibration.preregistered_choice) and so from judge-freeze, and never calibrated; no "
+    "file of the run was deleted, edited or moved, and a .judge.lock stays where it was; the "
+    "run still counts toward the measured judge runs an assessment allows; its started "
+    "requests stay disclosed as unknown outcomes"
+)
+# The assessments whose pre-registered choice is being re-checked by `load_selection`, so a
+# selection is never re-checked from inside its own re-check.
+_RECHECKING: ContextVar[frozenset[str]] = ContextVar("_RECHECKING", default=frozenset())
 # Fields of a report that `freeze_judge` re-derives from the evidence and compares.
 _DERIVED_EXCLUDED = frozenset({"report_id", "created_at", "sha256"})
 REPORT_FIELDS = frozenset(
@@ -429,7 +480,9 @@ def _derive(root: Path, made: Assessment, judge_run_id: str) -> tuple[dict, list
     frozen_pin = None
     disclosed: list[str] = []
     if identity.get("frozen_judge_sha256") is not None:
-        matched = _frozen_selections(root, identity["frozen_judge_sha256"])
+        matched = _frozen_selections(
+            root, identity["frozen_judge_sha256"], manifest_record["assessment_id"]
+        )
         carried = [s for s in matched if phase_a_not_met(s)]
         frozen_pin = {
             "selection_ids": [s["selection_id"] for s in matched],
@@ -562,7 +615,7 @@ def _sealed(record: dict) -> str:
     return digest({k: v for k, v in record.items() if k != "sha256"})
 
 
-def _write_once(path: Path, data: bytes, what: str) -> None:
+def _write_once(path: Path, data: bytes, what: str, hint: str = "choose a new id") -> None:
     """Write a complete file, then link it into place: never a partial or replaced file."""
     descriptor, temporary = tempfile.mkstemp(
         prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
@@ -574,7 +627,7 @@ def _write_once(path: Path, data: bytes, what: str) -> None:
             os.fsync(stream.fileno())
         os.link(temporary, path)
     except FileExistsError:
-        raise CalibrationError(f"{what} already exists; choose a new id") from None
+        raise CalibrationError(f"{what} already exists; {hint}") from None
     finally:
         Path(temporary).unlink(missing_ok=True)
 
@@ -622,6 +675,11 @@ def calibration_report(
     root = Path(root)
     made = _assessment(root, assessment_id)
     main, side = _report_paths(made.directory, report_id)
+    if _present(_run_directory(made, judge_run_id) / VOID):
+        raise CalibrationError(
+            f"judge run {judge_run_id!r} is voided (its {VOID}): a voided run is never "
+            "calibrated; nothing was written"
+        )
     if write and (_present(main) or _present(side)):
         raise CalibrationError(
             f"calibration report {report_id!r} already exists (or an interrupted write left "
@@ -774,6 +832,158 @@ def report_lines(report: dict) -> list[str]:
     return lines
 
 
+# ------------------------------------------------------------------ the void
+
+
+def _run_directory(made: Assessment, judge_run_id: str) -> Path:
+    try:
+        return judge.judge_directory(made.directory, judge_run_id)
+    except judge.JudgeError as exc:
+        raise CalibrationError(str(exc)) from None
+
+
+def _void_evidence(made: Assessment, directory: Path) -> tuple[dict, dict, tuple]:
+    """What a void verifies, derived from the run's own evidence (its lock is not read):
+    the counts, the pins and `judge.validate_judge`'s result."""
+    try:
+        verified_run = judge.validate_judge(directory, made)
+    except judge.JudgeError as exc:
+        raise CalibrationError(f"judge run {directory.name!r}: {exc}") from None
+    manifest, starts, attempts, _ = verified_run
+    completed = {a["attempt_id"] for a in attempts}
+    counts = {
+        "purpose": manifest["purpose"],
+        "run_status": manifest["status"],
+        "prompt_version": manifest["identity"]["prompt_version"],
+        "started_attempts": len(starts),
+        "completed_attempts": len(attempts),
+        "unknown_outcomes": [s["attempt_id"] for s in starts if s["attempt_id"] not in completed],
+    }
+    pins = {
+        "assessment_sha256": made.manifest["sha256"],
+        "judge_manifest_sha256": digest(manifest),
+        "judge_fingerprint": manifest["fingerprint"],
+        "judge_artifacts_sha256": manifest["artifacts_sha256"],
+    }
+    return counts, pins, verified_run
+
+
+def _refuse_completed(judge_run_id: str, attempts: list[dict], now_or_then: str) -> None:
+    if attempts:
+        valid = sum(1 for a in attempts if a["valid"] is True)
+        raise CalibrationError(
+            f"judge run {judge_run_id!r} {now_or_then} {len(attempts)} completed attempt(s) "
+            f"({valid} valid, {len(attempts) - valid} not) in its own ledgers; only a run with "
+            "no completed attempt can be voided"
+        )
+
+
+def _verified_void(made: Assessment, judge_run_id: str) -> tuple[dict, tuple] | None:
+    """A judge run's void and its re-verified evidence, or None when the run has no void.
+    A void that does not verify now (a record changed without a reseal, a resealed change
+    to anything re-derived from the run, a changed run, or a run that has a completed
+    attempt since) is refused, never treated as absent. The unkeyed seal alone protects
+    the decision reference, the time and the lock flag."""
+    directory = _run_directory(made, judge_run_id)
+    path = directory / VOID
+    if not _present(path):
+        return None
+    what = f"the void of judge run {judge_run_id!r}"
+    record, _ = _read_json(path, what)
+    if (
+        not isinstance(record, dict)
+        or set(record) != VOID_FIELDS
+        or record["sha256"] != _sealed(record)
+        or record["schema_version"] != SCHEMA_VERSION
+        or record["kind"] != VOID_KIND
+        or record["assessment_id"] != made.manifest["assessment_id"]
+        or record["judge_run_id"] != judge_run_id
+        or record["effect"] != VOID_EFFECT
+        or type(record["lock_present_at_void"]) is not bool
+        or not isinstance(record["created_at"], str)
+    ):
+        raise CalibrationError(f"{what} changed; {INSPECT}")
+    try:
+        _decision_ref(record["decision_ref"], needed_by="judge-void")
+    except CalibrationError:
+        raise CalibrationError(f"{what} changed; {INSPECT}") from None
+    counts, pins, verified_run = _void_evidence(made, directory)
+    _refuse_completed(judge_run_id, verified_run[2], "is voided, but now has")
+    if record["verified"] != counts or record["pins"] != pins:
+        raise CalibrationError(f"{what} no longer matches the run's evidence; {INSPECT}")
+    return record, verified_run
+
+
+def void_judge_run(root: Path, assessment_id: str, judge_run_id: str, decision_ref: str) -> dict:
+    """Void a judge run with no completed attempt, on Chad's dated decision (which
+    `decision_ref` names): write `<judge run>/void.json` once and nothing else.
+
+    Refuses a missing, blank or multi-line decision reference, a run whose own ledgers
+    (verified by `judge.validate_judge`, whatever its lock) hold any completed attempt,
+    valid or not, a run with a calibration report and a second void. Every refusal comes
+    before the write. No file of the run is deleted, edited or moved, and a `.judge.lock`
+    stays in place."""
+    root = Path(root)
+    decision_ref = _decision_ref(decision_ref, needed_by="judge-void")
+    made = _assessment(root, assessment_id)
+    directory = _run_directory(made, judge_run_id)
+    if not directory.is_dir():
+        raise CalibrationError(f"no judge run {judge_run_id!r} for this assessment")
+    path = directory / VOID
+    if _present(path):
+        raise CalibrationError(
+            f"judge run {judge_run_id!r} already has a void ({VOID}); a void is written once"
+        )
+    counts, pins, verified_run = _void_evidence(made, directory)
+    _refuse_completed(judge_run_id, verified_run[2], "has")
+    reports = sorted(
+        r for r, w in _written_reports(root, made).items() if w["judge_run_id"] == judge_run_id
+    )
+    if reports:
+        raise CalibrationError(
+            f"judge run {judge_run_id!r} has calibration report(s) {', '.join(reports)}; a run "
+            "with a report is never voided"
+        )
+    record = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": VOID_KIND,
+        "assessment_id": made.manifest["assessment_id"],
+        "judge_run_id": judge_run_id,
+        "created_at": now(),
+        "decision_ref": decision_ref,
+        "verified": counts,
+        "pins": pins,
+        "lock_present_at_void": _present(directory / judge.LOCK),
+        "effect": VOID_EFFECT,
+    }
+    record["sha256"] = _sealed(record)
+    _write_once(
+        path, _dumps(record), f"the void of judge run {judge_run_id!r}", "a void is written once"
+    )
+    return record
+
+
+def void_status(root: Path, assessment_id: str, judge_run_id: str) -> dict | None:
+    """A voided judge run's blind status (`judge.judge_status`'s fields, `status` voided,
+    the run's own status as `run_status`, and the void), verified; None for a run with no
+    void."""
+    made = _assessment(Path(root), assessment_id)
+    found = _verified_void(made, judge_run_id)
+    if found is None:
+        return None
+    record, (manifest, starts, attempts, successful) = found
+    summary = judge._summary(manifest, made, starts, attempts, successful)
+    summary["status"] = "voided"
+    summary["run_status"] = manifest["status"]
+    summary["void"] = {
+        "decision_ref": record["decision_ref"],
+        "created_at": record["created_at"],
+        "lock_present_at_void": record["lock_present_at_void"],
+        "sha256": record["sha256"],
+    }
+    return summary
+
+
 # ---------------------------------------------------------------- the freeze
 
 
@@ -853,9 +1063,10 @@ def preregistered_choice(root: Path, assessment_id: str) -> dict:
     else v1 if its report is `ready` (`phase_a_met` true). Otherwise Phase A is not met
     (`phase_a_met` false), and the choice is the run the rule would carry forward under
     Open question 7(c): more dimensions at or above the minimum, then the higher minimum
-    per-dimension agreement, then the later prompt version (v2 over v1). Returns
-    `{phase_a_met, judge_run_id, prompt_version, report_ids, runs}`; raises
-    CalibrationError when the rule cannot be applied."""
+    per-dimension agreement, then the later prompt version (v2 over v1). A judge run whose
+    void verifies (`void_judge_run`) is left out and listed under `voided`; a void that does
+    not verify is refused. Returns `{phase_a_met, judge_run_id, prompt_version, report_ids,
+    runs, voided}`; raises CalibrationError when the rule cannot be applied."""
     root = Path(root)
     made = _assessment(root, assessment_id)
     reports = _written_reports(root, made)
@@ -866,7 +1077,12 @@ def preregistered_choice(root: Path, assessment_id: str) -> dict:
         else []
     )
     measured: dict[str, dict] = {}
+    voided: list[str] = []
     for run_id in run_ids:
+        # A run is skipped only when its void verifies now; a void that does not is refused.
+        if _verified_void(made, run_id) is not None:
+            voided.append(run_id)
+            continue
         manifest = _judge_run(made, run_id)[0]
         if manifest["purpose"] == "measured":
             measured[run_id] = manifest
@@ -892,6 +1108,11 @@ def preregistered_choice(root: Path, assessment_id: str) -> dict:
     derived: dict[str, dict] = {}
     for report_id, written in reports.items():
         run_id = written["judge_run_id"]
+        if run_id in voided:
+            raise CalibrationError(
+                f"calibration report {report_id!r} is of the voided judge run {run_id!r}; a "
+                f"voided run is never calibrated; {INSPECT}"
+            )
         if run_id not in derived:
             derived[run_id] = _derive(root, made, run_id)[0]
         stored = {k: v for k, v in written.items() if k not in _DERIVED_EXCLUDED}
@@ -954,6 +1175,7 @@ def preregistered_choice(root: Path, assessment_id: str) -> dict:
         "prompt_version": chosen["prompt_version"],
         "report_ids": chosen["report_ids"],
         "runs": runs,
+        "voided": voided,
     }
 
 
@@ -987,11 +1209,11 @@ def _refuse_second_selection(root: Path, assessment_id: str) -> None:
         )
 
 
-def _decision_ref(value: object) -> str:
+def _decision_ref(value: object, needed_by: str = "--phase-a-not-met") -> str:
     """The reference to Chad's dated decision: one nonblank line of printable text."""
     if not isinstance(value, str) or not value.strip():
         raise CalibrationError(
-            "--phase-a-not-met needs --decision-ref, a reference to Chad's dated decision "
+            f"{needed_by} needs --decision-ref, a reference to Chad's dated decision "
             "(for example its DECISIONS.md entry); nothing was written"
         )
     text = value.strip()
@@ -1146,9 +1368,10 @@ def freeze_judge(
 
 
 def _basis_valid(basis: object, report: object) -> bool:
-    """A ready basis, or option (c)'s pending basis holding its report's reasons."""
+    """A ready basis for a ready report, or option (c)'s pending basis holding its pending
+    report's reasons."""
     if basis == SELECTION_BASIS:
-        return True
+        return isinstance(report, dict) and report.get("status") == "ready"
     if not isinstance(basis, dict) or set(basis) != PHASE_A_BASIS_FIELDS:
         return False
     try:
@@ -1165,9 +1388,12 @@ def _basis_valid(basis: object, report: object) -> bool:
 
 
 def load_selection(root: Path, selection_id: str) -> dict:
-    """A judge selection, verified: its seal and fields, its report's file SHA-256 and its
-    basis (ready, or option (c)'s pending basis with that report's reasons). Its
-    `frozen_identity` is what a `--frozen-judge` run passes to `judge.judge_run`;
+    """A judge selection, verified: its seal and fields, the only selection of its
+    assessment, its report's file SHA-256, its basis (ready for a ready report, or option
+    (c)'s pending basis with that pending report's reasons), its binding to that report,
+    and Decision 13's rule re-run on the evidence now (`preregistered_choice` must choose
+    that report's run, with Phase A met for a ready basis and not met for a pending one).
+    Its `frozen_identity` is what a `--frozen-judge` run passes to `judge.judge_run`;
     `phase_a_not_met` says whether it carried a judge forward with Phase A not met."""
     root = Path(root)
     path = selection_path(root, selection_id)
@@ -1181,6 +1407,15 @@ def load_selection(root: Path, selection_id: str) -> dict:
         or not isinstance(selection["frozen_identity"], dict)
     ):
         raise CalibrationError(f"judge selection {selection_id!r} changed; {INSPECT}")
+    if not isinstance(selection["assessment_id"], str):
+        raise CalibrationError(f"judge selection {selection_id!r} changed; {INSPECT}")
+    others = _selections_for(root, selection["assessment_id"])
+    if len(others) > 1:
+        raise CalibrationError(
+            f"assessment {selection['assessment_id']!r} has more than one judge selection "
+            f"({', '.join(others)}); one is written per assessment, so none of them is "
+            f"used; {INSPECT}"
+        )
     try:
         directory = assessment_directory(root, selection["assessment_id"])
         main, _ = _report_paths(directory, selection["report_id"])
@@ -1191,15 +1426,74 @@ def load_selection(root: Path, selection_id: str) -> dict:
         raise CalibrationError(
             f"the calibration report of judge selection {selection_id!r} changed; {INSPECT}"
         )
-    if not _basis_valid(selection["basis"], report):
+    if not _basis_valid(selection["basis"], report) or not _bound_to(selection, report):
         raise CalibrationError(f"judge selection {selection_id!r} changed; {INSPECT}")
+    _recheck_rule(root, selection, report)
     return selection
 
 
-def _frozen_selections(root: Path, frozen_sha256: str) -> list[dict]:
-    """The verified selections whose frozen identity a `--frozen-judge` run matched. A run
-    matched to an identity that no selection holds is refused: whether Phase A was met for
-    its judge cannot be stated."""
+def _bound_to(selection: dict, report: object) -> bool:
+    """The selection's run, prompt version, frozen identity and implementation are its
+    report's (what `freeze_judge` copied from it)."""
+    pins = report.get("pins") if isinstance(report, dict) else None
+    identity = pins.get("judge_identity") if isinstance(pins, dict) else None
+    return (
+        isinstance(identity, dict)
+        and report.get("assessment_id") == selection["assessment_id"]
+        and report.get("report_id") == selection["report_id"]
+        and report.get("judge_run_id") == selection["judge_run_id"]
+        and identity.get("prompt_version") == selection["prompt_version"]
+        and identity.get("frozen_identity") == selection["frozen_identity"]
+        and identity.get("implementation") == selection["implementation"]
+    )
+
+
+def _recheck_rule(root: Path, selection: dict, report: dict) -> None:
+    """Every receipt holds only the run that Decision 13's rule, re-run on the evidence
+    now, chooses: with Phase A met for a ready basis, and carried forward by the tie-break
+    with Phase A not met for option (c)'s pending basis."""
+    assessment_id = selection["assessment_id"]
+    selection_id = selection["selection_id"]
+    checking = _RECHECKING.get()
+    if assessment_id in checking:
+        raise CalibrationError(
+            f"judge selection {selection_id!r} is re-checked from inside its own re-check: "
+            f"a calibration report re-derived for {assessment_id!r}'s rule is of a run "
+            "matched to a frozen judge whose own re-check leads back to it (a cycle of "
+            f"selections across assessments), so none of them is used; {INSPECT}"
+        )
+    token = _RECHECKING.set(checking | {assessment_id})
+    try:
+        choice = preregistered_choice(root, assessment_id)
+    except CalibrationError as exc:
+        raise CalibrationError(
+            f"judge selection {selection_id!r}: the pre-registered rule cannot be re-run on "
+            f"its assessment: {exc}"
+        ) from None
+    finally:
+        _RECHECKING.reset(token)
+    pending = phase_a_not_met(selection)
+    if choice["phase_a_met"] == pending or choice["judge_run_id"] != report["judge_run_id"]:
+        if pending:
+            verb = "carries"
+            named = "none: Phase A is met" if choice["phase_a_met"] else None
+        else:
+            verb = "chooses"
+            named = None if choice["phase_a_met"] else "none ready: Phase A is not met"
+        raise CalibrationError(
+            f"judge selection {selection_id!r} {verb} judge run {report['judge_run_id']!r} "
+            f"forward, but Decision 13's pre-registered rule, re-run on the evidence, "
+            f"{verb} {named or repr(choice['judge_run_id'])}; {INSPECT}"
+        )
+
+
+def _frozen_selections(root: Path, frozen_sha256: str, assessment_id: str) -> list[dict]:
+    """The verified selections whose frozen identity a `--frozen-judge` run on
+    `assessment_id` matched. A run matched to an identity that no selection holds is
+    refused: whether Phase A was met for its judge cannot be stated. A run matched to the
+    judge frozen from its own assessment is refused before that selection is loaded:
+    re-checking the selection re-derives every report on that assessment, so such a run is
+    never calibrated."""
     directory = Path(root) / SELECTIONS
     if directory.is_symlink():
         raise CalibrationError(f"a symlinked {SELECTIONS} directory is not supported")
@@ -1208,7 +1502,23 @@ def _frozen_selections(root: Path, frozen_sha256: str) -> list[dict]:
         for path in sorted(directory.iterdir()):
             if path.name.startswith(".") or not path.name.endswith(".json"):
                 continue
-            selection = load_selection(root, path.name.removesuffix(".json"))
+            selection_id = path.name.removesuffix(".json")
+            raw, _ = _read_json(
+                selection_path(root, selection_id), f"judge selection {selection_id!r}"
+            )
+            if (
+                isinstance(raw, dict)
+                and raw.get("assessment_id") == assessment_id
+                and isinstance(raw.get("frozen_identity"), dict)
+                and digest(raw["frozen_identity"]) == frozen_sha256
+            ):
+                raise CalibrationError(
+                    f"the judge run is matched to judge selection {selection_id!r}, the judge "
+                    f"frozen from its own assessment {assessment_id!r}; a run on that "
+                    "assessment is never calibrated against it (the selection's re-check "
+                    "re-derives every report there); judge B8's assessment with it instead"
+                )
+            selection = load_selection(root, selection_id)
             if digest(selection["frozen_identity"]) == frozen_sha256:
                 matched.append(selection)
     if not matched:

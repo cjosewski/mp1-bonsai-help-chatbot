@@ -5,6 +5,11 @@ No model endpoint is called. Every judge is a scripted fake returning synthetic
 Every label is written through the library by "synthetic-reviewer" with a visibly synthetic
 note, every reference is frozen from those synthetic labels, and every `chad_accepted`
 rubric is a synthetic copy. No figure here is a measurement: these reports are fixtures.
+
+One test is not synthetic: when the git-ignored `runs/` evidence is present, it copies the
+whole tree under `tmp_path`, voids the stopped run `phase-a-v1` and freezes on that copy
+only. The real `runs/` is only read, and the test checks it is byte for byte unchanged; the
+copy's void and selection are not evidence.
 """
 
 from __future__ import annotations
@@ -1049,3 +1054,440 @@ def test_report_on_a_frozen_run_without_its_selection_is_refused(arm, root, acce
     with pytest.raises(CalibrationError, match="no judge selection"):
         report(root, ARM, "b8-orphan", "r-orphan")
     assert not report_paths(root, ARM, "r-orphan")[0].exists()
+
+
+# ---------------- the void of a run with no completed attempt (Chad, November 25, 2026)
+
+VOID_REF = "synthetic void decision reference: docs/DECISIONS.md, a dated entry, test only"
+
+
+def killed(made) -> FakeJudge:
+    """A synthetic hard stop after the first start record, before any reply."""
+
+    def stop(blind_id, attempt):
+        raise KeyboardInterrupt
+
+    return by_item(made, stop)
+
+
+def stopped(root, made, run_id, judge_config, *, lock=True) -> Path:
+    """A measured run with 1 request start and 0 completed attempts; with `lock`, the
+    synthetic leftover `.judge.lock` of a hard kill (an interrupt removes the real one)."""
+    with pytest.raises(KeyboardInterrupt):
+        run(root, made, run_id, judge_config, killed(made))
+    directory = run_dir(root, ARM, run_id)
+    if lock:
+        (directory / judge.LOCK).write_text("synthetic leftover lock", encoding="utf-8")
+    return directory
+
+
+def listing(directory: Path) -> dict[str, str]:
+    return {p.name: sha(p) for p in sorted(directory.iterdir()) if p.is_file()}
+
+
+def void(root, run_id, decision_ref=VOID_REF):
+    return calibration.void_judge_run(root, ARM, run_id, decision_ref)
+
+
+def test_void_writes_one_sealed_record_and_changes_nothing_else(arm, root):
+    made, judge_config = arm
+    directory = stopped(root, made, "v1-stopped", judge_config)
+    before = listing(directory)
+    record = void(root, "v1-stopped")
+    after = listing(directory)
+    assert set(after) == set(before) | {calibration.VOID}
+    assert {k: v for k, v in after.items() if k != calibration.VOID} == before
+    assert (directory / judge.LOCK).read_text(encoding="utf-8") == "synthetic leftover lock"
+    written = json.loads((directory / calibration.VOID).read_text(encoding="utf-8"))
+    assert written == record and record["sha256"] == calibration._sealed(record)
+    assert record["decision_ref"] == VOID_REF and record["lock_present_at_void"] is True
+    assert record["verified"] == {
+        "purpose": "measured",
+        "run_status": "interrupted",
+        "prompt_version": "judge-v1",
+        "started_attempts": 1,
+        "completed_attempts": 0,
+        "unknown_outcomes": ["v1-stopped:L-001:1"],
+    }
+    # A voided run is never calibrated, even with its lock inspected.
+    (directory / judge.LOCK).unlink()
+    with pytest.raises(CalibrationError, match="voided"):
+        report(root, ARM, "v1-stopped", "r-stopped")
+    assert not report_paths(root, ARM, "r-stopped")[0].exists()
+
+
+@pytest.mark.parametrize("decision_ref", [None, "", "   ", "two\nlines", "x" * 501])
+def test_void_refuses_a_missing_blank_or_multi_line_decision_ref(arm, root, decision_ref):
+    made, judge_config = arm
+    directory = stopped(root, made, "v1-stopped", judge_config)
+    before = listing(directory)
+    with pytest.raises(CalibrationError, match="decision"):
+        void(root, "v1-stopped", decision_ref)
+    assert listing(directory) == before
+
+
+@pytest.mark.parametrize("valid", [True, False])
+def test_void_refuses_a_run_with_one_completed_attempt(arm, root, valid):
+    made, judge_config = arm
+    first = made.manifest["display_order"][0]
+
+    def once(blind_id, attempt):
+        if blind_id != first or attempt > 1:  # stop before any second completion
+            raise KeyboardInterrupt
+        return reply(blind_id) if valid else broken(blind_id)
+
+    with pytest.raises(KeyboardInterrupt):
+        run(root, made, "v1-once", judge_config, by_item(made, once))
+    directory = run_dir(root, ARM, "v1-once")
+    (directory / judge.LOCK).write_text("synthetic leftover lock", encoding="utf-8")
+    attempts = [json.loads(line) for line in (directory / judge.ATTEMPTS).read_text().splitlines()]
+    assert len(attempts) == 1 and attempts[0]["valid"] is valid
+    before = listing(directory)
+    with pytest.raises(CalibrationError, match="1 completed attempt"):
+        void(root, "v1-once")
+    assert listing(directory) == before
+
+
+def test_void_refuses_a_second_void_and_a_run_with_a_report(arm, root):
+    made, judge_config = arm
+    stopped(root, made, "v1-stopped", judge_config)
+    first = void(root, "v1-stopped")
+    path = run_dir(root, ARM, "v1-stopped") / calibration.VOID
+    with pytest.raises(CalibrationError, match="already has a void"):
+        void(root, "v1-stopped", "synthetic second reference, test only")
+    assert json.loads(path.read_text(encoding="utf-8")) == first
+
+    # An unlocked stopped run can be calibrated (a pending report); then it is never voided.
+    directory = stopped(root, made, "v1-reported", judge_config, lock=False)
+    assert report(root, ARM, "v1-reported", "r-reported")["status"] == "pending"
+    before = listing(directory)
+    with pytest.raises(CalibrationError, match="r-reported"):
+        void(root, "v1-reported")
+    assert listing(directory) == before
+
+
+def test_freeze_skips_only_a_verified_void(arm, root, tmp_path):
+    """The synthetic twin of the recorded evidence: a stopped v1 run that keeps its lock,
+    v1's one complete baseline run and v2's, both pending, then option (c)."""
+    made, judge_config = arm
+    directory = stopped(root, made, "v1-stopped", judge_config)
+    run(root, made, "v1", judge_config, failing_on(made, 5, "D5", "D6"))
+    run(root, made, "v2", v2_config(judge_config, tmp_path), failing_on(made, 5, "D6"))
+    assert report(root, ARM, "v1", "r-v1")["status"] == "pending"
+    assert report(root, ARM, "v2", "r-v2")["status"] == "pending"
+    with pytest.raises(CalibrationError, match=re.escape(judge.LOCK)):
+        calibration.preregistered_choice(root, ARM)
+    with pytest.raises(CalibrationError, match=re.escape(judge.LOCK)):
+        carry(root)
+    assert no_selection(root)
+    void(root, "v1-stopped")
+    choice = calibration.preregistered_choice(root, ARM)
+    assert (choice["phase_a_met"], choice["judge_run_id"]) == (False, "v2")
+    assert choice["voided"] == ["v1-stopped"]
+    assert [r["judge_run_id"] for r in choice["runs"]] == ["v1", "v2"]
+
+    # A tampered void is refused, not skipped: a record changed without a reseal, a
+    # resealed change to a field re-derived from the run (or to the ids, kind or effect),
+    # or a changed run. The unkeyed seal alone protects the decision reference.
+    path = directory / calibration.VOID
+    original = path.read_text(encoding="utf-8")
+
+    def resealed(change) -> None:
+        changed = json.loads(original)
+        change(changed)
+        changed["sha256"] = calibration._sealed(changed)
+        path.write_text(json.dumps(changed, indent=2) + "\n", encoding="utf-8")
+
+    path.write_text(original.replace(VOID_REF, "synthetic edited reference"), encoding="utf-8")
+    with pytest.raises(CalibrationError, match="void of judge run 'v1-stopped' changed"):
+        calibration.preregistered_choice(root, ARM)
+    for change, match in (
+        (lambda r: r["verified"].update(started_attempts=0), "no longer matches"),
+        (lambda r: r["pins"].update(judge_fingerprint="0" * 64), "no longer matches"),
+        (lambda r: r.update(judge_run_id="v1"), "changed"),
+        (lambda r: r.update(decision_ref=""), "changed"),
+        (lambda r: r.pop("effect"), "changed"),
+    ):
+        resealed(change)
+        with pytest.raises(CalibrationError, match=match):
+            calibration.preregistered_choice(root, ARM)
+        with pytest.raises(CalibrationError):
+            carry(root)
+    assert no_selection(root)
+    path.write_text(original, encoding="utf-8")
+    assert calibration.preregistered_choice(root, ARM)["voided"] == ["v1-stopped"]
+
+    # A run with a completed attempt since its void (a forged completion, ledger hashes
+    # brought up to date) is refused, not skipped.
+    ledger = directory / judge.ATTEMPTS
+    manifest_path = directory / judge.MANIFEST
+    saved = ledger.read_bytes(), manifest_path.read_bytes()
+    start = json.loads((directory / judge.STARTS).read_text().splitlines()[0])
+    completion = start | {
+        "event": "attempt_completed",
+        "completed_at": start["started_at"],
+        "raw_response": "synthetic forged reply",
+        "error": "synthetic invalid",
+        "error_type": "ValidationError",
+        "response_model": None,
+        "valid": False,
+        "judgment": None,
+    }
+    ledger.write_text(json.dumps(completion) + "\n", encoding="utf-8")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["artifacts_sha256"][judge.ATTEMPTS] = sha(ledger)
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    judge.validate_judge(directory, made)  # the forged run verifies on its own
+    with pytest.raises(CalibrationError, match="is voided, but now has 1 completed attempt"):
+        calibration.preregistered_choice(root, ARM)
+    ledger.write_bytes(saved[0])
+    manifest_path.write_bytes(saved[1])
+
+    # Verified again: option (c) freezes v2, and the selection loads.
+    selection = carry(root)
+    assert selection["judge_run_id"] == "v2"
+    assert calibration.load_selection(root, "sel-c") == selection
+    assert (directory / judge.LOCK).exists()
+
+
+def test_a_resealed_pending_receipt_for_another_run_is_refused(arm, root, tmp_path):
+    """A forged option (c) receipt consistent with v1's report (its id, file SHA-256,
+    reasons, run, prompt version and frozen identity), resealed, is refused because the
+    pre-registered tie-break, re-run, carries v2."""
+    phase_a_not_met(arm, root, tmp_path)
+    carry(root)
+    path = root / calibration.SELECTIONS / "sel-c.json"
+    original = path.read_text(encoding="utf-8")
+    v1_report = calibration.load_report(root, ARM, "r-v1")
+    identity = v1_report["pins"]["judge_identity"]
+
+    def resealed(change) -> None:
+        changed = json.loads(original)
+        change(changed)
+        changed["sha256"] = calibration._sealed(changed)
+        path.write_text(json.dumps(changed, indent=2) + "\n", encoding="utf-8")
+
+    def as_v1(record: dict) -> None:
+        record.update(
+            report_id="r-v1",
+            report_sha256=sha(report_paths(root, ARM, "r-v1")[0]),
+            judge_run_id="v1",
+            prompt_version=identity["prompt_version"],
+            frozen_identity=identity["frozen_identity"],
+            implementation=identity["implementation"],
+        )
+        record["basis"]["reasons"] = list(v1_report["reasons"])
+
+    resealed(as_v1)
+    with pytest.raises(CalibrationError, match=r"carries 'v2'"):
+        calibration.load_selection(root, "sel-c")
+    # Only the frozen identity swapped (the run still v2): refused by the report binding.
+    resealed(lambda r: r.update(frozen_identity=identity["frozen_identity"]))
+    with pytest.raises(CalibrationError, match="changed"):
+        calibration.load_selection(root, "sel-c")
+    path.write_text(original, encoding="utf-8")
+    assert calibration.load_selection(root, "sel-c")["judge_run_id"] == "v2"
+
+
+def reseal(path: Path, original: str, change) -> None:
+    changed = json.loads(original)
+    change(changed)
+    changed["sha256"] = calibration._sealed(changed)
+    path.write_text(json.dumps(changed, indent=2) + "\n", encoding="utf-8")
+
+
+def pointing_at(root, assessment_id: str, report_id: str):
+    """A change that rebinds a receipt to another report (id, file SHA-256, run, prompt
+    version, frozen identity, implementation): every field `_bound_to` compares."""
+    written = calibration.load_report(root, assessment_id, report_id)
+    identity = written["pins"]["judge_identity"]
+    main = root / "assessments" / assessment_id / calibration.CALIBRATION / f"{report_id}.json"
+
+    def change(record: dict) -> None:
+        record.update(
+            report_id=report_id,
+            report_sha256=sha(main),
+            judge_run_id=written["judge_run_id"],
+            prompt_version=identity["prompt_version"],
+            frozen_identity=identity["frozen_identity"],
+            implementation=identity["implementation"],
+        )
+
+    return change
+
+
+def test_a_resealed_ready_basis_needs_a_ready_report(arm, root, tmp_path):
+    """Relabeling a pending receipt's basis as ready, for its own run or resealed onto v1's
+    report, is refused: a ready basis needs a ready report (both reports are pending)."""
+    phase_a_not_met(arm, root, tmp_path)
+    carry(root)
+    path = root / calibration.SELECTIONS / "sel-c.json"
+    original = path.read_text(encoding="utf-8")
+    to_v1 = pointing_at(root, ARM, "r-v1")
+
+    def ready_basis(record: dict) -> None:
+        record["basis"] = dict(calibration.SELECTION_BASIS)
+
+    for change in (ready_basis, lambda r: (to_v1(r), ready_basis(r))):
+        reseal(path, original, change)
+        with pytest.raises(CalibrationError, match="changed"):
+            calibration.load_selection(root, "sel-c")
+    path.write_text(original, encoding="utf-8")
+    assert calibration.load_selection(root, "sel-c")["judge_run_id"] == "v2"
+
+
+def test_a_resealed_ready_receipt_for_a_ready_report_the_rule_did_not_choose_is_refused(
+    arm, root, tmp_path
+):
+    """Both reports ready, so the rule chooses v2; a receipt resealed onto v1's ready report
+    passes the basis and binding checks, and is refused by the rule, re-run."""
+    made, judge_config = arm
+    run(root, made, "v1", judge_config, agreeing(made))
+    run(root, made, "v2", v2_config(judge_config, tmp_path), agreeing(made))
+    report(root, ARM, "v1", "r-v1")
+    report(root, ARM, "v2", "r-v2")
+    calibration.freeze_judge(root, ARM, "r-v2", "sel-v2")
+    path = root / calibration.SELECTIONS / "sel-v2.json"
+    original = path.read_text(encoding="utf-8")
+    reseal(path, original, pointing_at(root, ARM, "r-v1"))
+    with pytest.raises(CalibrationError, match=r"chooses 'v2'"):
+        calibration.load_selection(root, "sel-v2")
+    path.write_text(original, encoding="utf-8")
+    assert calibration.load_selection(root, "sel-v2")["judge_run_id"] == "v2"
+
+
+def test_a_copied_receipt_under_another_id_is_refused(arm, root, tmp_path):
+    """One selection per assessment holds on load, not only on write: a valid receipt
+    copied under another id and resealed makes both refuse."""
+    phase_a_not_met(arm, root, tmp_path)
+    carry(root)
+    directory = root / calibration.SELECTIONS
+    original = (directory / "sel-c.json").read_text(encoding="utf-8")
+    reseal(directory / "sel-copy.json", original, lambda r: r.update(selection_id="sel-copy"))
+    for selection_id in ("sel-c", "sel-copy"):
+        with pytest.raises(CalibrationError, match="more than one judge selection"):
+            calibration.load_selection(root, selection_id)
+    (directory / "sel-copy.json").unlink()
+    assert calibration.load_selection(root, "sel-c")["judge_run_id"] == "v2"
+
+
+def test_a_frozen_judge_run_on_its_own_selection_assessment_is_never_calibrated(
+    arm, root, accepted, tmp_path
+):
+    """A `--frozen-judge` run on the assessment its judge was frozen from cannot be
+    calibrated: the selection's re-check would re-derive that run's own report. It is
+    refused with that reason, before anything is written. As a second measured judge-v2
+    run, it also breaks Decision 13's rule there, so the selection is refused until the
+    run is gone (on the recorded evidence, the assessment allows no further measured run)."""
+    v2 = phase_a_not_met(arm, root, tmp_path)
+    made, _ = arm
+    selection = carry(root)
+    run(root, made, "b8-self", v2, agreeing(made), frozen_judge=selection["frozen_identity"])
+    with pytest.raises(CalibrationError, match="its own assessment"):
+        report(root, ARM, "b8-self", "r-self")
+    assert not report_paths(root, ARM, "r-self")[0].exists()
+    with pytest.raises(CalibrationError, match="measured more than once"):
+        calibration.load_selection(root, "sel-c")
+    shutil.rmtree(run_dir(root, ARM, "b8-self"))  # synthetic: remove the test's own run
+    assert calibration.load_selection(root, "sel-c") == selection
+
+
+# ------------------- the recorded evidence, on a scratch copy outside the repository
+
+REAL_RUNS = REPO / "runs"
+REAL_ASSESSMENT = "b6-labels-1"
+REAL_STOPPED = REAL_RUNS / "assessments" / REAL_ASSESSMENT / "judges" / "phase-a-v1"
+REAL_DECISION = (
+    "docs/DECISIONS.md, November 25, 2026: the stopped run phase-a-v1 voided "
+    "(scratch copy in a test, not the recorded void)"
+)
+
+
+def tree(directory: Path) -> dict[str, str]:
+    return {
+        p.relative_to(directory).as_posix(): sha(p)
+        for p in sorted(directory.rglob("*"))
+        if p.is_file()
+    }
+
+
+@pytest.mark.skipif(
+    not REAL_STOPPED.is_dir(), reason="the recorded runs/ evidence is git-ignored and absent"
+)
+def test_recorded_evidence_freezes_after_the_void_on_a_scratch_copy(tmp_path):
+    """The real evidence, copied whole under `tmp_path`: the real `runs/` is only read."""
+    real_before = tree(REAL_RUNS)
+    copy = tmp_path / "runs"
+    shutil.copytree(REAL_RUNS, copy, symlinks=True)
+    stopped_dir = copy / "assessments" / REAL_ASSESSMENT / "judges" / "phase-a-v1"
+    with pytest.raises(CalibrationError, match=re.escape(judge.LOCK)):
+        calibration.preregistered_choice(copy, REAL_ASSESSMENT)
+    record = calibration.void_judge_run(copy, REAL_ASSESSMENT, "phase-a-v1", REAL_DECISION)
+    assert record["verified"]["started_attempts"] == 1
+    assert record["verified"]["completed_attempts"] == 0
+    assert record["lock_present_at_void"] is True and (stopped_dir / judge.LOCK).exists()
+    status = calibration.void_status(copy, REAL_ASSESSMENT, "phase-a-v1")
+    assert (status["status"], status["run_status"]) == ("voided", "running")
+
+    # The written reports still re-derive unchanged, and the rule carries phase-a-v2.
+    for report_id in ("phase-a-v1-r2-report", "phase-a-v2-report"):
+        written = calibration.load_report(copy, REAL_ASSESSMENT, report_id)
+        derived = calibration.calibration_report(
+            copy, REAL_ASSESSMENT, written["judge_run_id"], report_id, write=False
+        )
+        excluded = {"report_id", "created_at", "sha256"}
+        assert {k: v for k, v in derived.items() if k not in excluded} == {
+            k: v for k, v in written.items() if k not in excluded
+        }
+    choice = calibration.preregistered_choice(copy, REAL_ASSESSMENT)
+    assert (choice["phase_a_met"], choice["judge_run_id"]) == (False, "phase-a-v2")
+    assert choice["voided"] == ["phase-a-v1"]
+    selection = calibration.freeze_judge(
+        copy,
+        REAL_ASSESSMENT,
+        "phase-a-v2-report",
+        "scratch-selection",
+        phase_a_not_met=True,
+        decision_ref=REAL_DECISION,
+    )
+    assert calibration.load_selection(copy, "scratch-selection") == selection
+
+    # A resealed receipt pointing at v1's report is refused.
+    path = copy / calibration.SELECTIONS / "scratch-selection.json"
+    forged = json.loads(path.read_text(encoding="utf-8"))
+    v1 = calibration.load_report(copy, REAL_ASSESSMENT, "phase-a-v1-r2-report")
+    main = copy / "assessments" / REAL_ASSESSMENT / "calibration" / "phase-a-v1-r2-report.json"
+    forged.update(
+        report_id="phase-a-v1-r2-report",
+        report_sha256=sha(main),
+        judge_run_id="phase-a-v1-r2",
+        prompt_version=v1["pins"]["judge_identity"]["prompt_version"],
+        frozen_identity=v1["pins"]["judge_identity"]["frozen_identity"],
+        implementation=v1["pins"]["judge_identity"]["implementation"],
+    )
+    forged["basis"]["reasons"] = list(v1["reasons"])
+    forged["sha256"] = calibration._sealed(forged)
+    path.write_text(json.dumps(forged, indent=2) + "\n", encoding="utf-8")
+    with pytest.raises(CalibrationError, match="carries 'phase-a-v2'"):
+        calibration.load_selection(copy, "scratch-selection")
+    # The same receipt relabeled with a ready basis is refused too (v1's report is pending).
+    forged["basis"] = dict(calibration.SELECTION_BASIS)
+    forged["sha256"] = calibration._sealed(forged)
+    path.write_text(json.dumps(forged, indent=2) + "\n", encoding="utf-8")
+    with pytest.raises(CalibrationError, match="changed"):
+        calibration.load_selection(copy, "scratch-selection")
+    path.write_text(json.dumps(selection, indent=2) + "\n", encoding="utf-8")
+    assert calibration.load_selection(copy, "scratch-selection") == selection
+    # A valid receipt copied under another id and resealed: both copies are refused.
+    second = copy / calibration.SELECTIONS / "scratch-copy.json"
+    reseal(second, json.dumps(selection), lambda r: r.update(selection_id="scratch-copy"))
+    for selection_id in ("scratch-selection", "scratch-copy"):
+        with pytest.raises(CalibrationError, match="more than one judge selection"):
+            calibration.load_selection(copy, selection_id)
+    second.unlink()
+    assert calibration.load_selection(copy, "scratch-selection") == selection
+
+    # The real runs/ is byte for byte as it was: no void, no selection.
+    assert tree(REAL_RUNS) == real_before
+    assert not (REAL_STOPPED / calibration.VOID).exists()
+    assert not (REAL_RUNS / calibration.SELECTIONS).exists()

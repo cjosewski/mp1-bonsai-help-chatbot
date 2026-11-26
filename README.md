@@ -102,7 +102,7 @@ packets remain as records. No new review decisions were imported.
 | B4 | Section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet; the rubric moved to B5 on November 24, 2026) |
 | B5 | Rubric (D1–D6) and baseline run | Done: rubric accepted by Chad ("Accept as drafted"); baseline `baseline-2026-11-24-r2` ready (70 of 70 valid initial attempts, 56 of 70 retained, at least 10 per category); cohort `baseline-b5-cohort-1` frozen; `collection-report` built (see `docs/DECISIONS.md`) |
 | B6 | Baseline human labels | Done: Chad labeled the 30 items of `b6-labels-1` and froze the human reference (November 25, 2026; 0 unresolved) |
-| B7 | Judge and Phase A calibration | Phase A measured and **not met** (both reports `pending`; v1 meets the 80% minimum in 1 of 6 dimensions, v2 in 2 of 6); the judge is not calibrated. Chad chose "(c) Go to B8 with v2, disclosed" (November 25, 2026); `judge-freeze --phase-a-not-met --decision-ref` built for it. No selection written yet (the stopped run `phase-a-v1` blocks the rule until Chad decides how it is treated). Tooling: judge v1 prompt (SHA-256 pinned by a test) and v2 prompt (SHA-256 recorded in `docs/DECISIONS.md`), bounded judge runs, qualification, calibration with TPR, TNR and intervals, v2 example pool, frozen judge, commands |
+| B7 | Judge and Phase A calibration | Phase A measured and **not met** (both reports `pending`; v1 meets the 80% minimum in 1 of 6 dimensions, v2 in 2 of 6); the judge is not calibrated. Chad chose "(c) Go to B8 with v2, disclosed" (November 25, 2026); `judge-freeze --phase-a-not-met --decision-ref` built for it. No selection written yet: Chad chose to void the stopped run `phase-a-v1` ("Void it, keep all files (Recommended)"); `judge-void` is built for it and not yet run on `runs/`. Tooling: judge v1 prompt (SHA-256 pinned by a test) and v2 prompt (SHA-256 recorded in `docs/DECISIONS.md`), bounded judge runs, qualification, calibration with TPR, TNR and intervals, v2 example pool, frozen judge, commands |
 | B8 | Phase B correction | Not yet implemented |
 | B9 | Analysis and charts | Not yet implemented |
 | B10 | Submission set, pipeline replay demo, iteration log, demo video, coaching approval | Not yet implemented |
@@ -798,6 +798,9 @@ bonsai-help judge-freeze [-h] [--artifact-root ARTIFACT_ROOT]
                          --assessment-id ASSESSMENT_ID --report-id REPORT_ID
                          --selection-id SELECTION_ID
                          [--phase-a-not-met] [--decision-ref TEXT]
+bonsai-help judge-void [-h] [--artifact-root ARTIFACT_ROOT]
+                       --assessment-id ASSESSMENT_ID --judge-run-id
+                       JUDGE_RUN_ID --decision-ref TEXT
 ```
 
 The options of `judge`, as `--help` prints them:
@@ -820,18 +823,19 @@ The options of `judge`, as `--help` prints them:
 **`--artifact-root`.** `judge`, `judge-qualify` and `judge-examples` take a `--config`, and
 for them `--artifact-root` defaults to the config's `artifact_root`. A different
 `--artifact-root` is refused (exit 2), because the config's `artifact_root` is part of the
-run identity. `judge-status`, `calibrate` and `judge-freeze` have no config and default to
-`runs`, as the B6 commands do. Either way the root must be `runs/` or a path outside the
-repository. `uv run --locked bonsai-help <command> --help` prints the full text.
+run identity. `judge-status`, `calibrate`, `judge-freeze` and `judge-void` have no config
+and default to `runs`, as the B6 commands do. Either way the root must be `runs/` or a path
+outside the repository. `uv run --locked bonsai-help <command> --help` prints the full text.
 
 | Command | What it does and writes |
 | --- | --- |
 | `judge` | Runs or resumes one judge run under `<assessment>/judges/<judge_run_id>/` (manifest, prompt copy, start and attempt ledgers, and for v2 `examples.json`). A `measured` run needs a frozen human reference and a valid qualification receipt, both checked before any directory is created or any call is made. A `smoke` run is refused on an `arm` assessment. `--examples` (v2) selects each item's examples by similarity before any chat call. `--frozen-judge` must match a `judge-freeze` selection exactly. Prints the run's blind status |
-| `judge-status` | Verifies a judge run and prints its blind status: counts, unknown-outcome attempt ids, unresolved blind ids and reported model ids, never a decision, a reason or an item id |
+| `judge-status` | Verifies a judge run and prints its blind status: counts, unknown-outcome attempt ids, unresolved blind ids and reported model ids, never a decision, a reason or an item id. A run voided by `judge-void` is verified through its void and shown with status `voided`, its own status as `run_status` and the void's decision reference (exit 1: a voided run is never complete) |
 | `judge-qualify` | Writes a qualification receipt once to `<artifact root>/judge-qualifications/<id>.json`, with a complete smoke run of the same model and settings as evidence. It makes no model call, and its printed summary leaves out `model_identity` and `model_sha256` |
 | `judge-examples` | Builds judge v2's example pool once, `<artifact root>/judge-examples/<pool_id>/pool.json`, from a development assessment's disagreements with a complete measured v1 run. It calls only the embedding endpoint. An `arm` assessment is refused |
 | `calibrate` | Writes a calibration report once as two files under `<assessment>/calibration/`: `<report_id>.json` (status, reasons, pins and the aggregate figures) and `<report_id>.disagreements.json` (the per-item disagreements). Prints only the aggregate figures, with the status on the first line |
-| `judge-freeze` | Freezes the judge of a `ready` report into `<artifact root>/judge-selections/<id>.json`, for B8's `--frozen-judge`. It freezes only the report the pre-registered rule chooses (`calibration.preregistered_choice`: once `judge-v1` and `judge-v2` have each been measured once on the assessment and each has a calibration report, v2 if its report is `ready`, else v1 if its report is `ready`), and at most one selection per assessment. A measured run of any other prompt version on the assessment (a `judge-v3` or `judge-v1.1`) is refused: it needs Chad's dated decision and a new rule. `--phase-a-not-met --decision-ref TEXT` (Open question 7(c), built on Chad's decision of November 25, 2026) is allowed only when no report on the assessment is `ready`; it freezes only a report of the run the pre-registered tie-break carries forward (more dimensions at or above the minimum, then the higher minimum agreement, then the later prompt version) and writes a selection whose basis status is `pending`, with that report's reasons and the decision reference. `judge --frozen-judge` on that selection prints a `frozen_judge` disclosure, and every `calibrate` report made with it says `Phase A not met` on its status line and as its first reason, and is never `ready` |
+| `judge-freeze` | Freezes the judge of a `ready` report into `<artifact root>/judge-selections/<id>.json`, for B8's `--frozen-judge`. It freezes only the report the pre-registered rule chooses (`calibration.preregistered_choice`: once `judge-v1` and `judge-v2` have each been measured once on the assessment and each has a calibration report, v2 if its report is `ready`, else v1 if its report is `ready`), and at most one selection per assessment. A measured run of any other prompt version on the assessment (a `judge-v3` or `judge-v1.1`) is refused: it needs Chad's dated decision and a new rule. `--phase-a-not-met --decision-ref TEXT` (Open question 7(c), built on Chad's decision of November 25, 2026) is allowed only when no report on the assessment is `ready`; it freezes only a report of the run the pre-registered tie-break carries forward (more dimensions at or above the minimum, then the higher minimum agreement, then the later prompt version) and writes a selection whose basis status is `pending`, with that report's reasons and the decision reference. `judge --frozen-judge` on that selection prints a `frozen_judge` disclosure, and every `calibrate` report made with it says `Phase A not met` on its status line and as its first reason, and is never `ready`. On every load, every selection must be its assessment's only one, its run, prompt version and frozen identity must be its report's, a `ready` basis needs a `ready` report, and the pre-registered rule, re-run on the evidence, must still choose that report's run (with Phase A met for a `ready` basis, not met for a `pending` one). A `--frozen-judge` run on the assessment its judge was frozen from is never calibrated (`calibrate` refuses it) |
+| `judge-void` | Voids a judge run with no completed attempt on Chad's dated decision (`--decision-ref`, one nonblank line): writes one sealed record, `<assessment>/judges/<judge_run_id>/void.json`, with the decision reference, the time, the counts it verified and pins of the run's manifest and ledgers, and nothing else. It deletes, edits or moves no file and leaves a `.judge.lock` in place. It refuses a run whose own ledgers hold any completed attempt (valid or not), a run with a calibration report and a second void. The pre-registered rule, and so `judge-freeze`, then leaves the run out, but only while its void verifies against the run's evidence (the seal, the counts, the pins and still no completed attempt); a void that does not verify is refused, never skipped. The seal has no key, so the decision reference, the time and the lock flag are protected only by it. A voided run is never calibrated, and it still counts toward the 3 measured judge runs an assessment allows. Built on Chad's choice of November 25, 2026, "Void it, keep all files (Recommended)" |
 
 The judge rules:
 
@@ -875,8 +879,9 @@ The judge rules:
   enforces the pre-registered selection rule: it refuses before v1 and v2 have each been
   measured once with a report, when a prompt version was measured twice, for any report
   other than the rule's choice, and for a second selection on the same assessment. With
-  `--phase-a-not-met`, it refuses without `--decision-ref` (exit 2), while any report is
-  `ready`, and for a report of any run other than the tie-break's.
+  `--phase-a-not-met`, it refuses without `--decision-ref` or with a blank one (exit 2),
+  while any report is `ready`, and for a report of any run other than the tie-break's. It
+  leaves out a judge run only through a verified `judge-void` record.
 
 Exit codes: 0 done, a complete judge run, a `ready` report, or a `diagnostic` report
 (`calibrate` then prints `status: diagnostic (never calibration)` first; on a development
@@ -884,8 +889,10 @@ assessment or a smoke run that is the planned outcome, not a refusal). 1 a refus
 pending state: an unfrozen reference, a spent judge-run budget, changed evidence, a
 qualification mismatch, a `pending` report (still written), a freeze of a report that is
 not `ready` or not the pre-registered rule's choice, a second selection for an assessment,
-a lock, or an existing id. 2 a usage or configuration error, including a bad
-judge prompt and an `--artifact-root` that differs from the config's. 3 controlled
+a lock, an existing id, a voided run's `judge-status`, or a refused void or one that no
+longer verifies. 2 a usage or configuration error, including a bad
+judge prompt, an `--artifact-root` that differs from the config's and a missing or blank
+`--decision-ref`. 3 controlled
 exhaustion: the judge run is `incomplete` (`judge-status` exits 3 too). 130 interrupted:
 run `judge-status`, then `judge --resume`. Errors are one line on stderr with absolute paths
 redacted and every credential value read scrubbed.
@@ -917,8 +924,9 @@ needs his go-ahead and a reachable server):
     (c): `judge-freeze --phase-a-not-met --decision-ref TEXT` on v2's report, the
     tie-break's choice, so B8 judges with v2 and every B8 report discloses that Phase A was
     not met. That freeze is not yet written: the stopped run `phase-a-v1` (a leftover lock,
-    and a second measured `judge-v1` run) makes the rule refuse until Chad decides how it
-    is treated (`docs/DECISIONS.md`).
+    and a second measured `judge-v1` run) makes the rule refuse. Chad chose to void it
+    ("Void it, keep all files (Recommended)", November 25, 2026); the next steps are
+    `judge-void` on `phase-a-v1`, then that freeze (`docs/DECISIONS.md`).
 
 ## Run each step
 

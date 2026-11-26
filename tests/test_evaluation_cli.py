@@ -494,6 +494,7 @@ JUDGE_COMMANDS = (
     "judge-examples",
     "calibrate",
     "judge-freeze",
+    "judge-void",
 )
 KEY_ENV = test_judge.KEY_ENV
 KEY_SENTINEL = test_judge.KEY_SENTINEL
@@ -607,6 +608,7 @@ def test_cli_help_lists_judge_commands(command, capsys):
         "judge-examples": ["--config", "--pool-id"],
         "calibrate": ["--judge-run-id", "--report-id"],
         "judge-freeze": ["--report-id", "--selection-id", "--phase-a-not-met", "--decision-ref"],
+        "judge-void": ["--assessment-id", "--judge-run-id", "--decision-ref"],
     }[command]
     for flag in expected:
         assert flag in out, (command, flag)
@@ -911,8 +913,13 @@ def test_judge_freeze_phase_a_not_met_cli(root, accepted, tmp_path, capsys, judg
         assert code == 1 and out.splitlines()[0] == "status: pending"
     reference = "synthetic decision reference for the CLI test"
 
-    # Usage: the flag without a reference, or a reference without the flag (2).
-    for extra in (["--phase-a-not-met"], ["--decision-ref", reference]):
+    # Usage: the flag without a reference, or a reference without the flag, or a blank
+    # reference (2).
+    for extra in (
+        ["--phase-a-not-met"],
+        ["--decision-ref", reference],
+        ["--phase-a-not-met", "--decision-ref", "  "],
+    ):
         code, out, err = run_cli(freeze_args(root, ARM, "r-v2", "sel-c") + extra, capsys)
         assert (code, out) == (2, ""), extra
         assert "--decision-ref" in err
@@ -1093,3 +1100,62 @@ def test_judge_cli_interrupt_keeps_the_run_for_resume(root, accepted, tmp_path, 
     status = json.loads(out)
     assert status["status"] == "complete" and len(status["unknown_outcomes"]) == 1
     assert status["started_attempts"] == 6  # the unknown attempt was used up, not repeated
+
+
+def void_args(root, assessment_id, judge_run_id, *extra):
+    return ["judge-void", *root_args(root, assessment_id, "--judge-run-id", judge_run_id, *extra)]
+
+
+def test_judge_void_cli(root, accepted, tmp_path, capsys, judge_key):
+    made = test_calibration.frozen_with(root, accepted)
+    judge_config = test_judge.measured(root)
+    test_judge.qualify(root, accepted, judge_config)
+    directory = test_calibration.stopped(root, made, "v1-stopped", judge_config)
+    test_calibration.run(root, made, "v1", judge_config, test_calibration.agreeing(made))
+    before = file_hashes(directory)
+    reference = "synthetic void reference for the CLI test"
+
+    # Usage (2): no reference, a blank one. Refused (1): a multi-line one, a run with
+    # completed attempts. Nothing is written.
+    with pytest.raises(SystemExit) as exc:
+        cli.main(void_args(root, ARM, "v1-stopped"))
+    assert exc.value.code == 2 and "--decision-ref" in capsys.readouterr().err
+    code, out, err = run_cli(void_args(root, ARM, "v1-stopped", "--decision-ref", " "), capsys)
+    assert (code, out) == (2, "") and "nonblank" in err
+    code, out, err = run_cli(void_args(root, ARM, "v1-stopped", "--decision-ref", "a\nb"), capsys)
+    assert (code, out) == (1, "") and "one line" in err
+    code, out, err = run_cli(void_args(root, ARM, "v1", "--decision-ref", reference), capsys)
+    assert (code, out) == (1, "") and "completed attempt" in err
+    assert file_hashes(directory) == before
+    assert not (judges_dir(root, ARM) / "v1" / calibration.VOID).exists()
+
+    # judge-status refuses the locked run before its void.
+    status_args = ["judge-status", *root_args(root, ARM, "--judge-run-id", "v1-stopped")]
+    code, out, err = run_cli(status_args, capsys)
+    assert (code, out) == (1, "") and judge.LOCK in err
+
+    code, out, err = run_cli(
+        void_args(root, ARM, "v1-stopped", "--decision-ref", reference), capsys
+    )
+    assert code == 0, err
+    shown = json.loads(out)
+    assert (shown["status"], shown["decision_ref"]) == ("voided", reference)
+    assert shown["verified"]["completed_attempts"] == 0
+    assert shown["lock_present_at_void"] is True
+    after = file_hashes(directory)
+    assert set(after) == set(before) | {calibration.VOID}
+    assert {k: v for k, v in after.items() if k != calibration.VOID} == before
+    assert (directory / judge.LOCK).exists()
+    code, out, err = run_cli(
+        void_args(root, ARM, "v1-stopped", "--decision-ref", reference), capsys
+    )
+    assert (code, out) == (1, "") and "already has a void" in err
+
+    # judge-status shows the voided run as voided (exit 1: it is never complete).
+    code, out, err = run_cli(status_args, capsys)
+    assert code == 1, err
+    status = json.loads(out)
+    assert (status["status"], status["run_status"]) == ("voided", "interrupted")
+    assert status["void"]["decision_ref"] == reference
+    assert status["unknown_outcomes"] == ["v1-stopped:L-001:1"]
+    assert test_calibration.REASON not in out and str(tmp_path) not in out

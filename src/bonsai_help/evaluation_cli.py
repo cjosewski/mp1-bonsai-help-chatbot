@@ -1,6 +1,6 @@
 """Assessment, labeling, judge and calibration commands: `assessment create | status`,
 `label`, `label-status`, `freeze-human-reference`, `judge`, `judge-status`, `judge-qualify`,
-`judge-examples`, `calibrate`, `judge-freeze`.
+`judge-examples`, `calibrate`, `judge-freeze`, `judge-void`.
 
 Every command takes `--artifact-root` (default `runs`; `runs/` or a path outside the
 repository) and `--assessment-id`. Summaries are one JSON object on stdout and are blind:
@@ -38,7 +38,10 @@ identity records is the root written to.
   through the config's embedding model before any chat call. `--frozen-judge` must match
   the judge a `judge-freeze` selection froze, exactly. It prints the run's blind status.
 - `judge-status` verifies a judge run and prints its blind status: counts, unknown
-  outcomes, unresolved blind ids and reported model ids, never a decision or reason.
+  outcomes, unresolved blind ids and reported model ids, never a decision or reason. A
+  voided run (`judge-void`) is verified through its void and shown with status `voided`,
+  its own status as `run_status` and the void's decision reference; it exits 1 (a voided
+  run is never complete).
 - `judge-qualify --config PATH --smoke-assessment-id ID --smoke-judge-run-id ID
   --qualification-id ID` writes a qualification receipt once (`qualification.qualify`);
   it makes no model call.
@@ -59,7 +62,14 @@ identity records is the root written to.
   the decision reference. A `judge --frozen-judge` run on such a selection prints a
   `frozen_judge` disclosure (`phase_a: not met`), and every calibration report made with
   it states `Phase A not met` on its status line and as its first reason, and is never
-  `ready`.
+  `ready`. A blank `--decision-ref` is a usage error, like a missing one.
+- `judge-void --decision-ref TEXT` voids a judge run with no completed attempt on Chad's
+  dated decision (`calibration.void_judge_run`, Chad's choice of November 25, 2026, "Void it,
+  keep all files (Recommended)"): it writes `<judge run>/void.json` once and nothing else,
+  deletes, edits or moves no file and leaves a `.judge.lock` in place. It refuses a run whose
+  own ledgers hold a completed attempt, valid or not, a run with a calibration report and a
+  second void. `preregistered_choice`, and so `judge-freeze`, then skips that run only while
+  its void verifies against the run's evidence; a void that does not verify is refused.
 
 Exit codes: 0 done, labeling complete, a complete judge run, a `ready` report or a
 `diagnostic` one (the planned outcome on a development assessment or a smoke run, never
@@ -70,9 +80,10 @@ unfrozen reference, a spent judge-run budget, a qualification mismatch, a `pendi
 report, which is still written, a freeze of a report that is not `ready` or not the
 pre-registered rule's choice, a `--phase-a-not-met` freeze while a report is `ready` or of
 another run, a second selection for an assessment, a lock, an id that
-already exists); 2 usage or configuration error (`--phase-a-not-met` without
-`--decision-ref`, or the reverse), a stdin or stdout that is not a
-terminal included; 3 controlled exhaustion (a judge run left `incomplete`); 130
+already exists, a voided run's status, a void refused or one that no longer verifies);
+2 usage or configuration error (`--phase-a-not-met` without
+`--decision-ref`, or the reverse, and a blank `--decision-ref` on `judge-freeze` or
+`judge-void`), a stdin or stdout that is not a terminal included; 3 controlled exhaustion (a judge run left `incomplete`); 130
 interrupted (check `label-status`, `judge-status` or `assessment status` and inspect
 before continuing). Errors are one `error:` line on stderr with every absolute path
 redacted (`cli._redact`) and every credential value read scrubbed, never a traceback; the
@@ -126,6 +137,7 @@ JUDGE_COMMANDS = (
     "judge-examples",
     "calibrate",
     "judge-freeze",
+    "judge-void",
 )
 COMMANDS = (*LABEL_COMMANDS, *JUDGE_COMMANDS)
 ARTIFACTS = Path("runs")
@@ -305,6 +317,20 @@ def _add_judge_commands(commands) -> None:
         "--decision-ref",
         metavar="TEXT",
         help="with --phase-a-not-met: the reference to Chad's dated decision",
+    )
+
+    sub = commands.add_parser(
+        "judge-void",
+        help="void a judge run with no completed attempt, on Chad's dated decision (once)",
+    )
+    root(sub)
+    sub.add_argument("--assessment-id", required=True)
+    sub.add_argument("--judge-run-id", required=True)
+    sub.add_argument(
+        "--decision-ref",
+        metavar="TEXT",
+        required=True,
+        help="the reference to Chad's dated decision to void the run (one line)",
     )
 
 
@@ -577,6 +603,9 @@ def _judge_dispatch(args, context: _Context, transport) -> tuple[dict | str, int
     if command == "judge":
         return _judge(args, config, context, transport)
     if command == "judge-status":
+        voided = calibration.void_status(root, args.assessment_id, args.judge_run_id)
+        if voided is not None:
+            return voided, 1  # a voided run is verified, and never complete
         status = judge.judge_status(root, args.assessment_id, args.judge_run_id)
         return status, JUDGE_EXIT.get(status["status"], 1)
     if command == "judge-qualify":
@@ -600,10 +629,34 @@ def _judge_dispatch(args, context: _Context, transport) -> tuple[dict | str, int
             root, args.assessment_id, args.judge_run_id, args.report_id
         )
         return "\n".join(calibration.report_lines(report)), REPORT_EXIT[report["status"]]
+    if command == "judge-void":
+        return _void(args, root)
     return _freeze_judge(args, root)
 
 
+def _blank_decision_ref(value: str | None) -> None:
+    if value is not None and not value.strip():
+        raise _Usage("--decision-ref must be nonblank: the reference to Chad's dated decision")
+
+
+def _void(args, root: Path) -> tuple[dict, int]:
+    _blank_decision_ref(args.decision_ref)
+    record = calibration.void_judge_run(
+        root, args.assessment_id, args.judge_run_id, args.decision_ref
+    )
+    return {
+        "assessment_id": record["assessment_id"],
+        "judge_run_id": record["judge_run_id"],
+        "status": "voided",
+        "verified": record["verified"],
+        "lock_present_at_void": record["lock_present_at_void"],
+        "decision_ref": record["decision_ref"],
+        "sha256": record["sha256"],
+    }, 0
+
+
 def _freeze_judge(args, root: Path) -> tuple[dict, int]:
+    _blank_decision_ref(args.decision_ref)
     if args.phase_a_not_met and args.decision_ref is None:
         raise _Usage("--phase-a-not-met needs --decision-ref, the reference to Chad's decision")
     if args.decision_ref is not None and not args.phase_a_not_met:
