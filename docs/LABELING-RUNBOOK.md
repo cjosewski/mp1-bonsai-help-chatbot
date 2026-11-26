@@ -1,4 +1,4 @@
-# Labeling runbook (B6 baseline labels)
+# Labeling runbook (B6 baseline labels, B8 blind mixed labels)
 
 Chad's steps for labeling assessment `b6-labels-1`: 30 baseline items drawn from cohort
 `baseline-b5-cohort-1`, pinned to rubric `bonsai-rubric-v1`. The details of the commands and
@@ -78,3 +78,45 @@ judge calibration (Phase A), and it is written once.
   anything under `runs/`.
 - The same steps apply to the later development assessment for judge v2 (`dev-labels-1`,
   20 items) and to B8's mixed assessment, with their own assessment ids.
+
+## B8: the blind mixed assessment `b8-blind-1`
+
+The B8 round uses the same steps with the assessment id `b8-blind-1`. It has 40 items,
+`L-001` to `L-040`, shuffled into one queue: the 20 baseline items B6 did not select and
+20 items from the corrected collection (generator v1.2). Nothing on screen names an
+item's run or arm, and the assistant does not say until the labels are frozen. The
+queue exists only after the corrected collection is done and the assistant has created
+it; the ids, seed and counts are fixed in [`DECISIONS.md`](DECISIONS.md) (November 26,
+2026: Phase B pre-registration).
+
+From the repository root:
+
+```
+uv run --locked bonsai-help label --assessment-id b8-blind-1 --reviewer "Chad Josewski"
+```
+
+Type `label b8-blind-1` to confirm. Keys, notes and saving are as in step 1.
+
+```
+uv run --locked bonsai-help label-status --assessment-id b8-blind-1
+```
+
+```
+uv run --locked bonsai-help label --assessment-id b8-blind-1 --reviewer "Chad Josewski" --amend L-007 --supersedes <label id>
+```
+
+When `label-status` reports all 40 complete:
+
+```
+uv run --locked bonsai-help freeze-human-reference --assessment-id b8-blind-1 --reviewer "Chad Josewski" --declare-blind
+```
+
+Type `freeze b8-blind-1` to confirm, then tell the assistant. The one judge run on these
+40 items comes next, with the Llama judge server on port 8082.
+
+- Budget about 3 to 4 hours; sessions can be split.
+- An unresolved decision (`u`) counts as a failure in both arms, so use it only when an
+  item truly cannot be decided.
+- Some answers state the setup they apply to (versions, schema, model state). Grade each
+  item against the rubric on its own; do not try to guess its arm. Chad accepted this
+  risk as a disclosed limit of B8 ("Accept, disclose (Recommended)").
