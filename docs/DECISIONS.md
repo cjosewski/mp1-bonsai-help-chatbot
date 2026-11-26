@@ -3340,7 +3340,7 @@ existed, and this entry is committed before the corrected collection starts.
 - **Hypothesis.** Stating the setup and assumptions in the answer lowers the D5 failure
   rate in the corrected arm, with D1 to D4 and D6 no worse.
 - **Fixed now (assistant's calls; Chad can overrule each before the run).**
-  - Collection `corrected-b8-1`, with `config/run.corrected.local.json` (git-ignored) and
+  - Collection `corrected-b8-1` (replaced by `corrected-b8-1-r2`, entry below), with `config/run.corrected.local.json` (git-ignored) and
     the `collect` defaults: target 50 retained, 70 slots per batch, at most 3 batches.
   - Cohort `corrected-b8-cohort-1` (50 items, 10 per category).
   - One mixed assessment, `b8-blind-1`: `assessment create --assessment-id b8-blind-1
@@ -3421,6 +3421,22 @@ Iteration-log record (this carries into the B10 iteration log):
 - **After.** Pending (no corrected run).
 - **Decision.** Pending (after the comparison).
 - **Next step.** The corrected collection `corrected-b8-1`, on Chad's go-ahead.
+
+### November 26, 2026: corrected collection stopped by an out-of-memory kill; replaced
+
+- **What happened.** The corrected collection `corrected-b8-1` started at 10:16 UTC with
+  the pre-registered config. The machine then ran out of memory, and the kernel killed the
+  session. The run recorded 1 request start (slot `bonsai_project_setup-001`, outcome
+  unknown) and 0 completed attempts. It kept its `.collection.lock` and
+  `.generation.lock`, so resume refuses it. It was inspected and is kept unchanged under
+  `runs/`, never resumed, repaired or counted.
+- **Owner decision (Chad, November 26, 2026).** Chad chose "Yes, corrected-b8-1-r2
+  (Recommended)": the same collection, with the same approved v1.2 prompt, config and seed,
+  runs under the new id `corrected-b8-1-r2`. Every other id and rule in the Phase B
+  pre-registration stands. The cohort is `corrected-b8-cohort-1`, drawn from
+  `corrected-b8-1-r2`.
+- **Working rule (assistant's call).** While a local model runs, the full test suite runs
+  on another machine and only targeted tests run here.
 
 ## Open items (not yet decided)
 
