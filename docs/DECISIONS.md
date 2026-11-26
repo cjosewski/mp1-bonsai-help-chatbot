@@ -3030,6 +3030,47 @@ served locally:
   pre-registered from development disagreements only, and only then judge v1 and v2 on the
   baseline reference (Phase A).
 
+### November 25, 2026: judge v2 pre-registered (B7 plan Decisions 12 and 13)
+
+Recorded before any judge result on the baseline reference `b6-labels-1` exists or is read
+(the stopped run `phase-a-v1` produced none). This entry is also judge v2's iteration-log
+record.
+
+- **Date.** November 25, 2026.
+- **Change.** `prompts/judge-v2.md` (SHA-256
+  `c875d1b6faed48ed5dc4df6cdff7fc703c5595a3bb9238c3e39df908882f594c`) is judge v1
+  (`d8d1604f…`, unchanged) plus a "Rules from development disagreements" section of 9
+  rules (D1 2, D2 2, D3 2, D5 3) and an `{examples}` placeholder. Each rule rests on a
+  pattern of at least two development disagreements in one dimension and direction, cites
+  the accepted rubric note it applies, and keeps that note's meaning; the D1 rule restates
+  the rubric's borderline ruling that a correct "cannot be done in Bonsai and Blender, do
+  this instead" answer passes D1. Example pool `dev-pool-1` (SHA-256
+  `edf7ab36a5dacc991a9dc0e00339f3c4d0bbbb6ae2abb8cc41a9edf7335f985f`): 41 disagreement
+  entries from the 20 development items of `dev-labels-1` (D1 8, D2 5, D3 6, D4 1, D5 20,
+  D6 1), embedded with the recorded embedding model; `examples_k` 4. The rules and
+  examples come from the development assessment only; the authoring workflow was barred
+  from the baseline assessment, and a separate critic confirmed nothing traces to it.
+  Single disagreements that formed no pattern (5) got no rule.
+- **Hypothesis.** Judge v1 passes nearly everything (it caught 1 of Chad's 41 development
+  fails); rules that apply the rubric's existing notes more concretely, plus similar
+  labeled examples, will raise its agreement, mainly through its true-negative rate,
+  without lowering its true-positive rate.
+- **Before** (judge v1 `dev-v1` on `dev-labels-1`, 20 items, diagnostic only, never
+  calibration): agreement D1 12/20 (60.0%, 95% 36.1% to 80.9%), D2 15/20 (75.0%, 50.9% to
+  91.3%), D3 14/20 (70.0%, 45.7% to 88.1%), D4 19/20 (95.0%, 75.1% to 99.9%), D5 0/20
+  (0.0%, 0.0% to 16.8%), D6 19/20 (95.0%, 75.1% to 99.9%). v2 is not scored on the
+  development assessment, whose disagreements are its examples.
+- **After.** Pending: judge v1 and judge v2 each run once on `b6-labels-1` (Phase A),
+  each with a calibration report.
+- **Decision and selection rule (pre-registered, enforced by `judge-freeze`).** Freeze v2
+  if its report is `ready` (every dimension at least 80%); otherwise v1 if its report is
+  `ready`; otherwise Phase A is not met, reported as measured, and the next step is
+  Chad's (B7 Open question 7). No other prompt version, no second selection, no rerun to
+  improve a result, and no threshold change without a dated amendment.
+- **Next step.** Run judge v1 (new run id, not `phase-a-v1`) and judge v2 with
+  `--examples dev-pool-1` on `b6-labels-1`, calibrate both, and apply the rule. The
+  assistant reads the main calibration reports only, not their disagreements files.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
