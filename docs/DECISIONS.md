@@ -3468,6 +3468,28 @@ Iteration-log record (this carries into the B10 iteration log):
   illustrative UI names, so the rewrite takes its examples from development-split items
   and their pinned sections, never from held-out items.
 
+### November 26, 2026: corrected collection ready; cohort and blind mixed assessment
+
+Carrying out the Phase B pre-registration and Chad's go-ahead:
+
+- **Collection `corrected-b8-1-r2`** (generator v1.2, config as pre-registered) is
+  `ready` after one batch.
+  - 70 of 70 initial attempts were schema-valid (100%, 95% interval 94.9% to 100%), with
+    0 retries, 0 exhausted slots and 0 unknown outcomes.
+  - The gate retained 58 of 70 (82.9%, 72.0% to 90.8%).
+  - Retained per category: 10 `bonsai_project_setup`, 11 `bonsai_modeling`, 13
+    `ifc_data_and_materials`, 14 `model_exploration`, 10
+    `files_versions_troubleshooting`. The batch's category-share check did not pass, as
+    the baseline's did not; the shares are reported, not corrected.
+  - Baseline before figures: 70 of 70 valid initial (94.9% to 100%), 56 of 70 retained
+    (68.7% to 88.6%).
+- **Cohort `corrected-b8-cohort-1`**: 50 items, 10 per category, frozen (SHA-256
+  `9a9fc241…`).
+- **Assessment `b8-blind-1`**: created with the pre-registered command. It is an `arm`
+  assessment with 2 sources and 40 items, pinned to `bonsai-rubric-v1`. Only its blind
+  summary was read. Chad labels it with the runbook's B8 section. The judge run comes
+  after his labels are frozen.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
