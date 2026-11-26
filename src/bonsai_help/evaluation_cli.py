@@ -51,7 +51,15 @@ identity records is the root written to.
   or a development assessment).
 - `judge-freeze --report-id ID --selection-id ID` freezes the judge of a `ready` report
   (`calibration.freeze_judge`), only the one Decision 13's pre-registered rule chooses
-  (`calibration.preregistered_choice`) and only once per assessment.
+  (`calibration.preregistered_choice`) and only once per assessment. With
+  `--phase-a-not-met --decision-ref TEXT` (Open question 7(c), built on Chad's dated
+  decision of November 25, 2026), it is allowed only when no report on the assessment is
+  `ready`, freezes only a report of the run the pre-registered tie-break carries forward,
+  and writes a selection whose basis status is `pending`, with that report's reasons and
+  the decision reference. A `judge --frozen-judge` run on such a selection prints a
+  `frozen_judge` disclosure (`phase_a: not met`), and every calibration report made with
+  it states `Phase A not met` on its status line and as its first reason, and is never
+  `ready`.
 
 Exit codes: 0 done, labeling complete, a complete judge run, a `ready` report or a
 `diagnostic` one (the planned outcome on a development assessment or a smoke run, never
@@ -60,8 +68,10 @@ is not intact or is locked, an incomplete selection, an unmet freeze preconditio
 unmatched confirmation, changed or missing cohort, assessment or judge evidence, an
 unfrozen reference, a spent judge-run budget, a qualification mismatch, a `pending`
 report, which is still written, a freeze of a report that is not `ready` or not the
-pre-registered rule's choice, a second selection for an assessment, a lock, an id that
-already exists); 2 usage or configuration error, a stdin or stdout that is not a
+pre-registered rule's choice, a `--phase-a-not-met` freeze while a report is `ready` or of
+another run, a second selection for an assessment, a lock, an id that
+already exists); 2 usage or configuration error (`--phase-a-not-met` without
+`--decision-ref`, or the reverse), a stdin or stdout that is not a
 terminal included; 3 controlled exhaustion (a judge run left `incomplete`); 130
 interrupted (check `label-status`, `judge-status` or `assessment status` and inspect
 before continuing). Errors are one `error:` line on stderr with every absolute path
@@ -285,6 +295,17 @@ def _add_judge_commands(commands) -> None:
     sub.add_argument("--assessment-id", required=True)
     sub.add_argument("--report-id", required=True)
     sub.add_argument("--selection-id", required=True)
+    sub.add_argument(
+        "--phase-a-not-met",
+        action="store_true",
+        help="Open question 7(c): no report is ready; freeze the run the pre-registered "
+        "tie-break carries forward, with basis status pending (needs --decision-ref)",
+    )
+    sub.add_argument(
+        "--decision-ref",
+        metavar="TEXT",
+        help="with --phase-a-not-met: the reference to Chad's dated decision",
+    )
 
 
 class _Context:
@@ -579,10 +600,23 @@ def _judge_dispatch(args, context: _Context, transport) -> tuple[dict | str, int
             root, args.assessment_id, args.judge_run_id, args.report_id
         )
         return "\n".join(calibration.report_lines(report)), REPORT_EXIT[report["status"]]
+    return _freeze_judge(args, root)
+
+
+def _freeze_judge(args, root: Path) -> tuple[dict, int]:
+    if args.phase_a_not_met and args.decision_ref is None:
+        raise _Usage("--phase-a-not-met needs --decision-ref, the reference to Chad's decision")
+    if args.decision_ref is not None and not args.phase_a_not_met:
+        raise _Usage("--decision-ref is only for --phase-a-not-met")
     selection = calibration.freeze_judge(
-        root, args.assessment_id, args.report_id, args.selection_id
+        root,
+        args.assessment_id,
+        args.report_id,
+        args.selection_id,
+        phase_a_not_met=args.phase_a_not_met,
+        decision_ref=args.decision_ref,
     )
-    return {
+    shown = {
         key: selection[key]
         for key in (
             "selection_id",
@@ -593,7 +627,11 @@ def _judge_dispatch(args, context: _Context, transport) -> tuple[dict | str, int
             "report_sha256",
             "prompt_version",
         )
-    }, 0
+    }
+    if calibration.phase_a_not_met(selection):
+        shown["phase_a"] = "not met"
+        shown["basis"] = selection["basis"]
+    return shown, 0
 
 
 def _judge(args, config: JudgeConfig, context: _Context, transport) -> tuple[dict, int]:
@@ -602,9 +640,17 @@ def _judge(args, config: JudgeConfig, context: _Context, transport) -> tuple[dic
         load_judge_prompt(config, with_examples=args.examples is not None)
     except ValueError as error:
         raise _Usage(str(error)) from None
-    frozen = None
+    frozen = disclosure = None
     if args.frozen_judge is not None:
-        frozen = calibration.load_selection(root, args.frozen_judge)["frozen_identity"]
+        selection = calibration.load_selection(root, args.frozen_judge)
+        frozen = selection["frozen_identity"]
+        if calibration.phase_a_not_met(selection):
+            disclosure = {
+                "selection_id": selection["selection_id"],
+                "phase_a": "not met",
+                "basis_status": selection["basis"]["status"],
+                "decision_ref": selection["basis"]["decision_ref"],
+            }
     with ExitStack() as stack:
         embedder = None
         if args.examples is not None and not args.resume:
@@ -623,7 +669,10 @@ def _judge(args, config: JudgeConfig, context: _Context, transport) -> tuple[dic
             frozen_judge=frozen,
             resume=args.resume,
         )
-    return status, JUDGE_EXIT.get(status["status"], 1)
+    exit_code = JUDGE_EXIT.get(status["status"], 1)
+    if disclosure is not None:
+        status = {"frozen_judge": disclosure, **status}
+    return status, exit_code
 
 
 def _examples(args, config: JudgeConfig, context: _Context, transport) -> tuple[dict, int]:

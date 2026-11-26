@@ -606,7 +606,7 @@ def test_cli_help_lists_judge_commands(command, capsys):
         "judge-qualify": ["--smoke-assessment-id", "--smoke-judge-run-id", "--qualification-id"],
         "judge-examples": ["--config", "--pool-id"],
         "calibrate": ["--judge-run-id", "--report-id"],
-        "judge-freeze": ["--report-id", "--selection-id"],
+        "judge-freeze": ["--report-id", "--selection-id", "--phase-a-not-met", "--decision-ref"],
     }[command]
     for flag in expected:
         assert flag in out, (command, flag)
@@ -895,6 +895,77 @@ def test_calibrate_exit_codes(root, accepted, tmp_path, capsys, judge_key):
         server,
     )
     assert code == 1 and "no judge selection" in err
+
+
+def test_judge_freeze_phase_a_not_met_cli(root, accepted, tmp_path, capsys, judge_key):
+    made = test_calibration.frozen_with(root, accepted)
+    judge_config = test_judge.measured(root)
+    test_judge.qualify(root, accepted, judge_config)
+    run = test_calibration.run
+    failing = test_calibration.failing_on
+    run(root, made, "v1", judge_config, failing(made, 5, "D5", "D6"))
+    v2 = test_calibration.v2_config(judge_config, tmp_path)
+    run(root, made, "v2", v2, failing(made, 5, "D6"))
+    for run_id in ("v1", "v2"):
+        code, out, _ = run_cli(calibrate_args(root, ARM, run_id, f"r-{run_id}"), capsys)
+        assert code == 1 and out.splitlines()[0] == "status: pending"
+    reference = "synthetic decision reference for the CLI test"
+
+    # Usage: the flag without a reference, or a reference without the flag (2).
+    for extra in (["--phase-a-not-met"], ["--decision-ref", reference]):
+        code, out, err = run_cli(freeze_args(root, ARM, "r-v2", "sel-c") + extra, capsys)
+        assert (code, out) == (2, ""), extra
+        assert "--decision-ref" in err
+    # The plain freeze still refuses a pending report and names option (c) (1).
+    code, out, err = run_cli(freeze_args(root, ARM, "r-v2", "sel-c"), capsys)
+    assert (code, out) == (1, "") and "--phase-a-not-met" in err
+    # A report of the run the tie-break does not carry forward (1).
+    flag = ["--phase-a-not-met", "--decision-ref", reference]
+    code, out, err = run_cli(freeze_args(root, ARM, "r-v1", "sel-c") + flag, capsys)
+    assert (code, out) == (1, "") and "carries judge run 'v2'" in err
+    assert not (root / calibration.SELECTIONS / "sel-c.json").exists()
+
+    # Allowed: the tie-break's run, basis status pending, with the reasons and reference.
+    code, out, err = run_cli(freeze_args(root, ARM, "r-v2", "sel-c") + flag, capsys)
+    assert code == 0, err
+    shown = json.loads(out)
+    assert (shown["judge_run_id"], shown["phase_a"]) == ("v2", "not met")
+    assert shown["basis"]["status"] == "pending"
+    assert shown["basis"]["decision_ref"] == reference
+    written = calibration.load_report(root, ARM, "r-v2")
+    assert shown["basis"]["reasons"] == written["reasons"]
+    assert "frozen_identity" not in shown
+    code, out, err = run_cli(freeze_args(root, ARM, "r-v2", "sel-c2") + flag, capsys)
+    assert (code, out) == (1, "") and "already has a frozen judge selection" in err
+
+    # The B8 path: --frozen-judge accepts the receipt and discloses it; the report says so.
+    other = test_calibration.frozen_with(
+        root, accepted, assessment_id="arm-2", cohorts=(SOURCES["baseline2"].cohort_id,)
+    )
+    measured = judge_config_file(
+        tmp_path, root, name="measured-v2.json", purpose="measured", prompt_path=v2.prompt_path
+    )
+    server = Server()
+    code, out, err = run_cli(
+        judge_args(measured, "arm-2", "b8-v2", "--qualification", "q-1")
+        + ["--frozen-judge", "sel-c"],
+        capsys,
+        server,
+    )
+    assert code == 0, err
+    status = json.loads(out)
+    assert status["resolved"] == len(other.queue)
+    assert status["frozen_judge"] == {
+        "selection_id": "sel-c",
+        "phase_a": "not met",
+        "basis_status": "pending",
+        "decision_ref": reference,
+    }
+    code, out, err = run_cli(calibrate_args(root, "arm-2", "b8-v2", "r-b8"), capsys)
+    assert code == 1, err
+    lines = out.splitlines()
+    assert lines[0].startswith("status: pending (Phase A not met")
+    assert lines[1] == "reasons:" and lines[2].startswith("  - Phase A not met")
 
 
 def test_judge_examples_cli(root, accepted, tmp_path, capsys, judge_key):

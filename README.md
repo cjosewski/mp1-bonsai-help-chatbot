@@ -40,19 +40,24 @@ model's reasoning off (`enable_thinking`, below). The first baseline collection
 (`baseline-2026-11-24`, generator v1) was stopped during batch 2 on Chad's decision "Stop,
 fix, restart (Recommended)", and its evidence is kept unchanged.
 
-**B6 (baseline human labels): the tooling is built, and no label exists yet.** The
-assessment and labeling commands are described under
-[Human labels (B6)](#human-labels-b6). On Chad's go-ahead the assistant created the
-assessment `b6-labels-1` (30 of the 50 cohort items; `docs/DECISIONS.md`). Only Chad labels
-it, in his own terminal.
+**B6 (baseline human labels) is done.** The assessment and labeling commands are described
+under [Human labels (B6)](#human-labels-b6) and in
+[`docs/LABELING-RUNBOOK.md`](docs/LABELING-RUNBOOK.md). Chad labeled all 30 items of
+assessment `b6-labels-1` (taken from the 50 cohort items) and froze the human reference on
+November 25, 2026, with 0 unresolved decisions (`docs/DECISIONS.md`).
 
-**B7 (judge and Phase A calibration): the tooling is built, and no judge run exists.** The
-judge, qualification, calibration, example-pool and frozen-judge commands are described
-under [Judge and calibration (B7)](#judge-and-calibration-b7). Chad chose the judge model
-on November 24, 2026 ("use Llama 3.3 70B for the judge"). Every judge run waits for Chad's
-frozen labels, his go-ahead and a reachable judge server, and B7's acceptance (at least
-80% agreement in every dimension) is met only when the measured runs are done and the
-calibration report says so.
+**B7 (judge and Phase A calibration): Phase A was measured and is not met.** The judge,
+qualification, calibration, example-pool and frozen-judge commands are described under
+[Judge and calibration (B7)](#judge-and-calibration-b7). Chad chose the judge model on
+November 24, 2026 ("use Llama 3.3 70B for the judge"). Judge v1 (`phase-a-v1-r2`) and
+judge v2 (`phase-a-v2`, examples `dev-pool-1`) each judged all 30 items of `b6-labels-1`;
+both calibration reports are `pending`, so B7's acceptance (at least 80% agreement in
+every dimension) is not met: v1 meets the minimum in 1 dimension (D6), v2 in 2 (D5, D6).
+The judge is not calibrated. On November 25, 2026 Chad chose "(c) Go to B8 with v2,
+disclosed": v2, the judge the pre-registered tie-break carries forward, goes to B8, and
+every B8 report made with it states that Phase A was not met. No selection is written yet:
+the stopped run `phase-a-v1` blocks the rule until Chad decides how it is treated
+(`docs/DECISIONS.md`).
 
 What runs today: install, the offline tests, the documentation corpus rebuild, the section
 index, the lexicons, the setup-fact checks, the rubric commands (`rubric check`,
@@ -96,8 +101,8 @@ packets remain as records. No new review decisions were imported.
 | B3 | Gold set and multi-part and injection requests | Withdrawn from MP1 (moves to Mini Project 4); 6 of 110 items published and frozen; 104 drafts unreviewed |
 | B4 | Section sampler, generation prompt v1, deterministic checks; generation, gate and collection modules ported | Done (no model run yet; the rubric moved to B5 on November 24, 2026) |
 | B5 | Rubric (D1–D6) and baseline run | Done: rubric accepted by Chad ("Accept as drafted"); baseline `baseline-2026-11-24-r2` ready (70 of 70 valid initial attempts, 56 of 70 retained, at least 10 per category); cohort `baseline-b5-cohort-1` frozen; `collection-report` built (see `docs/DECISIONS.md`) |
-| B6 | Baseline human labels | Tooling built (assessments, blind labeling, append-only ledger, frozen human reference). Assessment `b6-labels-1` created (30 items); no label entered yet |
-| B7 | Judge and Phase A calibration | Tooling built: judge v1 prompt (SHA-256 pinned November 25, 2026) and config, bounded judge runs, qualification, calibration with TPR, TNR and intervals, v2 example pool, frozen judge, commands. Judge v2 not written; no judge run, agreement figure or calibration yet |
+| B6 | Baseline human labels | Done: Chad labeled the 30 items of `b6-labels-1` and froze the human reference (November 25, 2026; 0 unresolved) |
+| B7 | Judge and Phase A calibration | Phase A measured and **not met** (both reports `pending`; v1 meets the 80% minimum in 1 of 6 dimensions, v2 in 2 of 6); the judge is not calibrated. Chad chose "(c) Go to B8 with v2, disclosed" (November 25, 2026); `judge-freeze --phase-a-not-met --decision-ref` built for it. No selection written yet (the stopped run `phase-a-v1` blocks the rule until Chad decides how it is treated). Tooling: judge v1 prompt (SHA-256 pinned by a test) and v2 prompt (SHA-256 recorded in `docs/DECISIONS.md`), bounded judge runs, qualification, calibration with TPR, TNR and intervals, v2 example pool, frozen judge, commands |
 | B8 | Phase B correction | Not yet implemented |
 | B9 | Analysis and charts | Not yet implemented |
 | B10 | Submission set, pipeline replay demo, iteration log, demo video, coaching approval | Not yet implemented |
@@ -753,9 +758,11 @@ continuing. Errors are one line on stderr without absolute paths.
 
 ## Judge and calibration (B7)
 
-The tooling is built and runs offline against fake endpoints. No judge run, agreement
-figure or calibration exists: the measured runs need Chad's frozen labels, his go-ahead
-and a judge server that is already reachable. The plan is
+The tooling is built and runs offline against fake endpoints. Phase A was measured on
+November 25, 2026 and is not met: neither judge v1 nor judge v2 reaches 80% agreement in
+every dimension on `b6-labels-1`, so no judge is calibrated. On Chad's decision (option
+(c)), judge v2 is carried to B8 with that disclosed (`judge-freeze --phase-a-not-met`,
+below; figures in `docs/DECISIONS.md`). The plan is
 `docs/superpowers/plans/2026-11-24-b7-judge.md`, Chad's judge decision ("use Llama 3.3 70B
 for the judge") and the assistant's calls are in `docs/DECISIONS.md` (November 24, 2026:
 judge model; B7 judge), and the open questions for Chad are listed there. Chad answered
@@ -790,6 +797,7 @@ bonsai-help calibrate [-h] [--artifact-root ARTIFACT_ROOT]
 bonsai-help judge-freeze [-h] [--artifact-root ARTIFACT_ROOT]
                          --assessment-id ASSESSMENT_ID --report-id REPORT_ID
                          --selection-id SELECTION_ID
+                         [--phase-a-not-met] [--decision-ref TEXT]
 ```
 
 The options of `judge`, as `--help` prints them:
@@ -823,7 +831,7 @@ repository. `uv run --locked bonsai-help <command> --help` prints the full text.
 | `judge-qualify` | Writes a qualification receipt once to `<artifact root>/judge-qualifications/<id>.json`, with a complete smoke run of the same model and settings as evidence. It makes no model call, and its printed summary leaves out `model_identity` and `model_sha256` |
 | `judge-examples` | Builds judge v2's example pool once, `<artifact root>/judge-examples/<pool_id>/pool.json`, from a development assessment's disagreements with a complete measured v1 run. It calls only the embedding endpoint. An `arm` assessment is refused |
 | `calibrate` | Writes a calibration report once as two files under `<assessment>/calibration/`: `<report_id>.json` (status, reasons, pins and the aggregate figures) and `<report_id>.disagreements.json` (the per-item disagreements). Prints only the aggregate figures, with the status on the first line |
-| `judge-freeze` | Freezes the judge of a `ready` report into `<artifact root>/judge-selections/<id>.json`, for B8's `--frozen-judge`. It freezes only the report the pre-registered rule chooses (`calibration.preregistered_choice`: once `judge-v1` and `judge-v2` have each been measured once on the assessment and each has a calibration report, v2 if its report is `ready`, else v1 if its report is `ready`), and at most one selection per assessment. A measured run of any other prompt version on the assessment (a `judge-v3` or `judge-v1.1`) is refused: it needs Chad's dated decision and a new rule |
+| `judge-freeze` | Freezes the judge of a `ready` report into `<artifact root>/judge-selections/<id>.json`, for B8's `--frozen-judge`. It freezes only the report the pre-registered rule chooses (`calibration.preregistered_choice`: once `judge-v1` and `judge-v2` have each been measured once on the assessment and each has a calibration report, v2 if its report is `ready`, else v1 if its report is `ready`), and at most one selection per assessment. A measured run of any other prompt version on the assessment (a `judge-v3` or `judge-v1.1`) is refused: it needs Chad's dated decision and a new rule. `--phase-a-not-met --decision-ref TEXT` (Open question 7(c), built on Chad's decision of November 25, 2026) is allowed only when no report on the assessment is `ready`; it freezes only a report of the run the pre-registered tie-break carries forward (more dimensions at or above the minimum, then the higher minimum agreement, then the later prompt version) and writes a selection whose basis status is `pending`, with that report's reasons and the decision reference. `judge --frozen-judge` on that selection prints a `frozen_judge` disclosure, and every `calibrate` report made with it says `Phase A not met` on its status line and as its first reason, and is never `ready` |
 
 The judge rules:
 
@@ -866,7 +874,9 @@ The judge rules:
   and its response schema. A `--frozen-judge` run must match all of them. The code
   enforces the pre-registered selection rule: it refuses before v1 and v2 have each been
   measured once with a report, when a prompt version was measured twice, for any report
-  other than the rule's choice, and for a second selection on the same assessment.
+  other than the rule's choice, and for a second selection on the same assessment. With
+  `--phase-a-not-met`, it refuses without `--decision-ref` (exit 2), while any report is
+  `ready`, and for a report of any run other than the tie-break's.
 
 Exit codes: 0 done, a complete judge run, a `ready` report, or a `diagnostic` report
 (`calibrate` then prints `status: diagnostic (never calibration)` first; on a development
@@ -902,8 +912,13 @@ needs his go-ahead and a reachable server):
 10. On Chad's go-ahead, judge v1 and then v2 once each on `b6-labels-1`, then `calibrate`
     for each.
 11. `judge-freeze` on the report the pre-registered rule chooses (v2 if `ready`, else v1 if
-    `ready`). If neither is `ready`, Phase A is not met, no judge is frozen, and Chad
-    decides the next step.
+    `ready`). If neither is `ready`, Phase A is not met and the plain freeze refuses; Chad
+    decides the next step. On November 25, 2026 neither was `ready`, and Chad chose option
+    (c): `judge-freeze --phase-a-not-met --decision-ref TEXT` on v2's report, the
+    tie-break's choice, so B8 judges with v2 and every B8 report discloses that Phase A was
+    not met. That freeze is not yet written: the stopped run `phase-a-v1` (a leftover lock,
+    and a second measured `judge-v1` run) makes the rule refuse until Chad decides how it
+    is treated (`docs/DECISIONS.md`).
 
 ## Run each step
 
@@ -913,10 +928,10 @@ rest are not yet implemented (B8, B9):
 
 1. Generate: one prompt per category and setup profile writes each item from pinned doc sections (B4, B5, B8). Implemented.
 2. First-pass gate: schema, deterministic checks, duplicates, category balance (B4, B5). Implemented.
-3. Human labels: blind, resumable labeling against the pinned rubric (B6). Tooling implemented; no label entered yet.
-4. Judge: independent prompt at a lower temperature than the generator (B7). Tooling implemented; no judge run yet.
+3. Human labels: blind, resumable labeling against the pinned rubric (B6). Done for the baseline (`b6-labels-1`, 30 items, frozen) and for the development items (`dev-labels-1`, 20 items, frozen).
+4. Judge: independent prompt at a lower temperature than the generator (B7). Implemented; judge v1 (`phase-a-v1-r2`, after the stopped `phase-a-v1`) and judge v2 (`phase-a-v2`) each judged all 30 baseline items.
 5. Analyze: pass rates, agreement, intervals and five charts (B9).
-6. Iterate: Phase A judge calibration, Phase B generator correction (B7, B8). Phase A tooling implemented; no calibration yet.
+6. Iterate: Phase A judge calibration, Phase B generator correction (B7, B8). Phase A measured and not met (no judge calibrated); judge v2 carried to B8, disclosed, on Chad's option (c).
 
 A model is configured explicitly as a local OpenAI-compatible endpoint. The hosted path
 for graders without local models is refused for now (Chad, November 24, 2026): a run

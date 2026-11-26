@@ -826,3 +826,226 @@ def test_phase_a_not_met_refuses_and_names_the_preregistered_carry_forward(
     with pytest.raises(CalibrationError, match="ready"):
         calibration.freeze_judge(root, ARM, f"r-{carried}", "sel-1")
     assert not (root / calibration.SELECTIONS).exists()
+
+
+# ------------------------------- option (c): Phase A not met, carried forward (Decision 13)
+
+DECISION_REF = (
+    "synthetic decision reference: docs/DECISIONS.md, a dated entry for option (c), test only"
+)
+
+
+def phase_a_not_met(arm, root, tmp_path):
+    """Both pre-registered runs pending: v1 meets 4 of 6 dimensions and v2 5 of 6, so
+    the tie-break carries v2 forward. Returns the v2 config."""
+    made, judge_config = arm
+    run(root, made, "v1", judge_config, failing_on(made, 5, "D5", "D6"))
+    v2 = v2_config(judge_config, tmp_path)
+    run(root, made, "v2", v2, failing_on(made, 5, "D6"))
+    assert report(root, ARM, "v1", "r-v1")["status"] == "pending"
+    assert report(root, ARM, "v2", "r-v2")["status"] == "pending"
+    choice = calibration.preregistered_choice(root, ARM)
+    assert (choice["phase_a_met"], choice["judge_run_id"]) == (False, "v2")
+    return v2
+
+
+def carry(root, report_id="r-v2", selection_id="sel-c", decision_ref=DECISION_REF):
+    return calibration.freeze_judge(
+        root, ARM, report_id, selection_id, phase_a_not_met=True, decision_ref=decision_ref
+    )
+
+
+def no_selection(root, selection_id="sel-c") -> bool:
+    return not (root / calibration.SELECTIONS / f"{selection_id}.json").exists()
+
+
+def test_phase_a_not_met_freeze_writes_a_pending_receipt(arm, root, accepted, tmp_path):
+    v2 = phase_a_not_met(arm, root, tmp_path)
+    selection = carry(root)
+    written = calibration.load_report(root, ARM, "r-v2")
+    assert (selection["judge_run_id"], selection["prompt_version"]) == ("v2", "judge-v2")
+    assert selection["report_sha256"] == sha(report_paths(root, ARM, "r-v2")[0])
+    basis = selection["basis"]
+    assert basis["status"] == "pending"
+    assert basis["phase_a"] == "not met"
+    assert basis["rule"] == calibration.PHASE_A_NOT_MET_RULE
+    assert basis["reasons"] == written["reasons"] and basis["reasons"]
+    assert any("D6" in reason for reason in basis["reasons"])
+    assert basis["decision_ref"] == DECISION_REF
+    prompt = load_judge_prompt(v2, with_examples=False)
+    assert selection["frozen_identity"] == judge.frozen_identity(v2, prompt)
+    path = root / calibration.SELECTIONS / "sel-c.json"
+    assert json.loads(path.read_text(encoding="utf-8")) == selection
+    # --frozen-judge accepts the receipt, and says Phase A was not met.
+    assert calibration.load_selection(root, "sel-c") == selection
+    assert calibration.phase_a_not_met(selection) is True
+    assert calibration.phase_a_not_met(calibration.load_selection(root, "sel-c")) is True
+
+
+@pytest.mark.parametrize("decision_ref", [None, "", "   ", "two\nlines", "x" * 501])
+def test_phase_a_not_met_freeze_refuses_without_a_decision_ref(arm, root, tmp_path, decision_ref):
+    phase_a_not_met(arm, root, tmp_path)
+    with pytest.raises(CalibrationError, match="decision"):
+        carry(root, decision_ref=decision_ref)
+    assert no_selection(root)
+
+
+def test_decision_ref_without_phase_a_not_met_is_refused(arm, root, tmp_path):
+    made, judge_config = arm
+    run(root, made, "v1", judge_config, agreeing(made))
+    run(root, made, "v2", v2_config(judge_config, tmp_path), agreeing(made))
+    report(root, ARM, "v1", "r-v1")
+    report(root, ARM, "v2", "r-v2")
+    with pytest.raises(CalibrationError, match="phase-a-not-met"):
+        calibration.freeze_judge(root, ARM, "r-v2", "sel-1", decision_ref=DECISION_REF)
+    assert no_selection(root, "sel-1")
+
+
+@pytest.mark.parametrize("ready_version", ["v1", "v2"])
+def test_phase_a_not_met_freeze_refused_when_any_report_is_ready(
+    arm, root, tmp_path, ready_version
+):
+    made, judge_config = arm
+    pending = failing_on(made, 5, "D6")
+    run(root, made, "v1", judge_config, agreeing(made) if ready_version == "v1" else pending)
+    pending = failing_on(made, 5, "D6")
+    v2 = v2_config(judge_config, tmp_path)
+    run(root, made, "v2", v2, agreeing(made) if ready_version == "v2" else pending)
+    statuses = {
+        "v1": report(root, ARM, "v1", "r-v1")["status"],
+        "v2": report(root, ARM, "v2", "r-v2")["status"],
+    }
+    assert statuses[ready_version] == "ready"
+    # Phase A is met, so the normal freeze applies; option (c) is refused for every report.
+    for report_id in ("r-v1", "r-v2"):
+        with pytest.raises(CalibrationError, match="ready.*normal judge-freeze"):
+            carry(root, report_id=report_id)
+    assert no_selection(root)
+    chosen = f"r-{ready_version}"
+    assert calibration.freeze_judge(root, ARM, chosen, "sel-1")["basis"] == (
+        calibration.SELECTION_BASIS
+    )
+
+
+def test_phase_a_not_met_freeze_refuses_any_other_report(arm, root, tmp_path):
+    phase_a_not_met(arm, root, tmp_path)
+    # v1's report is not the tie-break's run.
+    with pytest.raises(CalibrationError, match=r"carries judge run 'v2' \(judge-v2\) forward"):
+        carry(root, report_id="r-v1")
+    # A report id the assessment does not have.
+    with pytest.raises(CalibrationError):
+        carry(root, report_id="r-missing")
+    assert no_selection(root)
+    # Another report of the chosen run is that run, and is accepted.
+    report(root, ARM, "v2", "r-v2-again")
+    assert carry(root, report_id="r-v2-again")["report_id"] == "r-v2-again"
+
+
+def test_phase_a_not_met_freeze_waits_for_both_preregistered_runs(arm, root, tmp_path):
+    made, judge_config = arm
+    run(root, made, "v1", judge_config, failing_on(made, 5, "D6"))
+    report(root, ARM, "v1", "r-v1")
+    with pytest.raises(CalibrationError, match="judge-v2"):
+        carry(root, report_id="r-v1")
+    assert no_selection(root)
+
+
+def test_phase_a_not_met_freeze_refuses_a_second_selection(arm, root, tmp_path):
+    phase_a_not_met(arm, root, tmp_path)
+    carry(root)
+    with pytest.raises(CalibrationError, match="already exists"):
+        carry(root)
+    report(root, ARM, "v2", "r-v2-again")
+    for report_id in ("r-v2", "r-v2-again"):
+        with pytest.raises(CalibrationError, match="already has a frozen judge selection"):
+            carry(root, report_id=report_id, selection_id="sel-c2")
+    assert no_selection(root, "sel-c2")
+
+
+def test_phase_a_not_met_receipt_tampering_is_refused(arm, root, tmp_path):
+    phase_a_not_met(arm, root, tmp_path)
+    carry(root)
+    path = root / calibration.SELECTIONS / "sel-c.json"
+    original = path.read_text(encoding="utf-8")
+    record = json.loads(original)
+
+    def resealed(change) -> None:
+        changed = json.loads(original)
+        change(changed)
+        changed["sha256"] = calibration._sealed(changed)
+        path.write_text(json.dumps(changed, indent=2) + "\n", encoding="utf-8")
+
+    # A basis that claims the ready status, drops a reason, or loses its decision
+    # reference is refused even when it is resealed.
+    for change in (
+        lambda r: r["basis"].update(status="ready"),
+        lambda r: r["basis"]["reasons"].pop(),
+        lambda r: r["basis"].update(decision_ref=""),
+        lambda r: r["basis"].update(phase_a="met"),
+        lambda r: r["basis"].pop("rule"),
+    ):
+        resealed(change)
+        with pytest.raises(CalibrationError, match="changed"):
+            calibration.load_selection(root, "sel-c")
+    path.write_text(original, encoding="utf-8")
+    assert calibration.load_selection(root, "sel-c") == record
+
+
+def test_b8_reports_with_a_carried_judge_state_phase_a_not_met(arm, root, accepted, tmp_path):
+    v2 = phase_a_not_met(arm, root, tmp_path)
+    selection = carry(root)
+    frozen = calibration.load_selection(root, "sel-c")["frozen_identity"]
+    # A B8-style measured run on another assessment, matched to the carried judge; it
+    # agrees with every human decision, and the report still never says ready.
+    other = frozen_with(root, accepted, assessment_id="arm-2", cohorts=(BASELINE2.cohort_id,))
+    status = run(root, other, "b8-v2", v2, agreeing(other), frozen_judge=frozen)
+    assert status["status"] == "complete"
+    b8 = report(root, "arm-2", "b8-v2", "r-b8")
+    assert all(row["meets_minimum"] for row in b8["dimensions"].values())
+    assert b8["status"] == "pending"
+    first = b8["reasons"][0]
+    assert first.startswith("Phase A not met")
+    assert "sel-c" in first and DECISION_REF in first and "option (c)" in first
+    assert b8["pins"]["frozen_judge"] == {
+        "selection_ids": ["sel-c"],
+        "phase_a_met": False,
+    }
+    lines = calibration.report_lines(b8)
+    assert lines[0].startswith("status: pending (Phase A not met")
+    assert "never calibration" in lines[0]
+    assert any("Phase A not met" in line for line in lines[1:3])
+    # The written report holds the same disclosure, and verifies on load.
+    assert calibration.load_report(root, "arm-2", "r-b8")["reasons"][0] == first
+    # The Phase A reports themselves are unchanged by the selection: still re-derivable.
+    assert calibration.preregistered_choice(root, ARM)["judge_run_id"] == "v2"
+    assert selection["basis"]["status"] == "pending"
+
+
+def test_b8_report_after_a_ready_freeze_has_no_phase_a_disclosure(arm, root, accepted, tmp_path):
+    made, judge_config = arm
+    run(root, made, "v1", judge_config, agreeing(made))
+    run(root, made, "v2", v2_config(judge_config, tmp_path), failing_on(made, 5, "D6"))
+    report(root, ARM, "v1", "r-v1")
+    report(root, ARM, "v2", "r-v2")
+    selection = calibration.freeze_judge(root, ARM, "r-v1", "sel-1")
+    assert calibration.phase_a_not_met(selection) is False
+    other = frozen_with(root, accepted, assessment_id="arm-2", cohorts=(BASELINE2.cohort_id,))
+    frozen = selection["frozen_identity"]
+    run(root, other, "b8-v1", judge_config, agreeing(other), frozen_judge=frozen)
+    b8 = report(root, "arm-2", "b8-v1", "r-b8")
+    assert b8["status"] == "ready"
+    assert b8["pins"]["frozen_judge"] == {"selection_ids": ["sel-1"], "phase_a_met": True}
+    assert calibration.report_lines(b8)[0] == "status: ready"
+    assert not any("Phase A" in reason for reason in b8["reasons"])
+
+
+def test_report_on_a_frozen_run_without_its_selection_is_refused(arm, root, accepted, tmp_path):
+    """A run matched to a frozen identity that no selection holds cannot say whether Phase
+    A was met, so no report is written for it."""
+    made, judge_config = arm
+    prompt = load_judge_prompt(judge_config, with_examples=False)
+    frozen = judge.frozen_identity(judge_config, prompt)
+    run(root, made, "b8-orphan", judge_config, agreeing(made), frozen_judge=frozen)
+    with pytest.raises(CalibrationError, match="no judge selection"):
+        report(root, ARM, "b8-orphan", "r-orphan")
+    assert not report_paths(root, ARM, "r-orphan")[0].exists()

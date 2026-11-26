@@ -2790,8 +2790,8 @@ dated entry after the Phase B comparison.
 
 No answer is assumed; the recommended option applies only once Chad chooses it. On November
 25, 2026 Chad answered 1, 3, 4 and 8, and the assistant settled 2, 5 and 9 to 14 as
-assistant's calls that Chad can overrule (each marked below; see "November 25, 2026: judge v1 pinned and judge-freeze enforces the selection rule"). 6 and 7 stay
-open.
+assistant's calls that Chad can overrule (each marked below; see "November 25, 2026: judge v1 pinned and judge-freeze enforces the selection rule"). 6 stays
+open. Chad answered 7 on November 25, 2026 ("(c) Go to B8 with v2, disclosed").
 
 1. **Judge temperature.** It must be below the generator's 0.6. Recommended: 0.0, so the
    judge is as repeatable as the server allows. The alternative is 0.1, which may vary
@@ -2835,7 +2835,9 @@ open.
    judge under Decision 13's rule, which needs Chad's dated decision and a separately
    recorded `judge-freeze --phase-a-not-met --decision-ref TEXT` first. Recommended: (a),
    then (c) if v3 also falls short. No choice is needed until the result exists.
-   **Open** (for Chad, once a result exists).
+   **Answered** (Chad, November 25, 2026, once Phase A was measured and not met): "(c) Go
+   to B8 with v2, disclosed"; see "November 25, 2026: Phase A not met; judge v2 carried to
+   B8 (Chad's option (c))".
 8. **Go-aheads.** Each when the servers are reachable: the development collection (plan
    procedure step 3, a new collection on the `development` split with the baseline's
    generator settings, about an hour of generation), the smoke judge run (step 4) and the
@@ -3060,8 +3062,32 @@ record.
   91.3%), D3 14/20 (70.0%, 45.7% to 88.1%), D4 19/20 (95.0%, 75.1% to 99.9%), D5 0/20
   (0.0%, 0.0% to 16.8%), D6 19/20 (95.0%, 75.1% to 99.9%). v2 is not scored on the
   development assessment, whose disagreements are its examples.
-- **After.** Pending: judge v1 and judge v2 each run once on `b6-labels-1` (Phase A),
-  each with a calibration report.
+- **After** (filled in November 25, 2026, after both baseline runs; the hypothesis above
+  is unchanged). Phase A on `b6-labels-1` (30 items, kind `arm`): judge v1 run
+  `phase-a-v1-r2` and judge v2 run `phase-a-v2` (`--examples dev-pool-1`), each 30 of 30
+  judged, 0 unknown outcomes; calibration reports `phase-a-v1-r2-report` and
+  `phase-a-v2-report`, both status `pending`. Agreement with Chad's frozen labels, with
+  95% Clopper-Pearson intervals:
+
+  | Dimension | judge v1 (`phase-a-v1-r2`) | judge v2 (`phase-a-v2`) |
+  | --- | --- | --- |
+  | D1 | 20/30, 66.7% [47.2, 82.7] | 23/30, 76.7% [57.7, 90.1] |
+  | D2 | 15/30, 50.0% [31.3, 68.7] | 18/30, 60.0% [40.6, 77.3] |
+  | D3 | 18/30, 60.0% [40.6, 77.3] | 16/30, 53.3% [34.3, 71.7] |
+  | D4 | 23/30, 76.7% [57.7, 90.1] | 22/30, 73.3% [54.1, 87.7] |
+  | D5 | 3/30, 10.0% [2.1, 26.5] | 26/30, 86.7% [69.3, 96.2] |
+  | D6 | 25/30, 83.3% [65.3, 94.4] | 25/30, 83.3% [65.3, 94.4] |
+
+  The hypothesis held for D5 (10.0% to 86.7%, now above the 80% minimum), held only partly
+  for D1 and D2 (each up 3 items, both still below the minimum), and did not hold for D3
+  (down 2 items) or D4 (down 1 item), where v2 agrees less often than v1. D6 is unchanged
+  (no v2 rule addresses it). Neither report is `ready`: v1 meets the minimum in 1
+  dimension (D6), v2 in 2 (D5, D6). These are agreement figures on the selected items, not
+  generalization; the per-dimension TPR and TNR are in the main reports and are not
+  restated here.
+- **Decision (after).** Phase A is not met. The pre-registered rule froze no judge; Chad
+  chose option (c) (entry below, "Phase A not met; judge v2 carried to B8 (Chad's option
+  (c))").
 - **Decision and selection rule (pre-registered, enforced by `judge-freeze`).** Freeze v2
   if its report is `ready` (every dimension at least 80%); otherwise v1 if its report is
   `ready`; otherwise Phase A is not met, reported as measured, and the next step is
@@ -3070,6 +3096,72 @@ record.
 - **Next step.** Run judge v1 (new run id, not `phase-a-v1`) and judge v2 with
   `--examples dev-pool-1` on `b6-labels-1`, calibrate both, and apply the rule. The
   assistant reads the main calibration reports only, not their disagreements files.
+  (Done November 25, 2026; the next step is now the one in the entry below.)
+
+### November 25, 2026: Phase A not met; judge v2 carried to B8 (Chad's option (c))
+
+- **Result, as measured.** Phase A is not met on `b6-labels-1`: neither calibration report
+  (`phase-a-v1-r2-report`, `phase-a-v2-report`) is `ready`, because neither judge reaches
+  the 80% per-dimension agreement minimum in all six dimensions (figures in the v2
+  pre-registration entry above). No judge is calibrated, and nothing in this entry says
+  otherwise.
+- **Owner decision (Chad, November 25, 2026), B7 Open question 7.** Chad chose the option
+  labelled "(c) Go to B8 with v2, disclosed".
+- **The judge carried forward is the pre-registered tie-break's choice** (B7 plan
+  Decision 13, recorded before any baseline result): more dimensions at or above the
+  minimum, then the higher minimum per-dimension agreement, then the later prompt version.
+  Judge v2 meets the minimum in 2 dimensions (D5, D6) and judge v1 in 1 (D6), so the first
+  step already decides it: judge v2 (`phase-a-v2`, prompt `judge-v2`, pool `dev-pool-1`,
+  `examples_k` 4).
+- **Nothing else changed.** No threshold changed (the 80% per-dimension minimum and every
+  other course criterion stand; no amendment is made). Nothing was rerun once the Phase A results existed:
+  no judge run, calibration report or label was repeated, replaced or edited to improve a
+  result (`phase-a-v1-r2` is v1's one baseline run, made after the stopped `phase-a-v1`
+  produced no judgment). The
+  stopped run `phase-a-v1` stays as recorded and is never resumed.
+- **Built on Chad's decision: `judge-freeze --phase-a-not-met --decision-ref TEXT`.** The
+  B7 plan (Decision 13, Open question 7(c)) said this addition is built only if Chad chose
+  (c); it was built after his choice, before any such freeze. Its mechanics are the
+  assistant's calls (Chad can overrule each; a change is a new dated entry):
+  - It is allowed only when `calibration.preregistered_choice` finds no `ready` report on
+    the assessment (and no written report there is `ready`); otherwise it is refused and
+    the normal `judge-freeze` applies. It freezes exactly the run the tie-break names: a
+    report of any other run is refused, and so is a report that is not `pending`.
+  - It refuses a missing, blank or multi-line `--decision-ref` (at most 500 printable
+    characters; the CLI exits 2 when the flag and the reference are not given together),
+    and a second selection for the assessment, of either kind.
+  - The selection receipt has the same fields as a normal one. Its `basis` has status
+    `pending`, `phase_a: "not met"`, the tie-break rule's text, every reason of the frozen
+    report (verified against the report on every load) and the decision reference.
+  - `--frozen-judge` accepts that receipt, and `judge` then prints a `frozen_judge`
+    disclosure (`phase_a: "not met"`, basis status `pending`, the decision reference).
+  - Every calibration report on a run matched to it puts "Phase A not met: …" first among
+    its reasons, naming the selection and the decision reference, says "Phase A not met"
+    on its status line, pins the selection under `pins.frozen_judge`, and is never `ready`,
+    whatever its agreement. A report on a run matched to a frozen identity that no
+    selection holds is refused. Reports made before any selection (Phase A's) are
+    unchanged and still re-derive byte for byte.
+  - `calibration.py` and `evaluation_cli.py` changed; no module in
+    `judge.FROZEN_JUDGE_MODULES` (no prompt, gate, sampler, judge or judge-examples file)
+    changed, so the frozen identity of judge v2 is the one its Phase A run recorded.
+- **Not yet possible on the recorded evidence (found while building, not resolved).** The
+  freeze applies `preregistered_choice`, which reads every judge run on `b6-labels-1`.
+  The stopped run `phase-a-v1` (measured, `judge-v1`, status `running`, 1 start and 0
+  completed attempts; entry "judge smoke run and qualification; a baseline run stopped")
+  still holds its `.judge.lock`, so the choice is refused ("`.judge.lock` exists"); and
+  with the lock inspected, it is refused again because `judge-v1` was measured twice
+  (`phase-a-v1` and `phase-a-v1-r2`). Neither check was weakened and nothing under `runs/`
+  was touched. On a scratch copy of the evidence outside the repository, with `phase-a-v1`
+  set aside, both reports re-derive byte for byte under the new code and the rule names
+  `phase-a-v2` (2 dimensions at the minimum against 1); that copy is not evidence and its
+  selection is not a selection. How the stopped run is treated (for example, an explicit
+  recorded exclusion of a measured run with no completed attempt) is a check change that
+  needs Chad's dated decision before any freeze.
+- **Next step.** After that decision, `judge-freeze --phase-a-not-met` on
+  `phase-a-v2-report` with a decision reference to this entry; then B8, whose mixed
+  assessment is judged only with `--frozen-judge` on that selection, and whose results are
+  reported with the disclosure that the judge did not meet Phase A. Not yet done: no
+  selection is written by this entry.
 
 ## Open items (not yet decided)
 

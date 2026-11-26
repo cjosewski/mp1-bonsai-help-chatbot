@@ -42,12 +42,18 @@ its report is `ready`. A measured run of any other version (a `judge-v3`, or a
 `judge-v1.1`) is outside the rule and is refused: it needs Chad's dated decision and a new
 rule. Every report on the assessment is verified and re-derived from the evidence (a change
 since a report was written is refused), and an assessment gets at most one frozen
-selection. If no report is `ready`, Phase A is not met and nothing is frozen;
-`preregistered_choice` still names the judge the rule would carry forward under Open
-question 7(c) (more dimensions at or above the minimum, then the higher minimum
-per-dimension agreement, then v2 over v1), which needs Chad's dated decision and a
-separately recorded `--phase-a-not-met` freeze that is not built. The selection is written
-once to
+selection. If no report is `ready`, Phase A is not met and the plain freeze refuses;
+`preregistered_choice` still names the judge the rule carries forward under Open question
+7(c) (more dimensions at or above the minimum, then the higher minimum per-dimension
+agreement, then v2 over v1). On Chad's dated decision for (c) (November 25, 2026),
+`freeze_judge(..., phase_a_not_met=True, decision_ref=TEXT)` freezes exactly that run:
+it refuses when any report on the assessment is `ready` (the plain freeze then applies),
+any report of another run, a missing or blank decision reference and a second selection,
+and its basis has status `pending`, every reason of the report and the decision
+reference. A calibration report on a run matched to such a selection (`--frozen-judge`,
+B8) puts `Phase A not met` first among its reasons and on its status line, pins the
+selection under `pins.frozen_judge`, and is never `ready`; a run matched to an identity
+that no selection holds is refused. The selection is written once to
 `<artifact root>/judge-selections/<selection_id>.json` with the report's SHA-256 and the
 run's frozen identity (`judge.frozen_identity`), which a later `--frozen-judge` run must
 match exactly. Nothing here calls a model endpoint, and nothing is overwritten or repaired.
@@ -104,6 +110,21 @@ SELECTION_BASIS = {
         "else v1 if its report is ready; one frozen selection per assessment"
     ),
 }
+# Open question 7(c), built on Chad's dated decision of November 25, 2026 (DECISIONS.md,
+# "Phase A not met; judge v2 carried to B8 (Chad's option (c))"): when no report is ready,
+# `freeze_judge(..., phase_a_not_met=True, decision_ref=TEXT)` freezes the run the
+# pre-registered tie-break carries forward, with a basis whose status is `pending`.
+PHASE_A_NOT_MET = "Phase A not met"
+PHASE_A_NOT_MET_RULE = (
+    "B7 Decision 13, Open question 7(c), pre-registered: no calibration report on the "
+    "assessment is ready, so Phase A is not met; among the measured runs of judge-v1 and "
+    "judge-v2, the judge carried forward has more dimensions at or above the minimum, then "
+    "the higher minimum per-dimension agreement, then the later prompt version; it is "
+    "frozen only on Chad's dated decision, never as calibrated; one frozen selection per "
+    "assessment"
+)
+PHASE_A_BASIS_FIELDS = frozenset({"status", "phase_a", "rule", "decision_ref", "reasons"})
+DECISION_REF_MAX = 500
 # Fields of a report that `freeze_judge` re-derives from the evidence and compares.
 _DERIVED_EXCLUDED = frozenset({"report_id", "created_at", "sha256"})
 REPORT_FIELDS = frozenset(
@@ -403,6 +424,18 @@ def _derive(root: Path, made: Assessment, judge_run_id: str) -> tuple[dict, list
     identity = manifest["identity"]
     settings = identity["settings"]
     purpose = manifest["purpose"]
+    # A run matched to a frozen judge (B8) carries its selection's basis: a judge carried
+    # forward with Phase A not met is disclosed first, and the report is never ready.
+    frozen_pin = None
+    disclosed: list[str] = []
+    if identity.get("frozen_judge_sha256") is not None:
+        matched = _frozen_selections(root, identity["frozen_judge_sha256"])
+        carried = [s for s in matched if phase_a_not_met(s)]
+        frozen_pin = {
+            "selection_ids": [s["selection_id"] for s in matched],
+            "phase_a_met": not carried,
+        }
+        disclosed = [_phase_a_disclosure(s) for s in carried]
     if purpose != "measured":
         diagnostic.append("a smoke judge run is diagnostic only, never calibration")
     try:
@@ -474,8 +507,24 @@ def _derive(root: Path, made: Assessment, judge_run_id: str) -> tuple[dict, list
         }
     completed = {a["attempt_id"] for a in attempts}
     unknown = [s["attempt_id"] for s in starts if s["attempt_id"] not in completed]
-    status = "diagnostic" if diagnostic else ("pending" if reasons else "ready")
+    status = "diagnostic" if diagnostic else ("pending" if disclosed or reasons else "ready")
     disagreements_bytes = _dumps(disagreements)
+    pins = {
+        "assessment_sha256": manifest_record["sha256"],
+        "reference_sha256": None if reference is None else reference["sha256"],
+        "judge_manifest_sha256": digest(manifest),
+        "judge_fingerprint": manifest["fingerprint"],
+        "judge_artifacts_sha256": manifest["artifacts_sha256"],
+        "judge_identity": identity,
+        "qualification": identity.get("qualification"),
+        "rubric_version": rubric.version,
+        "rubric_sha256": rubric_sha,
+        "disagreements_sha256": hashlib.sha256(disagreements_bytes).hexdigest(),
+    }
+    if frozen_pin is not None:
+        # Only a run matched to a frozen judge has this pin, so the reports written before
+        # any selection existed (Phase A's) still re-derive byte for byte.
+        pins["frozen_judge"] = frozen_pin
     body = {
         "schema_version": SCHEMA_VERSION,
         "assessment_id": manifest_record["assessment_id"],
@@ -484,7 +533,7 @@ def _derive(root: Path, made: Assessment, judge_run_id: str) -> tuple[dict, list
         "purpose": purpose,
         "judge_status": manifest["status"],
         "status": status,
-        "reasons": diagnostic + reasons,
+        "reasons": disclosed + diagnostic + reasons,
         "scope": SCOPE,
         "population": len(order),
         "judged": len(successful),
@@ -497,18 +546,7 @@ def _derive(root: Path, made: Assessment, judge_run_id: str) -> tuple[dict, list
         "categories": categories,
         "arms": arms,
         "acceptance": accepted,
-        "pins": {
-            "assessment_sha256": manifest_record["sha256"],
-            "reference_sha256": None if reference is None else reference["sha256"],
-            "judge_manifest_sha256": digest(manifest),
-            "judge_fingerprint": manifest["fingerprint"],
-            "judge_artifacts_sha256": manifest["artifacts_sha256"],
-            "judge_identity": identity,
-            "qualification": identity.get("qualification"),
-            "rubric_version": rubric.version,
-            "rubric_sha256": rubric_sha,
-            "disagreements_sha256": hashlib.sha256(disagreements_bytes).hexdigest(),
-        },
+        "pins": pins,
     }
     return body, disagreements
 
@@ -690,9 +728,16 @@ def report_lines(report: dict) -> list[str]:
     """The aggregate figures a report prints: no blind id paired with a decision, no judge
     reason and no model id. The first line is the status."""
     status = report["status"]
-    lines = [
+    line = (
         "status: diagnostic (never calibration)" if status == "diagnostic" else f"status: {status}"
-    ]
+    )
+    frozen = report["pins"].get("frozen_judge")
+    if isinstance(frozen, dict) and frozen.get("phase_a_met") is False:
+        line += (
+            f" ({PHASE_A_NOT_MET}: the judge was carried forward under Chad's option (c) "
+            "and is never calibration)"
+        )
+    lines = [line]
     lines += (
         ["reasons:", *(f"  - {r}" for r in report["reasons"])]
         if report["reasons"]
@@ -942,32 +987,139 @@ def _refuse_second_selection(root: Path, assessment_id: str) -> None:
         )
 
 
-def freeze_judge(root: Path, assessment_id: str, report_id: str, selection_id: str) -> dict:
+def _decision_ref(value: object) -> str:
+    """The reference to Chad's dated decision: one nonblank line of printable text."""
+    if not isinstance(value, str) or not value.strip():
+        raise CalibrationError(
+            "--phase-a-not-met needs --decision-ref, a reference to Chad's dated decision "
+            "(for example its DECISIONS.md entry); nothing was written"
+        )
+    text = value.strip()
+    if len(text) > DECISION_REF_MAX or not text.isprintable():
+        raise CalibrationError(
+            f"the decision reference must be one line of at most {DECISION_REF_MAX} printable "
+            "characters; nothing was written"
+        )
+    return text
+
+
+def _phase_a_basis(report: dict, decision_ref: str) -> dict:
+    return {
+        "status": "pending",
+        "phase_a": "not met",
+        "rule": PHASE_A_NOT_MET_RULE,
+        "decision_ref": decision_ref,
+        "reasons": list(report["reasons"]),
+    }
+
+
+def phase_a_not_met(selection: dict) -> bool:
+    """Whether a selection carried a judge forward with Phase A not met (option (c))."""
+    basis = selection.get("basis")
+    return isinstance(basis, dict) and basis.get("status") == "pending"
+
+
+def _phase_a_disclosure(selection: dict) -> str:
+    basis = selection["basis"]
+    return (
+        f"{PHASE_A_NOT_MET}: this judge was carried forward under Chad's option (c) (judge "
+        f"selection {selection['selection_id']}, basis status pending, from calibration "
+        f"report {selection['report_id']} on assessment {selection['assessment_id']}; "
+        f"decision: {basis['decision_ref']}); no Phase A report met the per-dimension "
+        "agreement minimum, so a report made with this judge is never calibration"
+    )
+
+
+def _check_phase_a_not_met(root: Path, assessment_id: str, report: dict) -> None:
+    """Option (c)'s preconditions: no report on the assessment is ready, and the report is
+    one of the run that Decision 13's tie-break carries forward."""
+    choice = preregistered_choice(root, assessment_id)
+    ready = sorted(
+        r
+        for r, written in _written_reports(root, _assessment(root, assessment_id)).items()
+        if written["status"] == "ready"
+    )
+    if choice["phase_a_met"] or ready:
+        raise CalibrationError(
+            "a calibration report on this assessment is ready ("
+            + (", ".join(ready) or choice["judge_run_id"])
+            + "): Phase A is met, so --phase-a-not-met is refused and the normal judge-freeze "
+            "applies"
+        )
+    if choice["judge_run_id"] != report["judge_run_id"]:
+        raise CalibrationError(
+            f"with Phase A not met, Decision 13's pre-registered tie-break carries judge run "
+            f"{choice['judge_run_id']!r} ({choice['prompt_version']}) forward, not "
+            f"{report['judge_run_id']!r}; use one of its reports "
+            f"({', '.join(choice['report_ids'])})"
+        )
+    if report["status"] != "pending":
+        raise CalibrationError(
+            f"--phase-a-not-met carries forward only a pending report of a measured run; "
+            f"{report['report_id']!r} is {report['status']}"
+        )
+
+
+def freeze_judge(
+    root: Path,
+    assessment_id: str,
+    report_id: str,
+    selection_id: str,
+    *,
+    phase_a_not_met: bool = False,
+    decision_ref: str | None = None,
+) -> dict:
     """Freeze the judge of a `ready` calibration report (B7 Decision 13); written once.
 
     The report must be the one Decision 13's pre-registered rule chooses
     (`preregistered_choice`), and the assessment must have no frozen selection yet. Every
     report on the assessment is verified and re-derived from the evidence; any difference
     since it was written is refused. The selection pins the report's SHA-256 and the run's
-    frozen identity, which a later `--frozen-judge` run must match exactly."""
+    frozen identity, which a later `--frozen-judge` run must match exactly.
+
+    With `phase_a_not_met` (Open question 7(c), on Chad's dated decision, which
+    `decision_ref` names), no report on the assessment may be ready, and the report must be
+    one of the run the pre-registered tie-break carries forward. The selection's basis then
+    has status `pending`, every reason of that report and the decision reference, and every
+    later calibration report made with the judge states that Phase A was not met."""
     root = Path(root)
     path = selection_path(root, selection_id)
     if _present(path):
         raise CalibrationError(f"judge selection {selection_id!r} already exists; choose a new id")
+    if phase_a_not_met:
+        decision_ref = _decision_ref(decision_ref)
+    elif decision_ref is not None:
+        raise CalibrationError(
+            "--decision-ref is only for --phase-a-not-met (a ready report needs no decision "
+            "reference); nothing was written"
+        )
     report = load_report(root, assessment_id, report_id)
-    if report["status"] != "ready":
-        raise CalibrationError(
-            f"judge-freeze accepts only a ready calibration report; {report_id!r} is "
-            f"{report['status']}"
-        )
-    _refuse_second_selection(root, assessment_id)
-    choice = preregistered_choice(root, assessment_id)
-    if choice["judge_run_id"] != report["judge_run_id"]:
-        raise CalibrationError(
-            f"Decision 13's pre-registered rule chooses judge run {choice['judge_run_id']!r} "
-            f"({choice['prompt_version']}), not {report['judge_run_id']!r}; freeze one of its "
-            f"reports ({', '.join(choice['report_ids'])})"
-        )
+    if phase_a_not_met:
+        _refuse_second_selection(root, assessment_id)
+        _check_phase_a_not_met(root, assessment_id, report)
+        basis = _phase_a_basis(report, decision_ref)
+    else:
+        if report["status"] != "ready":
+            hint = (
+                "; with no ready report Phase A is not met, and carrying a judge forward needs "
+                "Chad's dated decision and --phase-a-not-met --decision-ref"
+                if report["status"] == "pending"
+                else ""
+            )
+            raise CalibrationError(
+                f"judge-freeze accepts only a ready calibration report; {report_id!r} is "
+                f"{report['status']}{hint}"
+            )
+        _refuse_second_selection(root, assessment_id)
+        choice = preregistered_choice(root, assessment_id)
+        if choice["judge_run_id"] != report["judge_run_id"]:
+            raise CalibrationError(
+                f"Decision 13's pre-registered rule chooses judge run "
+                f"{choice['judge_run_id']!r} ({choice['prompt_version']}), not "
+                f"{report['judge_run_id']!r}; freeze one of its reports "
+                f"({', '.join(choice['report_ids'])})"
+            )
+        basis = dict(SELECTION_BASIS)
     made = _assessment(root, assessment_id)
     main, _ = _report_paths(made.directory, report_id)
     report_sha256 = hashlib.sha256(main.read_bytes()).hexdigest()
@@ -980,7 +1132,7 @@ def freeze_judge(root: Path, assessment_id: str, report_id: str, selection_id: s
         "judge_run_id": report["judge_run_id"],
         "report_id": report_id,
         "report_sha256": report_sha256,
-        "basis": dict(SELECTION_BASIS),
+        "basis": basis,
         "prompt_version": identity["prompt_version"],
         "frozen_identity": identity["frozen_identity"],
         "implementation": identity["implementation"],
@@ -993,9 +1145,30 @@ def freeze_judge(root: Path, assessment_id: str, report_id: str, selection_id: s
     return selection
 
 
+def _basis_valid(basis: object, report: object) -> bool:
+    """A ready basis, or option (c)'s pending basis holding its report's reasons."""
+    if basis == SELECTION_BASIS:
+        return True
+    if not isinstance(basis, dict) or set(basis) != PHASE_A_BASIS_FIELDS:
+        return False
+    try:
+        decision_ref = _decision_ref(basis["decision_ref"])
+    except CalibrationError:
+        return False
+    return (
+        isinstance(report, dict)
+        and report.get("status") == "pending"
+        and isinstance(report.get("reasons"), list)
+        and bool(report["reasons"])
+        and basis == _phase_a_basis(report, decision_ref)
+    )
+
+
 def load_selection(root: Path, selection_id: str) -> dict:
-    """A judge selection, verified: its seal and fields, and its report's file SHA-256.
-    Its `frozen_identity` is what a `--frozen-judge` run passes to `judge.judge_run`."""
+    """A judge selection, verified: its seal and fields, its report's file SHA-256 and its
+    basis (ready, or option (c)'s pending basis with that report's reasons). Its
+    `frozen_identity` is what a `--frozen-judge` run passes to `judge.judge_run`;
+    `phase_a_not_met` says whether it carried a judge forward with Phase A not met."""
     root = Path(root)
     path = selection_path(root, selection_id)
     selection, _ = _read_json(path, f"judge selection {selection_id!r}")
@@ -1005,18 +1178,43 @@ def load_selection(root: Path, selection_id: str) -> dict:
         or selection["sha256"] != _sealed(selection)
         or selection["schema_version"] != SCHEMA_VERSION
         or selection["selection_id"] != selection_id
-        or selection["basis"] != SELECTION_BASIS
         or not isinstance(selection["frozen_identity"], dict)
     ):
         raise CalibrationError(f"judge selection {selection_id!r} changed; {INSPECT}")
     try:
         directory = assessment_directory(root, selection["assessment_id"])
+        main, _ = _report_paths(directory, selection["report_id"])
     except (ValueError, TypeError) as exc:
         raise CalibrationError(f"judge selection {selection_id!r}: {exc}") from None
-    main, _ = _report_paths(directory, selection["report_id"])
-    _, data = _read_json(main, f"calibration report {selection['report_id']!r}")
+    report, data = _read_json(main, f"calibration report {selection['report_id']!r}")
     if hashlib.sha256(data).hexdigest() != selection["report_sha256"]:
         raise CalibrationError(
             f"the calibration report of judge selection {selection_id!r} changed; {INSPECT}"
         )
+    if not _basis_valid(selection["basis"], report):
+        raise CalibrationError(f"judge selection {selection_id!r} changed; {INSPECT}")
     return selection
+
+
+def _frozen_selections(root: Path, frozen_sha256: str) -> list[dict]:
+    """The verified selections whose frozen identity a `--frozen-judge` run matched. A run
+    matched to an identity that no selection holds is refused: whether Phase A was met for
+    its judge cannot be stated."""
+    directory = Path(root) / SELECTIONS
+    if directory.is_symlink():
+        raise CalibrationError(f"a symlinked {SELECTIONS} directory is not supported")
+    matched = []
+    if directory.is_dir():
+        for path in sorted(directory.iterdir()):
+            if path.name.startswith(".") or not path.name.endswith(".json"):
+                continue
+            selection = load_selection(root, path.name.removesuffix(".json"))
+            if digest(selection["frozen_identity"]) == frozen_sha256:
+                matched.append(selection)
+    if not matched:
+        raise CalibrationError(
+            "the judge run was matched to a frozen judge, but no judge selection under this "
+            f"artifact root holds that identity, so whether Phase A was met cannot be stated; "
+            f"{INSPECT}"
+        )
+    return matched

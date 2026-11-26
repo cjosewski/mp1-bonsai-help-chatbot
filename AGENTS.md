@@ -160,13 +160,14 @@ As of November 24, 2026, **B5 (rubric and baseline run) is done**:
   Task 3) are built, and the gate is frozen until the Phase B comparison (`checks.py`,
   `gate.py`, `sampler.py`, the quote and lexicon rules; `tests/test_gate_freeze.py`).
 
-As of November 24, 2026, **B6 (baseline human labels) is next, and its tooling is built**:
+As of November 25, 2026, **B6 (baseline human labels) is done**: Chad labeled and froze
+assessment `b6-labels-1` (30 items, 0 unresolved). Its tooling:
 `bonsai-help assessment create | status`, `label`, `label-status` and
 `freeze-human-reference`, with the modules `evaluation_schemas`, `assessment`, `labels`,
 `human_reference` and `evaluation_cli`. The plan is
 `docs/superpowers/plans/2026-11-24-b6-labels.md`, and the calls and Chad's answers are in
-`docs/DECISIONS.md`. On Chad's go-ahead the assistant created assessment `b6-labels-1`
-(30 items); no label has been entered.
+`docs/DECISIONS.md`. Chad's labeling steps are in `docs/LABELING-RUNBOOK.md`, and he
+asked that this interactive method be used for all later labeling (November 25, 2026).
 - **Count.** B6 labels 30 of the 50 cohort items, and the other 20 stay unselected for
   B8's blind mixed queue.
 - **Who runs what.** The assistant may run `assessment create` on Chad's go-ahead and
@@ -188,16 +189,17 @@ As of November 24, 2026, **B6 (baseline human labels) is next, and its tooling i
 - **B7** calls `human_reference.load_reference` first and writes judge evidence only
   under `<assessment>/judges/`.
 
-As of November 24, 2026, **B7 (judge and Phase A calibration): the tooling is built, and
-the measured runs are pending**. Chad chose the judge model: "use Llama 3.3 70B for the
+As of November 25, 2026, **B7 (judge and Phase A calibration): Phase A was measured and is
+not met** (judge v1 met 1 dimension, judge v2 met D5 and D6); Chad chose "(c) Go to B8 with
+v2, disclosed" (`docs/DECISIONS.md`). Chad chose the judge model: "use Llama 3.3 70B for the
 judge". The commands are `bonsai-help judge`, `judge-status`, `judge-qualify`,
 `judge-examples`, `calibrate` and `judge-freeze`, with the modules `judge_config`,
 `judge`, `display`, `qualification`, `acceptance`, `calibration` and `judge_examples`, the
 prompt `prompts/judge-v1.md` and `config/judge.example.json`. The plan is
 `docs/superpowers/plans/2026-11-24-b7-judge.md`; the assistant's calls and the open
-questions for Chad are in `docs/DECISIONS.md` (November 24, 2026: B7 judge). No judge run,
-agreement figure or calibration exists, and none may be claimed until the measured runs
-are done and the calibration report says `ready`.
+questions for Chad are in `docs/DECISIONS.md` (November 24, 2026: B7 judge). The judge is not
+calibrated: never present agreement as calibration or Phase A as met. B8 reports made with
+the carried judge state that Phase A was not met.
 - **Model.** The judge model's file name and hash go only in the git-ignored
   `config/judge.local.json` or a file outside the repository, never in Git, a commit
   message, a README example or a test. Examples use placeholders.
