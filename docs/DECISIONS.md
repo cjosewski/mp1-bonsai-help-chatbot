@@ -3284,6 +3284,8 @@ existed, and this entry is committed before the corrected collection starts.
   (Recommended)": the one change applies to every segment, a dated departure from plan
   §7 Step 6 (below). On blindness, Chad chose "Accept, disclose (Recommended)": the
   arm-revealing effect of a stated setup is kept as a disclosed limit of the B8 report.
+  After reviewing the full text of `prompts/generator-v1.2.md`, Chad said: "The prompt is
+  approved."
 
 - **Heatmap source.** Chad's frozen human reference for `b6-labels-1` (30 baseline items,
   0 unresolved), joined to each item's category and setup profile through the assessment
