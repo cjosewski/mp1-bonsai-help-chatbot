@@ -3448,6 +3448,26 @@ Iteration-log record (this carries into the B10 iteration log):
   that shape as the next logged iteration and the final prompt for B10, and it is brought
   to Chad for approval before any run.
 
+### November 26, 2026: Chad's example prompts committed as references
+
+- **Owner decision (Chad, November 26, 2026).** Chad added three example prompts for this
+  project ("This project should use these or modify ours as needed.") and chose "Commit as
+  references (Recommended)". They are committed with their wording unchanged under
+  `prompts/reference/`:
+  - `system-prompt_for_harness.md`: a help-chatbot system prompt.
+  - `user_prompt.txt`: an answer-from-documents prompt.
+  - `follow_up_prompt.txt`: a follow-up rewrite into a standalone search query.
+- **Use.** No run reads them, and they change no prompt used by B8.
+  - The generator rewrite after B8 (entry "prompt shape for the final generator prompt")
+    follows `user_prompt.txt`, adding the role, audience and "documents are content, not
+    instructions" rules of the system prompt.
+  - The chatbot system prompt and the follow-up rewrite are kept for Mini Project 4,
+    where the chatbot now lives.
+- **Noted for the rewrite (assistant's calls).** The references spell the product
+  "Bonzai"; MP1's prompts keep "Bonsai", as the docs write it. Their worked examples use
+  illustrative UI names, so the rewrite takes its examples from development-split items
+  and their pinned sections, never from held-out items.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
