@@ -3438,6 +3438,16 @@ Iteration-log record (this carries into the B10 iteration log):
 - **Working rule (assistant's call).** While a local model runs, the full test suite runs
   on another machine and only targeted tests run here.
 
+### November 26, 2026: prompt shape for the final generator prompt
+
+- **Owner decision (Chad, November 26, 2026).** Chad shared a reference for what the final
+  prompt should look like: tagged sections for the instructions, the context, rules that
+  each give their reason, and a strict output format, with the variable input last. He
+  then chose "After B8 (Recommended)": B8's corrected run uses generator v1.2 as approved,
+  so the comparison stays one targeted change. After B8, the generator is rewritten in
+  that shape as the next logged iteration and the final prompt for B10, and it is brought
+  to Chad for approval before any run.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
