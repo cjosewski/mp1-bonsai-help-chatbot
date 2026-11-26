@@ -1,4 +1,5 @@
-"""The committed generator prompts: v1 is frozen, v1.1 changes only the answer length."""
+"""The committed generator prompts: v1 is frozen, v1.1 changes only the answer length, and
+v1.2 (the Phase B correction) adds only the context paragraph."""
 
 import difflib
 import re
@@ -11,6 +12,11 @@ from bonsai_help.config import RunConfig, load_prompt
 REPO = Path(config_module.__file__).resolve().parents[2]
 V1 = "prompts/generator-v1.md"
 V1_1 = "prompts/generator-v1.1.md"
+V1_2 = "prompts/generator-v1.2.md"
+# The baseline collection baseline-2026-11-24-r2 used this text.
+V1_1_SHA256 = "ee1dc9a122740ddd7540091da2dd9acd4ea1975278e87590286418b9bcbd75b1"
+# Pre-registered for Phase B (DECISIONS.md, November 26, 2026) before any corrected run.
+V1_2_SHA256 = "09cb41086f4c164e56d0038950fd58d04ca6e52753d0ee22543bceb111055b63"
 # Runs smoke-2026-11-24-a, smoke-2026-11-24-b and baseline-2026-11-24 used this text.
 V1_SHA256 = "04c6d155b534226f51b1256d787e8d715b073e1017e9533d5cd5ee62ec548b36"
 FIELDS = (
@@ -97,3 +103,52 @@ def test_v1_1_differs_from_v1_only_in_the_answer_lines():
         "Phrase the question the way real users ask, not as a docs heading: in their\n",
         f'    "answer": "a direct answer for the stated setup, at least {MIN_ANSWER_WORDS} words",\n',
     ]
+
+
+def test_v1_1_is_frozen_after_the_baseline():
+    _, digest = load_prompt(make(V1_1))
+    assert digest == V1_1_SHA256
+
+
+def test_v1_2_is_pinned_as_pre_registered():
+    _, digest = load_prompt(make(V1_2))
+    assert digest == V1_2_SHA256
+
+
+def test_v1_2_loads_renders_and_names_every_field():
+    text, _ = load_prompt(make(V1_2))
+    rendered = text.format(category="c", setup="k: v", sections="S")
+    for field in FIELDS:
+        assert field in rendered
+    for placeholder in ("{category}", "{setup}", "{sections}"):
+        assert placeholder not in rendered
+
+
+def test_v1_2_adds_only_the_context_paragraph_to_v1_1():
+    diff = [
+        line
+        for line in difflib.unified_diff(lines(V1_1), lines(V1_2), n=0)
+        if line[:1] in "+-" and not line.startswith(("+++", "---"))
+    ]
+    assert not [line for line in diff if line.startswith("-")]
+    added = "".join(line[1:] for line in diff)
+    # One paragraph of five lines and its blank separator (difflib may place it first).
+    assert sorted(added.splitlines())[0] == "" and len(added.splitlines()) == 6
+    assert added.strip().count("\n\n") == 0
+    # One paragraph, aimed at D5 (both clauses of its pass anchor): the setup comes from
+    # the setup record, and the assumptions the steps rely on are stated.
+    words = " ".join(added.split())
+    for phrase in (
+        "In `answer`, state in plain words the setup",
+        "the Blender and Bonsai versions, the IFC schema, the discipline and the model state",
+        "any assumption the steps rely on",
+        "Take the setup from the Setup, not from the sections",
+        "need not be in the sections",
+    ):
+        assert phrase in words
+
+
+def test_v1_2_paragraph_follows_the_citation_instruction():
+    text, _ = load_prompt(make(V1_2))
+    citation = text.index("without the brackets.\n\nIn `answer`, state in plain words")
+    assert citation < text.index("In `quotes`, give 1 to 3")

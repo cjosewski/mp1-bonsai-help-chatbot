@@ -3275,6 +3275,151 @@ Carrying out Chad's two November 25, 2026 decisions ("Void it, keep all files
   calibrated. B8's mixed assessment is judged with `--frozen-judge b8-judge-v2`, and every
   report made with it states that Phase A was not met.
 
+### November 26, 2026: Phase B pre-registration
+
+Pre-registered before any corrected run. The figures were read before any corrected item
+existed, and this entry is committed before the corrected collection starts.
+
+- **Owner decisions (Chad, November 26, 2026).** On scope, Chad chose "Every category
+  (Recommended)": the one change applies to every segment, a dated departure from plan
+  §7 Step 6 (below). On blindness, Chad chose "Accept, disclose (Recommended)": the
+  arm-revealing effect of a stated setup is kept as a disclosed limit of the B8 report.
+
+- **Heatmap source.** Chad's frozen human reference for `b6-labels-1` (30 baseline items,
+  0 unresolved), joined to each item's category and setup profile through the assessment
+  key, which may be read now that the labels are frozen. No judge decision and no
+  `.disagreements.json` file was read. The change is worded from the heatmap and the
+  rubric's D5 anchor and labeling notes only. No label note text, and nothing drawn from
+  the notes, is used here or in the prompt.
+- **Heatmap, failures per dimension** (fails of n; 95% Clopper-Pearson interval of the fail
+  rate in the totals row):
+
+  | Segment | n | D1 | D2 | D3 | D4 | D5 | D6 | Overall |
+  | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+  | `bonsai_modeling` | 6 | 2 | 4 | 2 | 0 | 5 | 2 | 6 |
+  | `bonsai_project_setup` | 6 | 2 | 3 | 4 | 1 | 6 | 1 | 6 |
+  | `files_versions_troubleshooting` | 6 | 3 | 2 | 3 | 3 | 6 | 0 | 6 |
+  | `ifc_data_and_materials` | 6 | 2 | 3 | 2 | 2 | 4 | 2 | 5 |
+  | `model_exploration` | 6 | 1 | 3 | 1 | 1 | 6 | 0 | 6 |
+  | `VL-current` | 16 | 4 | 8 | 7 | 4 | 14 | 2 | 15 |
+  | `VL-older` | 14 | 6 | 7 | 5 | 3 | 13 | 3 | 14 |
+  | All | 30 | 10 (17-53%) | 15 (31-69%) | 12 (23-59%) | 7 (10-42%) | 27 (73-98%) | 5 (6-35%) | 29 (83-100%) |
+
+  By setup profile (6 profiles, 2 to 8 items each), D5 fails 2 of 2 (`SP-01`), 5 of 6
+  (`SP-05`), 7 of 8 (`SP-09`), 6 of 7 (`SP-10`), 5 of 5 (`SP-14`) and 2 of 2 (`SP-18`).
+- **Worst dimension: D5 (context clarity), 27 of 30.** It is the worst dimension in every
+  category, every setup profile and both version lines, and its intervals overlap across
+  all segments, so the heatmap names no single worst segment: three categories tie at
+  6 of 6. In 22 of the 27 failures the answer names no Blender or Bonsai version (a text
+  search of the `answer` field for a version number). Generator v1.1 never asks the
+  answer to state the setup.
+- **Departure from plan §7 Step 6 (Chad: "Every category (Recommended)").** The plan says
+  one targeted change "for that segment (a category or a setup profile)". The one change
+  applies to every segment, because D5 fails in all of them. Applying it to one category only would
+  need an arbitrary tie-break and would touch about a fifth of the items.
+- **The change.** Generator v1.1 → v1.2. `prompts/generator-v1.2.md` is v1.1 with one
+  added paragraph after the citation instruction and nothing else changed:
+
+  > In `answer`, state in plain words the setup the answer applies to, from the Setup
+  > above: the Blender and Bonsai versions, the IFC schema, the discipline and the model
+  > state. Also state in `answer` any assumption the steps rely on, such as that a storey
+  > or a wall type already exists. Take the setup from the Setup, not from the sections;
+  > an assumption is about the user's model, so it need not be in the sections.
+
+  - It is one change aimed at one dimension: its two instructions are the two clauses of
+    D5's pass anchor. A D5 gain cannot be split between them.
+  - The last sentence exempts these statements from "Write from the sections above only",
+    which would otherwise forbid them. The example is the rubric's own ("a storey or a
+    wall type already exists"). "In plain words" asks for prose, not the record's raw
+    values such as `large_federated_model`.
+  - SHA-256 of v1.2: `09cb41086f4c164e56d0038950fd58d04ca6e52753d0ee22543bceb111055b63`,
+    pinned in `tests/test_generator_prompts.py`, which also pins v1.1 (`ee1dc9a1…`, frozen)
+    and checks that v1.2 only adds that paragraph, after the citation instruction.
+- **Hypothesis.** Stating the setup and assumptions in the answer lowers the D5 failure
+  rate in the corrected arm, with D1 to D4 and D6 no worse.
+- **Fixed now (assistant's calls; Chad can overrule each before the run).**
+  - Collection `corrected-b8-1`, with `config/run.corrected.local.json` (git-ignored) and
+    the `collect` defaults: target 50 retained, 70 slots per batch, at most 3 batches.
+  - Cohort `corrected-b8-cohort-1` (50 items, 10 per category).
+  - One mixed assessment, `b8-blind-1`: `assessment create --assessment-id b8-blind-1
+    --cohort baseline-b5-cohort-1 --cohort corrected-b8-cohort-1 --count 20 --seed
+    20261126 --exclude-assessment b6-labels-1`. That selects all 20 baseline items that B6
+    left and 20 of the 50 corrected items, shuffled into one queue of 40. One corrected
+    collection, one cohort and one mixed assessment: no second `create`, and no other
+    seed.
+  - Chad labels and freezes `b8-blind-1` with the runbook steps before any judge run on
+    it. Then one measured judge run on those 40 items only, with `--frozen-judge
+    b8-judge-v2`.
+- **Outcome measures, fixed now.**
+  - Every rate is given with its count and a 95% Clopper-Pearson interval.
+  - An item passes overall only with six resolved passes. An unresolved decision counts as
+    a failure in both arms, and the unresolved count per arm is reported.
+  - Primary, from Chad's labels of `b8-blind-1`: overall failure per arm. The baseline
+    figure is the 20 baseline items of that queue (Chad's B6 answer 3), not B6's 30. The
+    improvement ratio is `(baseline_failure − corrected_failure) / baseline_failure`,
+    passing only when strictly above 0.80. Corrected overall pass is the passing share of
+    the 20 corrected items, with a target of at least 80%.
+  - Hypothesis test, secondary and labelled as such:
+    - D5 "supported" if the corrected arm's D5 fail count is lower than the baseline
+      arm's and the two intervals do not overlap.
+    - "Partly supported" if it is lower and they overlap.
+    - "Not supported" otherwise.
+    - "No worse" for each other dimension means a corrected fail count at most 3 (of 20)
+      above the baseline's. Any dimension outside that is reported as worse.
+  - Judge figures from the frozen `b8-judge-v2` are reported beside the human figures,
+    never in their place, and always with "Phase A was not met".
+  - Generation figures as in B5: initial-attempt schema validity (target at least 95%),
+    retry recovery and gate retention. Baseline before figures: 70 of 70 valid initial
+    (94.9% to 100%), 56 of 70 retained (68.7% to 88.6%).
+- **Expected result, stated before the run.** A single D5 change cannot plausibly meet the
+  course targets. On the 30 B6 items, even a perfect D5 fix would leave 23 failing, since
+  only 7 items pass D1 to D4 and D6: 23% overall pass and a relative reduction of
+  (29 − 23) / 29 = 21%, against at least 80% and more than 80%. D2 alone fails half the
+  items. The result is reported as measured, and no second change is added to reach the
+  targets.
+- **Run design and acceptance.**
+  - The corrected config differs from the baseline config only in `prompt_path` (v1.2),
+    `prompt_variant` and `purpose` (both `corrected`). Same model id, model identity and
+    model hash, temperature 0.6, thinking off, assessed split. The code does not check
+    that the two arms share a model, so this is checked by hand against the baseline
+    collection's recorded settings before the report.
+  - Generation code: compared with the baseline batch's recorded implementation hashes,
+    `generate.py`, `gate.py`, `checks.py`, `sampler.py`, `schemas.py`, `model_client.py`,
+    `config.py` and `cohort.py` are unchanged. `cli.py`, `collection.py` and
+    `collection_cli.py` gained later commands and reports, and the prompt differs, so the
+    run's implementation digest will differ from the baseline's.
+  - Seed 2026 is reused. The sampler draws each slot's sections from the batch seed and the
+    slot id, and each batch seed from the run seed and the batch number, never from the
+    prompt. Batch 1 of the corrected run therefore gets the same 70 slots, setups and
+    offered sections as the baseline's batch 1. A batch 2 or 3 would have slots with no
+    baseline counterpart. The cohort and the assessment select items by their own seeds,
+    so a paired comparison is not the primary analysis.
+  - The gate, sampler and judge stay frozen. If the new paragraph makes answers more
+    alike, the frozen near-duplicate check may drop more of them. That is reported and
+    never fixed by changing the gate.
+  - B8 acceptance (plan §9): at least 50 retained and at least 10 per category. If the
+    collection stops, falls short after 3 batches or leaves a category under 10, it is
+    kept as recorded and reported. It is never resumed beyond its budget, restarted with
+    a changed prompt or replaced without Chad's dated decision.
+- **Limits, disclosed now.**
+  - The stated setup can reveal an item's arm to Chad, because most baseline items do not
+    state one. Any D5 fix has this effect. Chad accepted it as a disclosed limit.
+    `freeze-human-reference --declare-blind` declares only that no judge output, model
+    feedback or other label was consulted.
+  - Because the seed is shared, a corrected item can share a slot, and so its sections,
+    with a baseline item in the same queue.
+Iteration-log record (this carries into the B10 iteration log):
+
+- **Date.** November 26, 2026.
+- **Change.** Generator v1.1 → v1.2, one paragraph on stating the setup and assumptions
+  (above).
+- **Hypothesis.** As above.
+- **Before.** B6 labels: D5 fails 27 of 30 (73% to 98%), overall 29 of 30 (83% to 100%).
+  The ratio's baseline figure comes from the B8 mixed queue.
+- **After.** Pending (no corrected run).
+- **Decision.** Pending (after the comparison).
+- **Next step.** The corrected collection `corrected-b8-1`, on Chad's go-ahead.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
