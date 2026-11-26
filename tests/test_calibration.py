@@ -1420,6 +1420,13 @@ def test_recorded_evidence_freezes_after_the_void_on_a_scratch_copy(tmp_path):
     copy = tmp_path / "runs"
     shutil.copytree(REAL_RUNS, copy, symlinks=True)
     stopped_dir = copy / "assessments" / REAL_ASSESSMENT / "judges" / "phase-a-v1"
+    # Since November 26, 2026 the real evidence holds the void and the selection; the copy
+    # removes both to replay the pre-void state (the real files are only read).
+    for recorded in (
+        stopped_dir / calibration.VOID,
+        copy / calibration.SELECTIONS / "b8-judge-v2.json",
+    ):
+        recorded.unlink(missing_ok=True)
     with pytest.raises(CalibrationError, match=re.escape(judge.LOCK)):
         calibration.preregistered_choice(copy, REAL_ASSESSMENT)
     record = calibration.void_judge_run(copy, REAL_ASSESSMENT, "phase-a-v1", REAL_DECISION)
@@ -1487,7 +1494,8 @@ def test_recorded_evidence_freezes_after_the_void_on_a_scratch_copy(tmp_path):
     second.unlink()
     assert calibration.load_selection(copy, "scratch-selection") == selection
 
-    # The real runs/ is byte for byte as it was: no void, no selection.
+    # The real runs/ is byte for byte as it was, and its recorded selection still loads.
     assert tree(REAL_RUNS) == real_before
-    assert not (REAL_STOPPED / calibration.VOID).exists()
-    assert not (REAL_RUNS / calibration.SELECTIONS).exists()
+    if (REAL_RUNS / calibration.SELECTIONS / "b8-judge-v2.json").exists():
+        assert (REAL_STOPPED / calibration.VOID).exists()
+        assert calibration.load_selection(REAL_RUNS, "b8-judge-v2")["judge_run_id"] == "phase-a-v2"
