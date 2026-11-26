@@ -3258,6 +3258,23 @@ record.
   `judge-freeze --phase-a-not-met` on `phase-a-v2-report` with a decision reference to
   the entry "Phase A not met; judge v2 carried to B8 (Chad's option (c))"; then B8.
 
+### November 26, 2026: stopped run voided; judge v2 frozen with Phase A not met
+
+Carrying out Chad's two November 25, 2026 decisions ("Void it, keep all files
+(Recommended)"; "(c) Go to B8 with v2, disclosed"):
+
+- **Void.** `bonsai-help judge-void --assessment-id b6-labels-1 --judge-run-id phase-a-v1`
+  wrote one void record (SHA-256 `d28b08c7…`). It verified 1 request start, 0 completed
+  attempts and 1 unknown outcome (`phase-a-v1:L-001:1`) from the run's own ledgers; the
+  lock was present and left in place, and no other file was changed.
+- **Freeze.** `bonsai-help judge-freeze --assessment-id b6-labels-1 --report-id
+  phase-a-v2-report --selection-id b8-judge-v2 --phase-a-not-met` froze judge v2's run
+  `phase-a-v2` (the run the pre-registered tie-break names) as selection `b8-judge-v2`
+  (SHA-256 `bd5f2b29…`): basis status `pending`, Phase A "not met", reason "dimensions
+  below the per-dimension agreement minimum 0.8: D1, D2, D3, D4". The judge is not
+  calibrated. B8's mixed assessment is judged with `--frozen-judge b8-judge-v2`, and every
+  report made with it states that Phase A was not met.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
