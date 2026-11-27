@@ -1,4 +1,4 @@
-# Labeling runbook (B6 baseline labels, B8 blind mixed labels)
+# Labeling runbook (B6 baseline labels, B8 and v2 blind mixed labels)
 
 Chad's steps for labeling assessment `b6-labels-1`: 30 baseline items drawn from cohort
 `baseline-b5-cohort-1`, pinned to rubric `bonsai-rubric-v1`. The details of the commands and
@@ -120,3 +120,26 @@ Type `freeze b8-blind-1` to confirm, then tell the assistant. The one judge run 
 - Some answers state the setup they apply to (versions, schema, model state). Grade each
   item against the rubric on its own; do not try to guess its arm. Chad accepted this
   risk as a disclosed limit of B8 ("Accept, disclose (Recommended)").
+
+## v2: the blind mixed assessment `v2-blind-1`
+
+The same steps as B8 with the assessment id `v2-blind-1`: 40 items, `L-001` to `L-040`,
+shuffled into one queue. Twenty come from a fresh baseline collection (generator v1.1)
+and twenty from generator v2. Nothing on screen names an item's run or arm. The ids,
+seed and counts are fixed in [`DECISIONS.md`](DECISIONS.md) (November 26, 2026: v2 run
+pre-registration).
+
+```
+uv run --locked bonsai-help label --assessment-id v2-blind-1 --reviewer "Chad Josewski"
+```
+
+Type `label v2-blind-1` to confirm. Check progress and correct a label as in steps 2 and
+3, with `--assessment-id v2-blind-1`. When `label-status` reports all 40 complete:
+
+```
+uv run --locked bonsai-help freeze-human-reference --assessment-id v2-blind-1 --reviewer "Chad Josewski" --declare-blind
+```
+
+Type `freeze v2-blind-1` to confirm, then tell the assistant. The one judge run comes
+next, with the Llama judge server on port 8082. Budget about 3 to 4 hours. The B8 notes
+on unresolved decisions and stated setups apply here too.

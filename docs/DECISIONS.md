@@ -3634,6 +3634,31 @@ collection starts.
   - The new baseline is a fresh sample of the same prompt, so its failure rate may differ
     from B8's baseline arm by chance.
 
+### November 26, 2026: v2 and fresh baseline collections ready; `v2-blind-1` created
+
+Carrying out the v2 run pre-registration:
+
+- **`corrected-v2-1`** (generator v2) is `ready` after one batch.
+  - 70 of 70 initial attempts were valid (94.9% to 100%), with 0 retries, 0 exhausted
+    slots and 0 unknown outcomes.
+  - 62 of 70 were retained (88.6%, 78.7% to 94.9%): 13 `bonsai_project_setup`, 11
+    `bonsai_modeling`, 12 `ifc_data_and_materials`, 14 `model_exploration`, 12
+    `files_versions_troubleshooting`.
+- **`baseline-2026-11-26`** (generator v1.1, the original baseline config) is `ready`
+  after one batch.
+  - 70 of 70 initial attempts were valid (94.9% to 100%), with 0 retries, 0 exhausted
+    slots and 0 unknown outcomes.
+  - 58 of 70 were retained (82.9%, 72.0% to 90.8%): 11, 12, 12, 13 and 10 in the same
+    category order.
+- **Category shares.** Neither batch passed the category-share check, as in every earlier
+  run. The shares are reported, not corrected.
+- **Cohorts.** `corrected-v2-cohort-1` (SHA-256 `2ef9d6a1…`) and
+  `baseline-2026-11-26-cohort-1` (`8f5b7ab3…`) are frozen at 50 items each, 10 per
+  category.
+- **Assessment `v2-blind-1`.** Created with the pre-registered command: an `arm`
+  assessment with 2 sources and 40 items, pinned to `bonsai-rubric-v1`. Only its blind
+  summary was read.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
