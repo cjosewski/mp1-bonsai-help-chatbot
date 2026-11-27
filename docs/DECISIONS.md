@@ -3490,6 +3490,54 @@ Carrying out the Phase B pre-registration and Chad's go-ahead:
   summary was read. Chad labels it with the runbook's B8 section. The judge run comes
   after his labels are frozen.
 
+### November 26, 2026: B8 results (Phase B measured)
+
+- **Evidence.** Chad labeled and froze `b8-blind-1` (40 items, 0 unresolved, declared
+  blind). The one measured judge run was `b8-judge-1`, with `--frozen-judge b8-judge-v2`,
+  qualification `judge-v1-q1` and pool `dev-pool-1`: 40 of 40 judged, 0 unknown outcomes.
+  Its calibration report `b8-judge-1-report` is `pending`, because Phase A was not met.
+  Every figure below is a count with its 95% Clopper-Pearson interval, from Chad's labels
+  unless it says judge.
+- **Primary outcome (human labels, 20 items per arm).**
+
+  | Arm | D1 fail | D2 fail | D3 fail | D4 fail | D5 fail | D6 fail | Overall fail |
+  | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+  | Baseline (v1.1) | 4 | 13 | 7 | 6 | 20 | 2 | 20/20, 100% (83.2-100%) |
+  | Corrected (v1.2) | 9 | 9 | 7 | 7 | 1 | 3 | 17/20, 85.0% (62.1-96.8%) |
+
+  - Improvement ratio: (20/20 − 17/20) / (20/20) = 0.15. It does not pass (the target is
+    more than 0.80).
+  - Corrected overall pass: 3 of 20, 15.0% (3.2% to 37.9%). It does not pass (the target is
+    at least 80%).
+  - Both results are within the ceiling stated before the run (about 23% pass and 21%
+    reduction).
+- **Hypothesis (pre-registered rules).**
+  - D5 is **supported**. D5 failures went from 20 of 20 (83.2% to 100%) to 1 of 20 (0.1% to
+    24.9%), and the intervals do not overlap.
+  - **D1 is worse**. It went from 4 to 9 failures, more than the 3 the rule allows. D2,
+    D3, D4 and D6 are within the "no worse" rule (13 to 9, 7 to 7, 6 to 7, 2 to 3).
+  - D2 (safety specificity) fails 9 of 20 even after the change and is now the largest
+    remaining failure, together with D1.
+- **Judge figures (Phase A was not met; not calibration).** The judge failed 20 of 20
+  baseline items overall (83.2% to 100%) and 7 of 20 corrected items (15.4% to 59.2%).
+  - Agreement with Chad on these 40 items was D1 67.5%, D2 60.0%, D3 65.0%, D4 67.5%,
+    D5 90.0% and D6 90.0%.
+  - The judge passes far more corrected items than Chad does, and its TNR is low on
+    D1 to D4. Its overall figures overstate the corrected arm and are reported only
+    beside the human figures.
+- **Check.** The per-arm human counts were computed from the frozen reference and the key.
+  They match the human sides of the per-arm confusion counts in `b8-judge-1-report`.
+
+Iteration-log record, completed (this carries into the B10 iteration log):
+
+- **After.** D5 failures: 20/20 → 1/20. Overall failure: 20/20 → 17/20. Ratio 0.15. D1
+  failures 4/20 → 9/20.
+- **Decision** (assistant's summary of the measured result; Chad decides what follows).
+  v1.2 fixes what it targeted, D5. It does not meet the course's Phase B targets. The
+  result is reported as measured, with no second change added to B8.
+- **Next step.** The post-B8 generator rewrite in the reference shape that Chad chose
+  (entry "prompt shape for the final generator prompt"), for his approval before any run.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
