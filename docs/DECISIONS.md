@@ -3538,6 +3538,54 @@ Iteration-log record, completed (this carries into the B10 iteration log):
 - **Next step.** The post-B8 generator rewrite in the reference shape that Chad chose
   (entry "prompt shape for the final generator prompt"), for his approval before any run.
 
+### November 26, 2026: generator v2, the rewrite in the reference prompt shape
+
+- **Owner decisions (Chad, November 26, 2026).** After reading `prompts/generator-v2.md`,
+  Chad chose "Approved as drafted". On worked examples he chose "No examples for now
+  (Recommended)".
+  - This departs from the line in the entry "Chad's example prompts committed as
+    references" saying the rewrite takes its examples from development-split items. No
+    development item had the seven-field shape: the two development gold items use the
+    older format and are both `model_exploration`. Examples may be added later as their
+    own logged iteration.
+- **The prompt.** `prompts/generator-v2.md` (SHA-256
+  `af6d28ffa194cec408a10c537782c1e623c09ee307913c756d1380485ab682f3`, pinned in
+  `tests/test_generator_prompts.py`) follows `prompts/reference/user_prompt.txt`.
+  - It is built from tagged sections: role, context, rules that each give their reason,
+    a strict output format, then the category, setup and documents last, with a closing
+    sentence on what a right item is.
+  - It keeps the placeholders, the seven-field JSON and the gate's 60-word minimum.
+  - It keeps v1.2's setup and assumptions rule (D5).
+  - It adds rules aimed at the failures B8 left:
+    - D1: ask only what the sections answer in full, finish the steps for the model
+      state, no padding.
+    - D2: a risk these steps cause, with its precaution; the common hazards only when a
+      cited section states them.
+    - D3: names exactly as the sections write them, and no older name outside the
+      question.
+    - D4: how to state a gap and name the kind of route, with no invented products or
+      limits.
+    - D6: a tip the steps do not say.
+  - Three independent reviews (rubric fit, gate mechanics, reference shape) were applied
+    before Chad's approval.
+- **Not yet run.** No collection uses v2. A run needs Chad's go-ahead, and its design and
+  comparison are pre-registered before it, as for B8. v1.1, v1.2 and the B8 evidence stay
+  unchanged.
+
+Iteration-log record (this carries into the B10 iteration log):
+
+- **Date.** November 26, 2026.
+- **Change.** Generator v1.2 → v2: a rewrite in the reference prompt shape (above). This
+  is a rewrite, not one targeted change, so its effect cannot be attributed to a single
+  rule.
+- **Hypothesis.** The added rules lower D1 and D2 failures from B8's corrected arm while
+  D5 stays fixed.
+- **Before.** B8 corrected arm (v1.2, 20 items): D1 9, D2 9, D3 7, D4 7, D5 1 and D6 3
+  failures; overall 17 of 20.
+- **After.** Pending (no run).
+- **Decision.** Pending.
+- **Next step.** Chad's go-ahead for a run and its design.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |

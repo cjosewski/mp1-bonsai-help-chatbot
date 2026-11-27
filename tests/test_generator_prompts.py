@@ -1,5 +1,6 @@
-"""The committed generator prompts: v1 is frozen, v1.1 changes only the answer length, and
-v1.2 (the Phase B correction) adds only the context paragraph."""
+"""The committed generator prompts: v1 is frozen, v1.1 changes only the answer length,
+v1.2 (the Phase B correction) adds only the context paragraph, and v2 is the rewrite in
+the reference prompt shape (prompts/reference/)."""
 
 import difflib
 import re
@@ -13,10 +14,13 @@ REPO = Path(config_module.__file__).resolve().parents[2]
 V1 = "prompts/generator-v1.md"
 V1_1 = "prompts/generator-v1.1.md"
 V1_2 = "prompts/generator-v1.2.md"
+V2 = "prompts/generator-v2.md"
 # The baseline collection baseline-2026-11-24-r2 used this text.
 V1_1_SHA256 = "ee1dc9a122740ddd7540091da2dd9acd4ea1975278e87590286418b9bcbd75b1"
 # Pre-registered for Phase B (DECISIONS.md, November 26, 2026) before any corrected run.
 V1_2_SHA256 = "09cb41086f4c164e56d0038950fd58d04ca6e52753d0ee22543bceb111055b63"
+# Approved by Chad on November 26, 2026 ("Approved as drafted"), before any run.
+V2_SHA256 = "af6d28ffa194cec408a10c537782c1e623c09ee307913c756d1380485ab682f3"
 # Runs smoke-2026-11-24-a, smoke-2026-11-24-b and baseline-2026-11-24 used this text.
 V1_SHA256 = "04c6d155b534226f51b1256d787e8d715b073e1017e9533d5cd5ee62ec548b36"
 FIELDS = (
@@ -152,3 +156,34 @@ def test_v1_2_paragraph_follows_the_citation_instruction():
     text, _ = load_prompt(make(V1_2))
     citation = text.index("without the brackets.\n\nIn `answer`, state in plain words")
     assert citation < text.index("In `quotes`, give 1 to 3")
+
+
+def test_v2_is_pinned_as_approved():
+    _, digest = load_prompt(make(V2))
+    assert digest == V2_SHA256
+
+
+def test_v2_renders_with_its_tagged_sections_and_input_last():
+    text, _ = load_prompt(make(V2))
+    rendered = text.format(category="CAT", setup="k: v", sections="SECTIONS")
+    for field in FIELDS:
+        assert field in rendered
+    # Each section opens on its own line; tag names in the prose do not count.
+    order = [
+        rendered.index(f"{tag}\n")
+        for tag in ("<role>", "<context>", "<rules>", "<output_format>", "\n<category>")
+    ]
+    assert order == sorted(order)
+    assert rendered.index("<category>\nCAT\n</category>") < rendered.index(
+        "<setup>\nk: v\n</setup>"
+    )
+    assert rendered.index("<setup>") < rendered.index("<documents>\nSECTIONS\n</documents>")
+    assert "Bonzai" not in text
+
+
+def test_v2_keeps_the_gates_answer_minimum_and_the_d5_setup_rule():
+    text, _ = load_prompt(make(V2))
+    assert {int(n) for n in re.findall(r"at least (\d+) words", text)} == {MIN_ANSWER_WORDS}
+    words = " ".join(text.split())
+    assert "state in plain words the setup it applies to" in words
+    assert "any assumption the steps rely on" in words
