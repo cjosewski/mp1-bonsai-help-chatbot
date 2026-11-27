@@ -3659,6 +3659,81 @@ Carrying out the v2 run pre-registration:
   assessment with 2 sources and 40 items, pinned to `bonsai-rubric-v1`. Only its blind
   summary was read.
 
+### November 27, 2026: v2 results (measured)
+
+- **Evidence.**
+  - Chad labeled and froze `v2-blind-1`: 40 items, 0 unresolved, declared blind.
+  - The one measured judge run was `v2-judge-1`, with `--frozen-judge b8-judge-v2`,
+    qualification `judge-v1-q1` and pool `dev-pool-1`. It judged 40 of 40 with 0 unknown
+    outcomes. It is 1 of the 3 measured judge runs this assessment allows.
+  - Its calibration report `v2-judge-1-report` is `pending`, because Phase A was not met.
+  - Every figure below is a count with its 95% Clopper-Pearson interval. It comes from
+    Chad's labels unless it says judge.
+- **Run check.** The two arms' first batches recorded the same model id, model identity
+  and hash, temperature, thinking setting, seed, split and embedding model. They also
+  recorded the same generation source files. They differ only in the prompt (path, hash,
+  variant), the purpose and the run identity.
+- **Primary outcome (human labels, 20 items per arm).**
+
+  | Arm | D1 fail | D2 fail | D3 fail | D4 fail | D5 fail | D6 fail | Overall fail |
+  | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+  | Baseline (v1.1) | 12 | 11 | 5 | 5 | 19 | 9 | 20/20, 100% (83.2-100%) |
+  | Corrected (v2) | 9 | 7 | 4 | 6 | 7 | 4 | 18/20, 90.0% (68.3-98.8%) |
+
+  - Improvement ratio: (20/20 − 18/20) / (20/20) = 0.10. It does not pass (the target is
+    more than 0.80).
+  - Corrected overall pass: 2 of 20, 10.0% (1.2% to 31.7%). It does not pass (the target is
+    at least 80%).
+- **Hypothesis (the B8 rules, applied as the v2 pre-registration states, against this
+  assessment's baseline arm).** The pre-registration names D1 and D2 as the hypothesis and
+  checks D5. B8's "supported" rule is applied to all three, and its "no worse" rule to the
+  other dimensions.
+  - D1 is **partly supported**. It went from 12 of 20 (36.1% to 80.9%) to 9 of 20 (23.1% to
+    68.5%), and the intervals overlap.
+  - D2 is **partly supported**. It went from 11 of 20 (31.5% to 76.9%) to 7 of 20 (15.4% to
+    59.2%), and the intervals overlap.
+  - D5 is **supported** against this baseline. It went from 19 of 20 (75.1% to 99.9%) to
+    7 of 20 (15.4% to 59.2%), and the intervals do not overlap.
+  - D3, D4 and D6 are within the "no worse" rule (5 to 4, 5 to 6, 9 to 4).
+- **Beside B8's v1.2 arm (descriptive only; a different assessment).**
+  - D5 did **not stay at B8's level**: v1.2 failed 1 of 20 (0.1% to 24.9%) and v2 fails
+    7 of 20. The intervals overlap.
+  - D1 is unchanged (9 and 9). D2 (9 to 7), D3 (7 to 4) and D4 (7 to 6) are lower, and D6
+    is higher (3 to 4).
+  - Overall failures are 17 and 18 of 20.
+- **This baseline beside B8's baseline arm (both v1.1, descriptive).** D1 failures are 12
+  against 4 and D6 failures 9 against 2. Overall failure is 20 of 20 in both. The
+  pre-registration disclosed that a fresh sample of the same prompt can differ by chance.
+- **Judge figures (Phase A was not met; not calibration).**
+  - The judge failed 19 of 20 baseline items overall (75.1% to 99.9%) and 7 of 20 v2
+    items (15.4% to 59.2%).
+  - Agreement with Chad on these 40 items was D1 52.5%, D2 65.0%, D3 65.0%, D4 72.5%,
+    D5 82.5% and D6 70.0%.
+  - Its TNR is at most 27.8% on D1 to D4 and D6, so it passes far more items than Chad
+    does. It understates failure in both arms (19 against 20 baseline failures, 7 against
+    18 v2 failures), so its figures are reported only beside the human figures.
+- **Check.**
+  - The per-arm human counts were computed from the frozen reference and the key. They
+    match the human sides of the per-arm confusion counts in `v2-judge-1-report`.
+  - The same script, run on `b8-blind-1` and `b8-judge-1`, reproduces every B8 figure
+    above.
+- **Limits (disclosed in the pre-registration).**
+  - An item's arm may be guessable, because v2 items state their setup.
+  - v2 is a rewrite, so no change can be attributed to one rule.
+
+Iteration-log record for generator v2, completed (this carries into the B10 iteration log):
+
+- **After.** Against this baseline: D1 failures 12/20 → 9/20, D2 11/20 → 7/20, D5
+  19/20 → 7/20. Overall failure 20/20 → 18/20, ratio 0.10, overall pass 2/20. Beside B8's
+  v1.2 arm: D1 9 → 9, D2 9 → 7, D5 1 → 7, overall 17 → 18.
+- **Decision** (assistant's summary of the measured result; Chad decides what follows).
+  v2 lowers D1 and D2 against its baseline, but neither drop is clear of its interval.
+  D5 rose from B8's v1.2 level, and the course's Phase B targets are not met. The result
+  is reported as measured, and nothing was added to the v2 run.
+- **Next step.** Chad chose "B9 and B10 as measured (Recommended)" (November 27, 2026): B9
+  analysis and B10 submission with the B8 and v2 results reported as measured, and no
+  further generator run.
+
 ## Open items (not yet decided)
 
 | ID | Item | Plan default (applies until Chad decides) |
