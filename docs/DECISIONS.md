@@ -3584,7 +3584,55 @@ Iteration-log record (this carries into the B10 iteration log):
   failures; overall 17 of 20.
 - **After.** Pending (no run).
 - **Decision.** Pending.
-- **Next step.** Chad's go-ahead for a run and its design.
+- **Next step.** The v2 run, pre-registered in the entry "v2 run pre-registration".
+
+### November 26, 2026: v2 run pre-registration
+
+Pre-registered before any v2 or new baseline item exists; committed before the first
+collection starts.
+
+- **Owner decisions (Chad, November 26, 2026).** Chad said "Go on v2". On the labeling
+  design he chose "Fresh baseline, mixed (Recommended)". No unlabeled baseline item is
+  left (B6 labeled 30 of `baseline-b5-cohort-1` and B8 the other 20), and an assessment
+  takes one cohort per arm. So a new v1.1 baseline collection gives the arm-blind
+  comparison.
+- **Fixed now (assistant's calls; Chad can overrule each before the run).**
+  - Collection `corrected-v2-1`: `config/run.v2.local.json` (git-ignored), identical to
+    the B8 corrected config except `prompt_path` (`prompts/generator-v2.md`).
+  - Collection `baseline-2026-11-26`: `config/run.baseline.local.json`, unchanged (v1.1,
+    the original baseline's config and seed).
+  - Both use the `collect` defaults: target 50 retained, 70 slots per batch, at most 3
+    batches. Seed 2026 gives both runs the same batch-1 slots and offered sections as the
+    original baseline. They run one after the other, v2 first.
+  - Cohorts `corrected-v2-cohort-1` and `baseline-2026-11-26-cohort-1` (50 items, 10 per
+    category).
+  - One mixed assessment, `v2-blind-1`: `assessment create --assessment-id v2-blind-1
+    --cohort baseline-2026-11-26-cohort-1 --cohort corrected-v2-cohort-1 --count 20
+    --seed 20261127`, a queue of 40. No second `create` and no other seed.
+  - Chad labels and freezes it with the runbook steps. Then one measured judge run with
+    `--frozen-judge b8-judge-v2`, after the freeze.
+- **Outcome measures (the B8 rules, unchanged).**
+  - Every rate is given with its count and a 95% Clopper-Pearson interval. An unresolved
+    decision counts as a failure in both arms.
+  - Primary: overall failure per arm in `v2-blind-1`. The improvement ratio is
+    `(baseline_failure − corrected_failure) / baseline_failure` (passing only above 0.80),
+    and corrected overall pass is out of v2's 20 items (target at least 80%).
+  - Secondary, labelled: each dimension per arm, with the B8 "supported", "partly
+    supported" and "no worse" rules applied to D1 and D2 (the hypothesis), and D5 checked
+    as staying fixed. The v2 arm's figures are also set beside B8's v1.2 arm. That is
+    descriptive only, because the two arms come from different assessments.
+  - Judge figures go beside the human figures, never in their place, with "Phase A was
+    not met".
+  - Generation figures as in B5 and B8.
+- **Stop rule.** A collection that stops, falls short after 3 batches or leaves a category
+  under 10 is kept as recorded and reported. It is never resumed beyond its budget,
+  restarted with a changed prompt or replaced without Chad's dated decision.
+- **Limits, disclosed now.**
+  - v2 items state their setup, and v1.1 items mostly do not, so an item's arm may be
+    guessable (as in B8).
+  - v2 is a rewrite, so any change cannot be attributed to one rule.
+  - The new baseline is a fresh sample of the same prompt, so its failure rate may differ
+    from B8's baseline arm by chance.
 
 ## Open items (not yet decided)
 
